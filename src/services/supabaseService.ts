@@ -7,27 +7,35 @@ export const supabaseService = {
     const { data, error } = await supabase.from('admin_users').select('*');
     if (error) throw error;
     return data.map(u => ({
+      id: u.id,
       username: u.username,
       password: u.password,
       name: u.name,
+      email: u.email,
       campus: u.campus as any,
-      role: u.role as any
+      role: u.role as any,
+      accountLocked: u.account_locked || false,
+      createdAt: u.created_at
     }));
   },
 
   async saveAdminUser(user: User) {
     const { error } = await supabase.from('admin_users').upsert({
+      id: user.id,
       username: user.username,
       password: user.password,
       name: user.name,
+      email: user.email,
       campus: user.campus,
-      role: user.role
+      role: user.role,
+      account_locked: user.accountLocked || false,
+      created_at: user.createdAt
     });
     if (error) throw error;
   },
 
-  async deleteAdminUser(username: string) {
-    const { error } = await supabase.from('admin_users').delete().eq('username', username);
+  async deleteAdminUser(id: string) {
+    const { error } = await supabase.from('admin_users').delete().eq('id', id);
     if (error) throw error;
   },
 

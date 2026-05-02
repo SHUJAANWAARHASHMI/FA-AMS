@@ -2,11 +2,11 @@
 import { Employee, User, CampusCode } from '../types';
 
 export const INITIAL_USERS: User[] = [
-  { username: "shuja", password: "password1", name: "Shuja Anwar", campus: "Main Campus", role: "admin" },
-  { username: "haris", password: "password2", name: "Haris Ali", campus: "Johar Campus", role: "user" },
-  { username: "umair", password: "password3", name: "Umair Aman", campus: "Masjid Campus", role: "user" },
-  { username: "raid", password: "password4", name: "Raid Ansar", campus: "Maktab Campus", role: "user" },
-  { username: "mudeer", password: "mudeer123", name: "Maulana Syed Osama Ali", campus: "Main Campus", role: "mudeer" }
+  { id: "USR001", username: "shuja", password: "password1", name: "Shuja Anwar", email: "shuja@fiqhacademy.com", campus: "Main Campus", role: "admin", accountLocked: false, createdAt: "2024-01-01T00:00:00Z" },
+  { id: "USR002", username: "haris", password: "password2", name: "Haris Ali", email: "haris@fiqhacademy.com", campus: "Johar Campus", role: "user", accountLocked: false, createdAt: "2024-01-01T00:00:00Z" },
+  { id: "USR003", username: "umair", password: "password3", name: "Umair Aman", email: "umair@fiqhacademy.com", campus: "Masjid Campus", role: "user", accountLocked: false, createdAt: "2024-01-01T00:00:00Z" },
+  { id: "USR004", username: "raid", password: "password4", name: "Raid Ansar", email: "raid@fiqhacademy.com", campus: "Maktab Campus", role: "user", accountLocked: false, createdAt: "2024-01-01T00:00:00Z" },
+  { id: "USR005", username: "mudeer", password: "mudeer123", name: "Maulana Syed Osama Ali", email: "mudeer@fiqhacademy.com", campus: "Main Campus", role: "mudeer", accountLocked: false, createdAt: "2024-01-01T00:00:00Z" }
 ];
 
 const createDefaultLeaves = () => ({

@@ -92,7 +92,10 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
     }[campus];
     const campusEmployees = employees.filter(e => e.id.startsWith(prefix));
     const nextNum = campusEmployees.length > 0 
-      ? Math.max(...campusEmployees.map(e => parseInt(e.id.replace(prefix, '')))) + 1 
+      ? Math.max(...campusEmployees.map(e => {
+        if (!e.id) return 0;
+        return parseInt(e.id.replace(prefix, ''));
+      })) + 1 
       : 1001;
     return `${prefix}${nextNum}`;
   };
@@ -214,8 +217,8 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
             </tr>
           </thead>
           <tbody>
-            {filteredEmployees.map(emp => (
-              <tr key={emp.id} className="border-b border-bento-line hover:bg-bento-bg/20 transition-colors">
+            {filteredEmployees.map((emp, idx) => (
+              <tr key={`${emp.id}-${idx}`} className="border-b border-bento-line hover:bg-bento-bg/20 transition-colors">
                 <td className="px-4 py-4 border-r border-bento-line">
                   <div className="flex items-center">
                     <div className="w-8 h-8 bg-bento-ink text-white flex items-center justify-center font-bold text-xs mr-3 border border-bento-accent shrink-0">

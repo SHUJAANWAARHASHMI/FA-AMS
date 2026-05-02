@@ -101,7 +101,7 @@ export const SingleAttendance: React.FC<SingleAttendanceProps> = ({ employees, u
                 className="w-full pl-10 pr-4 py-3 bg-bento-bg/30 border border-bento-line text-[11px] font-black uppercase focus:ring-1 focus:ring-bento-ink focus:outline-hidden appearance-none"
               >
                 <option value="">Choose Unit...</option>
-                {filteredEmployees.map(e => <option key={e.id} value={e.id}>{e.id} | {e.name}</option>)}
+                {filteredEmployees.map((e, idx) => <option key={`${e.id}-${idx}`} value={e.id}>{e.id} | {e.name}</option>)}
               </select>
             </div>
           </div>
@@ -232,7 +232,7 @@ export const SingleAttendance: React.FC<SingleAttendanceProps> = ({ employees, u
               </thead>
               <tbody className="divide-y divide-bento-bg">
                 {selectedEmployee.attendance.slice(-5).reverse().map((att, i) => (
-                  <tr key={i} className="hover:bg-bento-bg/10 transition-colors">
+                  <tr key={`${att.date}-${i}`} className="hover:bg-bento-bg/10 transition-colors">
                     <td className="px-8 py-4 font-black">{att.date}</td>
                     <td className="px-8 py-4">
                       <span className={cn(

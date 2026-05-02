@@ -61,11 +61,14 @@ CREATE TABLE IF NOT EXISTS performance_reviews (
 
 -- 5. Admin Users Table
 CREATE TABLE IF NOT EXISTS admin_users (
-    username TEXT PRIMARY KEY,
+    id TEXT PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     name TEXT NOT NULL,
+    email TEXT,
     campus TEXT NOT NULL, -- CampusCode | 'all'
     role TEXT NOT NULL, -- 'admin' | 'mudeer' | 'user'
+    account_locked BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 

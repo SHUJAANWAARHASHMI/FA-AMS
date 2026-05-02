@@ -198,10 +198,10 @@ export const ManualAttendance: React.FC<ManualAttendanceProps> = ({ employees, u
                   </td>
                 </tr>
               ) : (
-                filteredEmployees.map(emp => {
+                filteredEmployees.map((emp, idx) => {
                   const data = statusBuffer[emp.id] || { timeIn: '', timeOut: '', status: 'Absent' as const, remarks: '' };
                   return (
-                    <tr key={emp.id} className="hover:bg-bento-bg/10 transition-colors">
+                    <tr key={`${emp.id}-${idx}`} className="hover:bg-bento-bg/10 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className="w-8 h-8 bg-bento-ink text-white flex items-center justify-center font-bold mr-3 border border-bento-accent">

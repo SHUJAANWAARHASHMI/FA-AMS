@@ -87,6 +87,9 @@ export function usePersistence() {
     if (portal === 'admin') {
       const user = users.find(u => u.username.toLowerCase() === normalizedUsername && u.password === password && (u.campus === campus || u.role === 'admin'));
       if (user) {
+        if (user.accountLocked) {
+          return { success: false, locked: true };
+        }
         setCurrentUser(user);
         // We handle persistence via useEffect on currentUser, but we could use rememberMe to decide if it should be in localStorage vs sessionStorage
         return { success: true, user };
@@ -150,13 +153,30 @@ export function usePersistence() {
   };
 
   const updateUsers = async (newUsers: User[]) => {
+    const oldUsers = users;
     setUsers(newUsers);
+    
+    setIsSyncing(true);
     try {
-      for (const user of newUsers) {
-        await supabaseService.saveAdminUser(user);
-      }
+      // Find what changed
+      const addedOrUpdated = newUsers.filter(newUser => {
+        const oldUser = oldUsers.find(u => u.id === newUser.id);
+        return !oldUser || JSON.stringify(oldUser) !== JSON.stringify(newUser);
+      });
+
+      const deleted = oldUsers.filter(oldUser => !newUsers.find(u => u.id === oldUser.id));
+
+      // Sync added/updated
+      const syncPromises = addedOrUpdated.map(user => supabaseService.saveAdminUser(user));
+
+      // Sync deletions
+      const deletePromises = deleted.map(user => supabaseService.deleteAdminUser(user.id));
+
+      await Promise.all([...syncPromises, ...deletePromises]);
     } catch (err) {
       console.error('Supabase user update error:', err);
+    } finally {
+      setIsSyncing(false);
     }
   };
 

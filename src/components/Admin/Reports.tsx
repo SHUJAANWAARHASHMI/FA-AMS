@@ -50,7 +50,15 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
         const present = monthRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
         const late = monthRecords.filter(r => r.status === 'Late').length;
         const performance = monthRecords.length > 0 ? ((monthRecords.filter(r => r.onTime).length / monthRecords.length) * 100).toFixed(1) + '%' : 'N/A';
-        return [emp.id, emp.name, emp.campus.toUpperCase(), emp.status === 'full_time' ? 'FT' : 'PT', present, late, performance];
+        return [
+          emp.id || 'N/A', 
+          emp.name || 'N/A', 
+          (emp.campus || 'Main Campus').toUpperCase(), 
+          emp.status === 'full_time' ? 'FT' : 'PT', 
+          present, 
+          late, 
+          performance
+        ];
       });
     } else if (reportType === 'late_arrivals') {
       tableHeaders = ['Date', 'ID', 'Name', 'Designation', 'Time In', 'Shift Start', 'Late Mins'];
@@ -83,7 +91,13 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
       });
     } else if (reportType === 'employee_credential') {
       tableHeaders = ['ID', 'Name', 'Designation', 'Campus', 'Status'];
-      tableData = filteredEmployees.map(emp => [emp.id, emp.name, emp.designation, emp.campus.toUpperCase(), emp.status.replace('_', ' ').toUpperCase()]);
+      tableData = filteredEmployees.map(emp => [
+        emp.id || 'N/A', 
+        emp.name || 'N/A', 
+        emp.designation || 'N/A', 
+        (emp.campus || '').toUpperCase(), 
+        (emp.status || '').replace('_', ' ').toUpperCase()
+      ]);
     }
 
     autoTable(doc, {
@@ -164,7 +178,7 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
                 <option value="all">Universal Population</option>
                 {employees
                   .filter(e => targetCampus === 'all' || e.campus === targetCampus)
-                  .map(e => <option key={e.id} value={e.id}>{e.id} - {e.name}</option>)}
+                  .map((e, idx) => <option key={`${e.id}-${idx}`} value={e.id}>{e.id} - {e.name}</option>)}
               </select>
             </div>
           </div>
@@ -221,11 +235,11 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-bento-bg">
-                {filteredEmployees.slice(0, 10).map(emp => {
+                {filteredEmployees.slice(0, 10).map((emp, idx) => {
                    const monthRecords = emp.attendance.filter(a => a.date.startsWith(month));
                    const perf = monthRecords.length > 0 ? (monthRecords.filter(r => r.onTime).length / monthRecords.length) * 100 : 0;
                    return (
-                    <tr key={emp.id} className="hover:bg-bento-bg/10 transition-colors">
+                    <tr key={`${emp.id}-${idx}`} className="hover:bg-bento-bg/10 transition-colors">
                       <td className="px-4 sm:px-6 py-4 font-black text-bento-accent">{emp.id}</td>
                       <td className="px-4 sm:px-6 py-4">
                         <div className="font-black text-bento-ink uppercase truncate max-w-[120px]">{emp.name}</div>

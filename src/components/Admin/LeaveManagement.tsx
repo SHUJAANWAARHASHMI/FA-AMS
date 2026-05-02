@@ -128,8 +128,8 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-bento-bg">
-                  {pendingRequests.map(req => (
-                    <tr key={req.id} className="hover:bg-bento-bg/10 transition-colors">
+                  {pendingRequests.map((req, idx) => (
+                    <tr key={`${req.id}-${idx}`} className="hover:bg-bento-bg/10 transition-colors">
                       <td className="px-4 sm:px-8 py-6">
                         <div className="flex items-center">
                           <div className="w-8 h-8 sm:w-9 sm:h-9 bg-bento-ink text-white flex items-center justify-center font-bold mr-3 border border-bento-accent shrink-0">
@@ -212,12 +212,12 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
                 </tr>
               </thead>
               <tbody className="divide-y divide-bento-bg">
-                {filteredEmployeesForBalances.map(emp => {
+                {filteredEmployeesForBalances.map((emp, idx) => {
                   const totalBal = (emp.leaves.annual.total - emp.leaves.annual.used) +
                                   (emp.leaves.casual.total - emp.leaves.casual.used) +
                                   (emp.leaves.medical.total - emp.leaves.medical.used);
                   return (
-                    <tr key={emp.id} className="hover:bg-bento-bg/10 transition-colors">
+                    <tr key={`${emp.id}-${idx}`} className="hover:bg-bento-bg/10 transition-colors">
                       <td className="px-4 sm:px-8 py-6">
                         <div className="font-black text-bento-ink uppercase text-[11px] truncate">{emp.name}</div>
                         <div className="text-[8px] opacity-40 font-bold uppercase tracking-widest">{emp.id}</div>

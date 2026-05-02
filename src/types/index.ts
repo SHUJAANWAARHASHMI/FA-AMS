@@ -59,9 +59,13 @@ export interface Employee {
 }
 
 export interface User {
+  id: string;
   username: string;
   password: string;
   name: string;
+  email?: string;
   campus: CampusCode | 'all';
   role: UserRole;
+  accountLocked: boolean;
+  createdAt: string;
 }
