@@ -87,6 +87,7 @@ export const supabaseService = {
         shiftEnd: emp.shift_end,
         username: emp.username,
         password: emp.password,
+        accountLocked: emp.account_locked || false,
         leaves: {
           annual: { total: emp.leaves_annual_total, used: emp.leaves_annual_used },
           casual: { total: emp.leaves_casual_total, used: emp.leaves_casual_used },
@@ -113,6 +114,7 @@ export const supabaseService = {
       shift_end: emp.shiftEnd,
       username: emp.username,
       password: emp.password,
+      account_locked: emp.accountLocked || false,
       leaves_annual_total: emp.leaves.annual.total,
       leaves_annual_used: emp.leaves.annual.used,
       leaves_casual_total: emp.leaves.casual.total,

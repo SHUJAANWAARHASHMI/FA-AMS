@@ -4,7 +4,7 @@ import { Eye, EyeOff, Building2, User as UserIcon, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface LoginProps {
-  onLogin: (username: string, password: string, portal: 'admin' | 'employee', campus?: string) => { success: boolean };
+  onLogin: (username: string, password: string, portal: 'admin' | 'employee', campus?: string, rememberMe?: boolean) => { success: boolean, locked?: boolean };
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -21,7 +21,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError('');
     const result = onLogin(username, password, portal, campus, rememberMe);
     if (!result.success) {
-      setError('Invalid username or password for selected campus/portal.');
+      if (result.locked) {
+        setError('Account Locked. Please contact Academy Administration.');
+      } else {
+        setError('Invalid username or password for selected campus/portal.');
+      }
     }
   };
 

@@ -51,6 +51,7 @@ export interface Employee {
   shiftEnd: string;
   username: string;
   password: string;
+  accountLocked?: boolean;
   attendance: AttendanceRecord[];
   leaves: Leaves;
   leaveRequests: LeaveRequest[];

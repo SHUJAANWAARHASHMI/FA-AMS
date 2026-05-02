@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS employees (
     shift_end TEXT NOT NULL,
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
+    account_locked BOOLEAN DEFAULT false,
     leaves_annual_total INTEGER DEFAULT 20,
     leaves_annual_used INTEGER DEFAULT 0,
     leaves_casual_total INTEGER DEFAULT 10,

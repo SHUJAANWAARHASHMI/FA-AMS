@@ -96,6 +96,7 @@ export const INITIAL_EMPLOYEES: Employee[] = ([
   status: 'full_time' as const,
   username: emp.id,
   password: "abc123",
+  accountLocked: false,
   attendance: [],
   leaves: createDefaultLeaves(),
   leaveRequests: [],

@@ -94,6 +94,9 @@ export function usePersistence() {
     } else {
       const employee = employees.find(e => e.username.toLowerCase() === normalizedUsername && e.password === password);
       if (employee) {
+        if (employee.accountLocked) {
+          return { success: false, locked: true };
+        }
         const userObj: Employee = { ...employee };
         setCurrentUser(userObj);
         return { success: true, user: userObj };
