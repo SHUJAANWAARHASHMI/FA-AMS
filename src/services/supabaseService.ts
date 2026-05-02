@@ -1,0 +1,174 @@
+import { supabase } from '../lib/supabase';
+import { Employee, User, AttendanceRecord, LeaveRequest, PerformanceReview } from '../types';
+
+export const supabaseService = {
+  // --- Admin Users ---
+  async getAdminUsers(): Promise<User[]> {
+    const { data, error } = await supabase.from('admin_users').select('*');
+    if (error) throw error;
+    return data.map(u => ({
+      username: u.username,
+      password: u.password,
+      name: u.name,
+      campus: u.campus as any,
+      role: u.role as any
+    }));
+  },
+
+  async saveAdminUser(user: User) {
+    const { error } = await supabase.from('admin_users').upsert({
+      username: user.username,
+      password: user.password,
+      name: user.name,
+      campus: user.campus,
+      role: user.role
+    });
+    if (error) throw error;
+  },
+
+  async deleteAdminUser(username: string) {
+    const { error } = await supabase.from('admin_users').delete().eq('username', username);
+    if (error) throw error;
+  },
+
+  // --- Employees ---
+  async getEmployees(): Promise<Employee[]> {
+    // Fetch all related data in parallel or separate queries
+    const [empRes, attRes, leaveRes, perfRes] = await Promise.all([
+      supabase.from('employees').select('*'),
+      supabase.from('attendance').select('*'),
+      supabase.from('leave_requests').select('*'),
+      supabase.from('performance_reviews').select('*')
+    ]);
+
+    if (empRes.error) throw empRes.error;
+    
+    const employees: Employee[] = empRes.data.map(emp => {
+      const attendance = (attRes.data || [])
+        .filter(a => a.employee_id === emp.id)
+        .map(a => ({
+          date: a.date,
+          timeIn: a.time_in,
+          timeOut: a.time_out,
+          lateHours: Number(a.late_hours),
+          overtime: Number(a.overtime),
+          onTime: a.on_time,
+          status: a.status as any,
+          remarks: a.remarks
+        }));
+
+      const leaveRequests = (leaveRes.data || [])
+        .filter(l => l.employee_id === emp.id)
+        .map(l => ({
+          id: l.id,
+          type: l.type as any,
+          from: l.from_date,
+          to: l.to_date,
+          reason: l.reason,
+          status: l.status as any
+        }));
+
+      const performanceReviews = (perfRes.data || [])
+        .filter(p => p.employee_id === emp.id)
+        .map(p => ({
+          date: p.date,
+          rating: p.rating,
+          feedback: p.feedback
+        }));
+
+      return {
+        id: emp.id,
+        name: emp.name,
+        designation: emp.designation,
+        department: emp.department,
+        campus: emp.campus as any,
+        status: emp.status as any,
+        shiftStart: emp.shift_start,
+        shiftEnd: emp.shift_end,
+        username: emp.username,
+        password: emp.password,
+        leaves: {
+          annual: { total: emp.leaves_annual_total, used: emp.leaves_annual_used },
+          casual: { total: emp.leaves_casual_total, used: emp.leaves_casual_used },
+          medical: { total: emp.leaves_medical_total, used: emp.leaves_medical_used }
+        },
+        attendance,
+        leaveRequests,
+        performanceReviews
+      };
+    });
+
+    return employees;
+  },
+
+  async saveEmployee(emp: Employee) {
+    const { error } = await supabase.from('employees').upsert({
+      id: emp.id,
+      name: emp.name,
+      designation: emp.designation,
+      department: emp.department,
+      campus: emp.campus,
+      status: emp.status,
+      shift_start: emp.shiftStart,
+      shift_end: emp.shiftEnd,
+      username: emp.username,
+      password: emp.password,
+      leaves_annual_total: emp.leaves.annual.total,
+      leaves_annual_used: emp.leaves.annual.used,
+      leaves_casual_total: emp.leaves.casual.total,
+      leaves_casual_used: emp.leaves.casual.used,
+      leaves_medical_total: emp.leaves.medical.total,
+      leaves_medical_used: emp.leaves.medical.used
+    });
+    if (error) throw error;
+
+    // Sync sub-collections (this is naive, but works for the current logic)
+    // In a real app, we'd update specific records, but here we'll just handle attendance/leaves when they change.
+  },
+
+  async deleteEmployee(id: string) {
+    const { error } = await supabase.from('employees').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  // --- Attendance ---
+  async upsertAttendance(employeeId: string, record: AttendanceRecord) {
+    const { error } = await supabase.from('attendance').upsert({
+      employee_id: employeeId,
+      date: record.date,
+      time_in: record.timeIn,
+      time_out: record.timeOut,
+      late_hours: record.lateHours,
+      overtime: record.overtime,
+      on_time: record.onTime,
+      status: record.status,
+      remarks: record.remarks
+    }, { onConflict: 'employee_id,date' });
+    if (error) throw error;
+  },
+
+  // --- Leave Requests ---
+  async upsertLeaveRequest(employeeId: string, req: LeaveRequest) {
+    const { error } = await supabase.from('leave_requests').upsert({
+      id: req.id,
+      employee_id: employeeId,
+      type: req.type,
+      from_date: req.from,
+      to_date: req.to,
+      reason: req.reason,
+      status: req.status
+    });
+    if (error) throw error;
+  },
+
+  // --- Performance Reviews ---
+  async addPerformanceReview(employeeId: string, review: PerformanceReview) {
+    const { error } = await supabase.from('performance_reviews').insert({
+      employee_id: employeeId,
+      date: review.date,
+      rating: review.rating,
+      feedback: review.feedback
+    });
+    if (error) throw error;
+  }
+};

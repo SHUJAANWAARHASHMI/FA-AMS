@@ -1,0 +1,243 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+
+@theme {
+  --font-jakarta: "Plus Jakarta Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-serif: "Playfair Display", serif;
+  
+  --color-bento-bg: #E4E3E0;
+  --color-bento-ink: #141414;
+  --color-bento-line: #141414;
+  --color-bento-accent: #2A5C43;
+  --color-bento-card: #FFFFFF;
+}
+
+@layer base {
+  html {
+    font-size: 16px;
+  }
+  body {
+    @apply font-jakarta text-bento-ink bg-bento-bg antialiased selection:bg-bento-accent selection:text-white;
+  }
+  
+  /* Touch target improvements */
+  button, a, input, select, textarea {
+    @apply min-h-[44px];
+  }
+}
+
+@layer components {
+  .bento-box {
+    @apply bg-white border border-bento-line p-5 overflow-hidden transition-all;
+  }
+  
+  .bento-header {
+    @apply font-serif italic text-sm mb-4 border-b border-bento-bg pb-2 flex justify-between items-center;
+  }
+
+  .stat-card {
+    @apply bg-white border border-bento-line p-4 flex flex-col justify-between;
+  }
+
+  .stat-label {
+    @apply text-[10px] uppercase font-bold opacity-60 tracking-wider;
+  }
+
+  .stat-value {
+    @apply font-mono text-3xl font-extrabold leading-none;
+  }
+
+  .btn-primary {
+    @apply px-6 py-2.5 bg-bento-ink text-white rounded-none font-bold hover:bg-bento-ink/90 transition-all active:scale-95 flex items-center justify-center space-x-2 border border-bento-line;
+  }
+
+  .btn-accent {
+    @apply px-6 py-2.5 bg-bento-accent text-white rounded-none font-bold hover:opacity-90 transition-all active:scale-95 flex items-center justify-center space-x-2 border border-bento-line;
+  }
+  
+  .card {
+    @apply bg-white rounded-none border border-bento-line overflow-hidden;
+  }
+
+  .status-pill {
+    @apply px-1.5 py-0.5 text-[10px] font-bold rounded-none uppercase;
+  }
+}
+
+/* Custom Scrollbar for Bento Look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bento-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-bento-ink);
+}
+
+/* Tablet (768px and below) */
+@media (max-width: 768px) {
+  .dashboard-stats { 
+    @apply grid grid-cols-2 gap-3;
+  }
+  .charts-container { 
+    @apply grid grid-cols-1;
+  }
+  .header-content { 
+    @apply flex flex-col items-center gap-4 text-center;
+  }
+  .action-buttons { 
+    @apply flex flex-col;
+  }
+  .action-buttons .btn { 
+    @apply w-full mb-2.5; 
+  }
+  .attendance-summary { 
+    @apply grid grid-cols-1;
+  }
+  .best-performers { 
+    @apply grid grid-cols-1;
+  }
+  .stat-value { 
+    @apply text-base; 
+  }
+}
+
+/* Mobile (576px and below) */
+@media (max-width: 576px) {
+  .login-box { 
+    @apply p-5 m-[15px] w-[90%]; 
+  }
+  .login-logo h1 { 
+    @apply text-[1.4rem]; 
+  }
+  .login-logo .icon { 
+    @apply text-[2rem] w-8 h-8; 
+  }
+  
+  .card-header h2 { 
+    @apply text-[1.1rem]; 
+  }
+  .card-body { 
+    @apply p-3; 
+  }
+  
+  .tabs-container { 
+    @apply overflow-x-auto whitespace-nowrap;
+    -webkit-overflow-scrolling: touch; 
+  }
+  .tab-item { 
+    @apply inline-block px-3.5 py-2.5; 
+  }
+  
+  .responsive-table { 
+    @apply overflow-x-auto block; 
+  }
+  
+  table, .manual-attendance-table { 
+    @apply text-xs; 
+  }
+  th, td { 
+    @apply p-2 px-1.5; 
+  }
+  
+  .dashboard-stats { 
+    @apply grid grid-cols-1 gap-2.5; 
+  }
+  
+  .stat-card { 
+    @apply p-3; 
+  }
+  
+  .calendar-day { 
+    @apply p-1 text-[10px]; 
+  }
+  .calendar-day strong { 
+    @apply text-xs; 
+  }
+  .calendar-day .day-label { 
+    @apply hidden; 
+  }
+  
+  .performer-avatar { 
+    @apply w-[45px] h-[45px] text-lg; 
+  }
+  .performer-name { 
+    @apply text-base; 
+  }
+  
+  .btn { 
+    @apply px-4 py-2.5 text-[0.9rem] min-h-[44px]; 
+  }
+  
+  input, select, textarea { 
+    @apply text-base; 
+  }
+  input[type="time"] { 
+    @apply text-base; 
+  }
+  
+  .real-time-clock { 
+    @apply text-[0.8rem]; 
+  }
+  .user-info { 
+    @apply flex flex-wrap justify-center; 
+  }
+  
+  .employee-details-grid { 
+    @apply grid grid-cols-1 gap-2.5; 
+  }
+  
+  .attendance-controls { 
+    @apply flex flex-col; 
+  }
+  .attendance-controls .btn { 
+    @apply w-full; 
+  }
+}
+
+/* Small Mobile (400px and below) */
+@media (max-width: 400px) {
+  .calendar-view { 
+    @apply text-[9px]; 
+  }
+  .calendar-day { 
+    @apply p-0.5; 
+  }
+  th, td { 
+    @apply p-[6px] px-1 text-[11px]; 
+  }
+  .campus-badge { 
+    @apply text-[0.7rem] px-1.5 py-[3px]; 
+  }
+  .status-badge { 
+    @apply text-[0.7rem] px-1.5 py-[3px]; 
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  button, .btn, .tab, input, select, a {
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .btn svg { @apply mr-2; }
+  .tab { @apply min-h-[44px] inline-flex items-center; }
+}
+
+/* Print Styles */
+@media print {
+  aside, header, nav, button {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .bg-white {
+    box-shadow: none !important;
+    border: 1px solid black !important;
+  }
+}
