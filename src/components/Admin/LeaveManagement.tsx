@@ -23,12 +23,12 @@ interface LeaveManagementProps {
 
 export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, user, onUpdateEmployees }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [campusFilter, setCampusFilter] = useState(user.campus === 'all' ? 'all' : user.campus);
+  const [campusFilter, setCampusFilter] = useState(user?.campus === 'all' ? 'all' : (user?.campus || 'all'));
 
   const pendingRequests = employees.flatMap(emp => 
     emp.leaveRequests
       .filter(req => req.status === 'Pending')
-      .map(req => ({ ...req, employeeId: emp.id, employeeName: emp.name, campus: emp.campus }))
+      .map(req => ({ ...req, employeeId: emp.id, employeeName: emp.name, campus: emp?.campus || 'Main Campus' }))
   ).filter(req => campusFilter === 'all' || req.campus === campusFilter);
 
   const handleUpdateStatus = (employeeId: string, requestId: string, newStatus: 'Approved' | 'Rejected') => {
@@ -79,7 +79,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
   };
 
   const filteredEmployeesForBalances = employees.filter(emp => {
-    const matchesCampus = campusFilter === 'all' || emp.campus === campusFilter;
+    const matchesCampus = campusFilter === 'all' || emp?.campus === campusFilter;
     const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || emp.id.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCampus && matchesSearch;
   });

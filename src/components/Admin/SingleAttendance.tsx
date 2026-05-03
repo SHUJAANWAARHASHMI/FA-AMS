@@ -21,8 +21,8 @@ export const SingleAttendance: React.FC<SingleAttendanceProps> = ({ employees, u
   });
 
   const filteredEmployees = useMemo(() => {
-    if (user.role === 'admin' || user.role === 'mudeer') return employees;
-    return employees.filter(e => e.campus === user.campus);
+    if (user?.role === 'admin' || user?.role === 'mudeer') return employees;
+    return employees.filter(e => e?.campus === user?.campus);
   }, [employees, user]);
 
   const selectedEmployee = useMemo(() => 
@@ -137,7 +137,7 @@ export const SingleAttendance: React.FC<SingleAttendanceProps> = ({ employees, u
                 </div>
                 <div>
                   <h4 className="font-serif italic text-2xl text-bento-ink leading-none">{selectedEmployee.name}</h4>
-                  <p className="text-[10px] font-black text-bento-ink opacity-30 mt-2 uppercase tracking-widest">{selectedEmployee.designation} | {selectedEmployee.campus.toUpperCase()}</p>
+                  <p className="text-[10px] font-black text-bento-ink opacity-30 mt-2 uppercase tracking-widest">{selectedEmployee.designation} | {(selectedEmployee?.campus || 'N/A').toUpperCase()}</p>
                 </div>
               </div>
               <div className="text-right">

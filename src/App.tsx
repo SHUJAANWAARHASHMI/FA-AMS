@@ -238,16 +238,16 @@ export default function App() {
             
             <div className="flex items-center space-x-2 sm:space-x-4 pl-3 sm:pl-8 border-l border-bento-line">
               <div className="text-right hidden sm:block">
-                <p className="text-xs sm:text-sm font-black text-bento-ink uppercase tracking-tighter truncate max-w-[100px]">{currentUser.name}</p>
+                <p className="text-xs sm:text-sm font-black text-bento-ink uppercase tracking-tighter truncate max-w-[100px]">{currentUser?.name || 'User'}</p>
                 <div className="flex items-center justify-end space-x-1 sm:space-x-2">
                   <span className="text-[8px] sm:text-[9px] font-bold text-white bg-bento-accent px-1 sm:px-1.5 py-0.5 uppercase tracking-widest leading-none">
-                    {isEmployeePortal ? 'STAFF' : (currentUser as User).role.toUpperCase()}
+                    {isEmployeePortal ? 'STAFF' : (currentUser as User)?.role?.toUpperCase() || 'USER'}
                   </span>
-                  <span className="text-[8px] sm:text-[9px] font-bold text-bento-ink opacity-40 uppercase tracking-widest truncate max-w-[50px]">{currentUser.campus}</span>
+                  <span className="text-[8px] sm:text-[9px] font-bold text-bento-ink opacity-40 uppercase tracking-widest truncate max-w-[50px]">{currentUser?.campus || 'ALL'}</span>
                 </div>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-bento-ink text-white flex items-center justify-center font-mono font-bold text-base sm:text-xl border border-bento-line shadow-[2px_2px_0px_#2A5C43] sm:shadow-[4px_4px_0px_#2A5C43] shrink-0">
-                {currentUser.name.charAt(0)}
+                {currentUser?.name?.charAt(0) || '?'}
               </div>
             </div>
           </div>

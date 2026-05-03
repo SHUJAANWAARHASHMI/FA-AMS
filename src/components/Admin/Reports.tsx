@@ -13,12 +13,12 @@ interface ReportsProps {
 
 export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
   const [reportType, setReportType] = useState('attendance_summary');
-  const [targetCampus, setTargetCampus] = useState(user.campus === 'all' ? 'all' : user.campus);
+  const [targetCampus, setTargetCampus] = useState(user?.campus === 'all' ? 'all' : (user?.campus || 'all'));
   const [targetEmployee, setTargetEmployee] = useState('all');
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const filteredEmployees = employees.filter(emp => {
-    const matchesCampus = targetCampus === 'all' || emp.campus === targetCampus;
+    const matchesCampus = targetCampus === 'all' || (emp?.campus === targetCampus);
     const matchesEmployee = targetEmployee === 'all' || emp.id === targetEmployee;
     return matchesCampus && matchesEmployee;
   });
@@ -157,7 +157,7 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
                 disabled={user.role !== 'admin' && user.role !== 'mudeer'}
                 className="w-full pl-10 pr-4 py-3 bg-white border border-bento-line text-[10px] font-black uppercase appearance-none disabled:opacity-30 h-[44px]"
               >
-                <option value="all">Global Network</option>
+                 <option value="all">Global Network</option>
                 <option value="Main Campus">Main Complex</option>
                 <option value="Johar Campus">Johar Facility</option>
                 <option value="Masjid Campus">Masjid Grounds</option>
@@ -176,9 +176,9 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
                 className="w-full pl-10 pr-4 py-3 bg-white border border-bento-line text-[10px] font-black uppercase appearance-none h-[44px]"
               >
                 <option value="all">Universal Population</option>
-                {employees
-                  .filter(e => targetCampus === 'all' || e.campus === targetCampus)
-                  .map((e, idx) => <option key={`${e.id}-${idx}`} value={e.id}>{e.id} - {e.name}</option>)}
+                {(employees || [])
+                  .filter(e => targetCampus === 'all' || e?.campus === targetCampus)
+                  .map((e, idx) => <option key={`${e?.id}-${idx}`} value={e?.id}>{e?.id} - {e?.name}</option>)}
               </select>
             </div>
           </div>
@@ -247,7 +247,7 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
                       </td>
                       <td className="px-4 sm:px-6 py-4">
                         <span className="status-pill px-2 py-0.5 text-[8px] sm:text-[10px]">
-                          {emp.campus.toUpperCase()}
+                          {(emp?.campus || 'N/A').toUpperCase()}
                         </span>
                       </td>
                       <td className="px-4 sm:px-6 py-4">

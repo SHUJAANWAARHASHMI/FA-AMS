@@ -72,6 +72,38 @@ CREATE TABLE IF NOT EXISTS admin_users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 
+-- Migration for existing tables
+DO $$ 
+BEGIN 
+    -- admin_users updates
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='admin_users' AND column_name='id') THEN
+        ALTER TABLE admin_users ADD COLUMN id TEXT;
+        UPDATE admin_users 
+        SET id = sub.new_id
+        FROM (
+            SELECT username, 'USR' || lpad((row_number() over (order by username))::text, 3, '0') as new_id
+            FROM admin_users
+        ) sub
+        WHERE admin_users.username = sub.username;
+        -- Note: Setting PRIMARY KEY requires dropping the old one if it was username
+        -- ALTER TABLE admin_users DROP CONSTRAINT admin_users_pkey;
+        -- ALTER TABLE admin_users ADD PRIMARY KEY (id);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='admin_users' AND column_name='email') THEN
+        ALTER TABLE admin_users ADD COLUMN email TEXT;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='admin_users' AND column_name='account_locked') THEN
+        ALTER TABLE admin_users ADD COLUMN account_locked BOOLEAN DEFAULT false;
+    END IF;
+
+    -- employees updates
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='employees' AND column_name='account_locked') THEN
+        ALTER TABLE employees ADD COLUMN account_locked BOOLEAN DEFAULT false;
+    END IF;
+END $$;
+
 -- Enable RLS (Optional but recommended)
 -- For this demo, we'll keep it simple, but in production you'd add policies.
 ALTER TABLE employees ENABLE ROW LEVEL SECURITY;

@@ -374,9 +374,9 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
 
         <div className="md:col-span-2 space-y-8 sm:space-y-10">
           <div className="grid grid-cols-2 sm:grid-cols-2 gap-6 sm:gap-8 font-mono">
-            <ProfileInfo label="Role" value={employee.designation.toUpperCase()} />
-            <ProfileInfo label="Dept" value={employee.department.toUpperCase()} />
-            <ProfileInfo label="Campus" value={employee.campus.toUpperCase()} />
+            <ProfileInfo label="Role" value={(employee?.designation || 'N/A').toUpperCase()} />
+            <ProfileInfo label="Dept" value={(employee?.department || 'N/A').toUpperCase()} />
+            <ProfileInfo label="Campus" value={(employee?.campus || 'N/A').toUpperCase()} />
             <ProfileInfo label="Shift" value={`${employee.shiftStart}-${employee.shiftEnd}`} />
             <ProfileInfo label="User ID" value={employee.username} />
             <ProfileInfo label="Security" value="SECURE" />

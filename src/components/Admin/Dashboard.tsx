@@ -45,8 +45,8 @@ interface DashboardProps {
 export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user }) => {
   const [targetDate, setTargetDate] = React.useState(getLocalDate());
   const filteredEmployees = useMemo(() => {
-    if (user.role === 'admin' || user.role === 'mudeer') return employees;
-    return employees.filter(e => e.campus === user.campus);
+    if (user?.role === 'admin' || user?.role === 'mudeer') return employees;
+    return employees.filter(e => e?.campus === user?.campus);
   }, [employees, user]);
 
   const stats = useMemo(() => {
@@ -58,6 +58,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user }) =>
     };
 
     filteredEmployees.forEach(emp => {
+      if (!emp) return;
       const stats = campusStats[emp.campus as keyof typeof campusStats];
       if (stats) {
         stats.total++;
@@ -274,7 +275,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user }) =>
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-black text-xs uppercase tracking-tight truncate">{emp.name}</h4>
-                <p className="text-[9px] sm:text-[10px] font-bold opacity-40 uppercase tracking-widest">{emp.campus} | {emp.id}</p>
+                <p className="text-[9px] sm:text-[10px] font-bold opacity-40 uppercase tracking-widest">{(emp?.campus || 'ALL')} | {emp?.id}</p>
                 <div className="flex items-center mt-1.5">
                   <div className="flex-1 h-1 bg-bento-bg">
                     <div className="h-full bg-bento-accent" style={{ width: `${100 - i * 5}%` }}></div>

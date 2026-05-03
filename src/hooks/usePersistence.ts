@@ -9,20 +9,26 @@ export function usePersistence() {
   const [employees, setEmployees] = useState<Employee[]>(() => {
     const saved = localStorage.getItem('fa_employees');
     const data = saved ? JSON.parse(saved) : INITIAL_EMPLOYEES;
-    return data.map((e: any) => ({ ...e, campus: normalizeCampus(e.campus) }));
+    return data.map((e: any) => ({ ...e, campus: normalizeCampus(e?.campus || 'main') }));
   });
 
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('fa_users');
     const data = saved ? JSON.parse(saved) : INITIAL_USERS;
-    return data.map((u: any) => ({ ...u, campus: normalizeCampus(u.campus) }));
+    return data.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') }));
   });
 
   const [currentUser, setCurrentUser] = useState<User | Employee | null>(() => {
     const saved = localStorage.getItem('fa_current_user');
-    if (!saved) return null;
-    const data = JSON.parse(saved);
-    return { ...data, campus: normalizeCampus(data.campus) };
+    if (!saved || saved === 'null') return null;
+    try {
+      const data = JSON.parse(saved);
+      if (!data) return null;
+      return { ...data, campus: normalizeCampus(data.campus) };
+    } catch (e) {
+      console.error('Failed to parse current user:', e);
+      return null;
+    }
   });
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -38,10 +44,10 @@ export function usePersistence() {
         ]);
 
         if (dbEmployees.length > 0) {
-          setEmployees(dbEmployees.map((e: any) => ({ ...e, campus: normalizeCampus(e.campus) })));
+          setEmployees(dbEmployees.map((e: any) => ({ ...e, campus: normalizeCampus(e?.campus || 'main') })));
         }
         if (dbUsers.length > 0) {
-          setUsers(dbUsers.map((u: any) => ({ ...u, campus: normalizeCampus(u.campus) })));
+          setUsers(dbUsers.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') })));
         }
       } catch (err) {
         console.error('Failed to fetch from Supabase:', err);

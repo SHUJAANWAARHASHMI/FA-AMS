@@ -267,7 +267,7 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, onUpd
                   </td>
                   <td className="px-4 py-4 border-r border-bento-line">
                     <div className="space-y-1">
-                      <div className="text-[9px] font-black uppercase text-bento-ink/60">{u.campus}</div>
+                      <div className="text-[9px] font-black uppercase text-bento-ink/60">{u?.campus || 'GLOBAL'}</div>
                       <div className="flex items-center">
                         <span className={cn(
                           "text-[8px] font-black uppercase px-1.5 py-0.5 border",
