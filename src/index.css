@@ -63,6 +63,63 @@
   .status-pill {
     @apply px-1.5 py-0.5 text-[10px] font-bold rounded-none uppercase;
   }
+
+  /* Neomorphic UI Components */
+  .neo-button {
+    @apply relative flex items-center justify-center rounded-full bg-[#f0f2f5] transition-all duration-300;
+    box-shadow: 20px 20px 60px #ced1d6, -20px -20px 60px #ffffff;
+  }
+
+  .neo-button:active {
+    box-shadow: inset 8px 8px 16px #ced1d6, inset -8px -8px 16px #ffffff;
+  }
+
+  .neo-stat-card {
+    @apply flex flex-col items-center justify-center p-4 bg-transparent;
+  }
+
+  .ripple {
+    @apply absolute rounded-full border border-bento-accent/10 pointer-events-none;
+    animation: ripple-pulse 4s infinite cubic-bezier(0.4, 0, 0.6, 1);
+  }
+
+  .bottom-nav {
+    @apply fixed bottom-4 left-1/2 -translate-x-1/2 w-[94%] max-w-[450px] h-[75px] bg-white/90 backdrop-blur-md rounded-[28px] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center justify-around px-2 z-[100];
+  }
+
+  .nav-item {
+    @apply relative flex flex-col items-center justify-center transition-all duration-300 w-14 h-14 text-slate-400 gap-1;
+  }
+
+  .nav-item.active {
+    @apply text-bento-accent;
+  }
+
+  .nav-label {
+    @apply text-[9px] font-black uppercase tracking-widest leading-none;
+  }
+
+  .compact-grid {
+    @apply grid gap-2 sm:gap-4;
+  }
+
+  .mini-label {
+    @apply text-[9px] font-black uppercase tracking-widest opacity-40;
+  }
+}
+
+@keyframes ripple-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
 }
 
 /* Custom Scrollbar for Bento Look */

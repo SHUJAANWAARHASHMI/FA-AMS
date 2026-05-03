@@ -1,5 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Employee, AttendanceRecord, AttendanceStatus, LeaveRequest } from '../../types';
 import { 
   Clock, 
@@ -12,9 +13,13 @@ import {
   AlertCircle,
   FileText,
   Save,
-  Lock
+  Lock,
+  Star,
+  Zap,
+  Target,
+  TrendingUp,
+  LogOut
 } from 'lucide-react';
-import { LogOut } from 'lucide-react';
 import { calculateLateHours, calculateOvertime, cn, getLocalDate } from '../../lib/utils';
 
 interface EmployeePortalProps {
@@ -26,20 +31,56 @@ interface EmployeePortalProps {
 
 export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmployees, onUpdateEmployees, onLogout }) => {
   const [activeTab, setActiveTab] = useState<'attendance' | 'leaves' | 'profile' | 'performance'>('attendance');
+  const [mobileTab, setMobileTab] = useState<'checkin' | 'calendar' | 'summary' | 'leaves' | 'profile'>('checkin');
   const [remarks, setRemarks] = useState('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [nowVisible, setNowVisible] = useState(new Date());
 
   const today = getLocalDate();
   const todayAttendance = useMemo(() => employee.attendance.find(a => a.date === today), [employee, today]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNowVisible(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const currentTime = useMemo(() => {
+    return nowVisible.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  }, [nowVisible]);
+
+  const attendanceStats = useMemo(() => {
+    const monthStr = currentMonth.toISOString().slice(0, 7);
+    const records = employee.attendance.filter(r => r.date.startsWith(monthStr));
+    const presents = records.filter(r => r.status === 'Present' || r.status === 'Late').length;
+    const onTime = records.filter(r => r.onTime).length;
+    return {
+      score: records.length ? Math.round((onTime / records.length) * 100) : 0,
+      presents,
+      total: records.length,
+      absents: records.filter(r => r.status === 'Absent').length
+    };
+  }, [employee, currentMonth]);
+
+  const [dateDisplay, setDateDisplay] = useState(() => {
+    const now = new Date();
+    return now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric', weekday: 'long' }).replace(',', ' -');
+  });
+
   const handleMarkAttendance = (type: 'in' | 'out') => {
     const now = new Date();
-    const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const timeString = `${hours}:${minutes}`;
     
     let updatedAttendance = [...employee.attendance];
     const existingIndex = updatedAttendance.findIndex(a => a.date === today);
 
     if (type === 'in') {
+      if (existingIndex >= 0 && updatedAttendance[existingIndex].timeIn) {
+        alert('SECURITY: Terminal already accessed for session IN');
+        return;
+      }
+      
       const lateHours = calculateLateHours(timeString, employee.shiftStart);
       const status: AttendanceStatus = lateHours > 0 ? 'Late' : 'Present';
       
@@ -51,7 +92,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
         overtime: 0,
         onTime: lateHours === 0,
         status,
-        remarks: remarks || 'Self Check-in'
+        remarks: remarks || 'Terminal Access'
       };
 
       if (existingIndex >= 0) {
@@ -59,22 +100,54 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
       } else {
         updatedAttendance.push(newRecord);
       }
+      alert(`SUCCESS: Registered Entry at ${timeString}`);
     } else {
-      if (existingIndex >= 0) {
-        const overtime = calculateOvertime(timeString, employee.shiftEnd);
-        updatedAttendance[existingIndex] = {
-          ...updatedAttendance[existingIndex],
-          timeOut: timeString,
-          overtime,
-          remarks: remarks || updatedAttendance[existingIndex].remarks
-        };
+      if (existingIndex < 0 || !updatedAttendance[existingIndex].timeIn) {
+        alert('ERROR: Entry record missing. Access denied.');
+        return;
       }
+      if (updatedAttendance[existingIndex].timeOut) {
+        alert('SECURITY: Terminal already accessed for session OUT');
+        return;
+      }
+
+      const overtime = calculateOvertime(timeString, employee.shiftEnd);
+      updatedAttendance[existingIndex] = {
+        ...updatedAttendance[existingIndex],
+        timeOut: timeString,
+        overtime,
+        remarks: remarks || updatedAttendance[existingIndex].remarks
+      };
+      alert(`SUCCESS: Registered Exit at ${timeString}`);
     }
 
     const updatedEmployees = allEmployees.map(emp => 
       emp.id === employee.id ? { ...emp, attendance: updatedAttendance } : emp
     );
     onUpdateEmployees(updatedEmployees);
+    setRemarks('');
+  };
+
+  const calculateHoursWorked = (att: AttendanceRecord | undefined) => {
+    if (!att || !att.timeIn) return "0.00";
+    
+    const [inH, inM] = att.timeIn.split(':').map(Number);
+    let outH, outM;
+
+    if (att.timeOut) {
+      [outH, outM] = att.timeOut.split(':').map(Number);
+    } else {
+      // Live calculation
+      outH = nowVisible.getHours();
+      outM = nowVisible.getMinutes();
+    }
+
+    const inMinutes = inH * 60 + inM;
+    const outMinutes = outH * 60 + outM;
+    const diff = outMinutes - inMinutes;
+    
+    if (diff < 0) return "0.00";
+    return (diff / 60).toFixed(2);
   };
 
   const [leaveForm, setLeaveForm] = useState({
@@ -101,115 +174,103 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   };
 
   const renderAttendanceTab = () => (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-full overflow-hidden">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Check-in Card */}
-        <div className="lg:col-span-1 bento-box flex flex-col items-center justify-center text-center p-4 sm:p-8 space-y-4 sm:space-y-6">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-bento-ink text-white flex items-center justify-center border-2 border-bento-accent">
-            <Clock size={28} className="sm:w-8 sm:h-8" />
+    <div className="animate-in fade-in duration-500 overflow-hidden">
+      <div className="bento-box p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="md:col-span-4 space-y-4 border-b md:border-b-0 md:border-r border-bento-line pb-4 md:pb-0 md:pr-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="p-2 bg-bento-ink text-white border border-bento-accent">
+              <Clock size={16} />
+            </div>
+            <h3 className="text-sm font-black uppercase tracking-tighter">Terminal Access</h3>
           </div>
-          <div>
-            <h3 className="text-lg sm:text-xl font-black text-bento-ink uppercase tracking-tighter">Terminal Access</h3>
-            <p className="text-[9px] sm:text-[10px] font-bold text-bento-accent tracking-[0.2em] uppercase mt-1">Shift: {employee.shiftStart} - {employee.shiftEnd}</p>
-          </div>
-
-          <div className="w-full space-y-4">
-            <textarea 
-              placeholder="Log message or remarks..."
-              className="w-full p-3 sm:p-4 bg-bento-bg/30 border border-bento-line focus:outline-hidden focus:ring-1 focus:ring-bento-ink text-xs font-bold uppercase resize-none h-20 sm:h-24"
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-            />
-            <div className="grid grid-cols-1 gap-2">
-              <button 
-                onClick={() => handleMarkAttendance('in')}
-                disabled={!!todayAttendance?.timeIn}
-                className="btn-accent w-full text-[10px] sm:text-xs tracking-widest uppercase disabled:opacity-20 py-3 sm:py-3.5"
-              >
-                CLOCK IN TERMINAL
-              </button>
-              <button 
-                onClick={() => handleMarkAttendance('out')}
-                disabled={!todayAttendance?.timeIn || !!todayAttendance?.timeOut}
-                className="btn-primary w-full text-[10px] sm:text-xs tracking-widest uppercase disabled:opacity-20 py-3 sm:py-3.5"
-              >
-                CLOCK OUT TERMINAL
-              </button>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-bento-bg/30 p-2 border border-bento-line">
+              <span className="mini-label">In</span>
+              <p className="text-sm font-black">{todayAttendance?.timeIn || '--:--'}</p>
+            </div>
+            <div className="bg-bento-bg/30 p-2 border border-bento-line">
+              <span className="mini-label">Out</span>
+              <p className="text-sm font-black">{todayAttendance?.timeOut || '--:--'}</p>
             </div>
           </div>
 
-          {todayAttendance && (
-            <div className="w-full p-3 sm:p-4 border border-bento-line space-y-2 sm:space-y-3 font-mono text-[9px] sm:text-[10px]">
-              <div className="flex justify-between font-bold border-b border-bento-bg pb-2">
-                <span className="opacity-40 uppercase">IN:</span>
-                <span className="text-bento-accent">{todayAttendance.timeIn || '--:--'}</span>
-              </div>
-              <div className="flex justify-between font-bold border-b border-bento-bg pb-2">
-                <span className="opacity-40 uppercase">OUT:</span>
-                <span className="">{todayAttendance.timeOut || '--:--'}</span>
-              </div>
-              <div className="flex justify-between items-center pt-1">
-                <span className="opacity-40 uppercase">STATUS:</span>
-                <span className={cn(
-                  "status-pill px-2 py-1",
-                  todayAttendance.status === 'Present' ? "bg-emerald-100 text-emerald-800 font-black" : "bg-orange-100 text-orange-800 font-black"
-                )}>
-                  {todayAttendance.status}
-                </span>
+          {!todayAttendance?.timeOut && (
+            <div className="space-y-2">
+              <textarea 
+                placeholder="LOG MESSAGE..."
+                className="w-full p-2 bg-bento-bg/30 border border-bento-line text-[9px] font-bold uppercase resize-none h-16"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => handleMarkAttendance('in')}
+                  disabled={!!todayAttendance?.timeIn}
+                  className="flex-1 bg-bento-accent text-white py-2 shadow-sm text-[9px] font-black uppercase tracking-widest disabled:opacity-20"
+                >
+                  CLOCK IN
+                </button>
+                <button 
+                  onClick={() => handleMarkAttendance('out')}
+                  disabled={!todayAttendance?.timeIn || !!todayAttendance?.timeOut}
+                  className="flex-1 bg-bento-ink text-white py-2 shadow-sm text-[9px] font-black uppercase tracking-widest disabled:opacity-20"
+                >
+                  CLOCK OUT
+                </button>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Calendar View */}
-        <div className="lg:col-span-2 bento-box p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between mb-6 sm:mb-8 gap-4 sm:gap-0">
-            <h3 className="font-serif italic text-base sm:text-lg text-center sm:text-left">Attendance <span className="text-[10px] font-bold not-italic opacity-40 uppercase tracking-widest ml-2">CALENDAR</span></h3>
-            <div className="flex items-center space-x-3 sm:space-x-4">
-              <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))} className="p-1 hover:bg-bento-bg border border-bento-line"><ChevronLeft size={16} /></button>
-              <span className="font-mono font-bold text-xs uppercase tracking-widest">{currentMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}</span>
-              <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))} className="p-1 hover:bg-bento-bg border border-bento-line"><ChevronRight size={16} /></button>
+          <div className="pt-4 border-t border-bento-line">
+            <h4 className="mini-label mb-2">Session Log</h4>
+            <div className="bg-bento-bg/20 p-2 border border-bento-line text-[8px] font-mono space-y-1">
+              <div className="flex justify-between"><span>ENTRY</span><span className="font-black">{todayAttendance?.timeIn || 'NONE'}</span></div>
+              <div className="flex justify-between"><span>EXIT</span><span className="font-black">{todayAttendance?.timeOut || 'NONE'}</span></div>
+              <div className="flex justify-between"><span>DURATION</span><span className="font-black">{calculateHoursWorked(todayAttendance)} H</span></div>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-7 gap-1 text-center mb-2 sm:mb-4">
-            {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(d => <div key={d} className="text-[7px] sm:text-[8px] font-black text-bento-ink opacity-30 tracking-widest">{d}</div>)}
+        <div className="md:col-span-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-serif italic text-sm">Temporal Log</h3>
+            <div className="flex items-center space-x-3">
+              <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))} className="p-1 border border-bento-line hover:bg-bento-bg">
+                <ChevronLeft size={14} />
+              </button>
+              <span className="mini-label text-bento-ink font-black">{currentMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}</span>
+              <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))} className="p-1 border border-bento-line hover:bg-bento-bg">
+                <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-7 gap-1 sm:gap-2">
-            {[...Array(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay())].map((_, i) => <div key={i} />)}
+          <div className="grid grid-cols-7 gap-1">
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <div key={`${d}-${i}`} className="text-center mini-label">{d}</div>)}
+            {[...Array(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay())].map((_, i) => <div key={`empty-${i}`} />)}
             {[...Array(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate())].map((_, i) => {
               const d = (i + 1).toString().padStart(2, '0');
               const m = (currentMonth.getMonth() + 1).toString().padStart(2, '0');
               const y = currentMonth.getFullYear();
               const dateStr = `${y}-${m}-${d}`;
               const att = employee.attendance.find(a => a.date === dateStr);
-              
               return (
                 <div key={i} className={cn(
-                  "h-10 sm:h-14 border border-bento-line/10 flex flex-col items-center justify-center font-mono text-[10px] sm:text-xs transition-all relative group cursor-pointer",
-                  !att && "bg-bento-bg/30 opacity-40",
-                  att?.status === 'Present' && "bg-emerald-50 text-emerald-900 border-emerald-200",
-                  att?.status === 'Late' && "bg-orange-50 text-orange-900 border-orange-200",
-                  att?.status === 'Absent' && "bg-red-50 text-red-900 border-red-200",
-                  att?.status === 'Leave' && "bg-purple-50 text-purple-900 border-purple-200"
+                  "aspect-square flex items-center justify-center text-[9px] font-black border border-bento-line/10 relative group cursor-pointer transition-colors",
+                  att?.status === 'Present' && "bg-bento-accent/10 text-bento-accent",
+                  att?.status === 'Late' && "bg-orange-50 text-orange-600",
+                  att?.status === 'Absent' && "bg-red-50 text-red-500",
+                  att?.status === 'Leave' && "bg-purple-100/50 text-purple-600",
+                  dateStr === today && "border-bento-accent bg-bento-bg text-bento-accent font-black shadow-[0_0_10px_rgba(42,92,67,0.1)]"
                 )}>
-                  <span className="text-[9px] sm:text-[10px] font-bold">{i + 1}</span>
-                  {att && <div className="w-1 h-1 bg-current mt-1"></div>}
-                  {att && (
-                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-bento-ink text-white p-2 rounded-none text-[8px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none uppercase tracking-widest border border-bento-accent">
-                      {att.status}: {att.timeIn} - {att.timeOut}
-                    </div>
-                  )}
+                  {i + 1}
+                  {att && <div className={cn("absolute bottom-1 w-1 h-1 rounded-full", 
+                    att.status === 'Present' ? "bg-bento-accent" : 
+                    att.status === 'Late' ? "bg-orange-600" : "bg-red-500"
+                  )}></div>}
                 </div>
               );
             })}
-          </div>
-
-          <div className="mt-6 sm:mt-8 flex flex-wrap gap-4 sm:gap-6 pt-4 sm:pt-6 border-t border-bento-bg">
-            <LegendItem color="bg-emerald-500" text="P" />
-            <LegendItem color="bg-orange-500" text="L" />
-            <LegendItem color="bg-red-500" text="A" />
-            <LegendItem color="bg-purple-500" text="LV" />
           </div>
         </div>
       </div>
@@ -224,21 +285,23 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   );
 
   const renderLeavesTab = () => (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-full overflow-hidden">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <BalanceCard label="Annual" total={employee.leaves.annual.total} used={employee.leaves.annual.used} accent />
-        <BalanceCard label="Casual" total={employee.leaves.casual.total} used={employee.leaves.casual.used} />
-        <BalanceCard label="Medical" total={employee.leaves.medical.total} used={employee.leaves.medical.used} />
-      </div>
+    <div className="animate-in fade-in duration-500 overflow-hidden">
+      <div className="bento-box p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="md:col-span-4 space-y-4 md:border-r border-bento-line md:pr-6">
+          <h3 className="text-sm font-black uppercase tracking-tighter">Balance Details</h3>
+          <div className="grid grid-cols-1 gap-2">
+            <BalanceCard label="Annual" total={employee.leaves.annual.total} used={employee.leaves.annual.used} accent />
+            <BalanceCard label="Casual" total={employee.leaves.casual.total} used={employee.leaves.casual.used} />
+            <BalanceCard label="Medical" total={employee.leaves.medical.total} used={employee.leaves.medical.used} />
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bento-box p-4 sm:p-6">
-          <h3 className="font-serif italic text-base sm:text-lg mb-6 sm:mb-8 text-center sm:text-left">Apply for Leave <span className="text-[10px] not-italic font-bold opacity-40 uppercase tracking-widest ml-2">DOCUMENT SUBMISSION</span></h3>
-          <form className="space-y-5 sm:space-y-6" onSubmit={handleApplyLeave}>
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest mb-2 opacity-50">Category</label>
+        <div className="md:col-span-8 flex flex-col md:flex-row gap-6">
+          <div className="flex-1 space-y-3">
+            <h3 className="mini-label">Quick Register</h3>
+            <form onSubmit={handleApplyLeave} className="space-y-2">
               <select 
-                className="w-full p-3 sm:p-4 bg-bento-bg/30 border border-bento-line text-xs font-bold uppercase appearance-none"
+                className="w-full p-2 bg-bento-bg/30 border border-bento-line text-[9px] font-black uppercase"
                 value={leaveForm.type}
                 onChange={(e) => setLeaveForm({...leaveForm, type: e.target.value as any})}
               >
@@ -246,89 +309,40 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
                 <option value="Casual">Casual Allowance</option>
                 <option value="Medical">Medical Hardship</option>
               </select>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest mb-2 opacity-50">From Date</label>
-                <input 
-                  type="date" 
-                  className="w-full p-3 sm:p-4 bg-bento-bg/30 border border-bento-line text-xs font-bold"
-                  value={leaveForm.from}
-                  onChange={(e) => setLeaveForm({...leaveForm, from: e.target.value})}
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <input type="date" className="p-2 border border-bento-line text-[9px] font-mono" value={leaveForm.from} onChange={e => setLeaveForm({...leaveForm, from: e.target.value})} />
+                <input type="date" className="p-2 border border-bento-line text-[9px] font-mono" value={leaveForm.to} onChange={e => setLeaveForm({...leaveForm, to: e.target.value})} />
               </div>
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest mb-2 opacity-50">To Date</label>
-                <input 
-                  type="date" 
-                  className="w-full p-3 sm:p-4 bg-bento-bg/30 border border-bento-line text-xs font-bold"
-                  value={leaveForm.to}
-                  onChange={(e) => setLeaveForm({...leaveForm, to: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest mb-2 opacity-50">Reason / Justification</label>
               <textarea 
-                className="w-full p-3 sm:p-4 bg-bento-bg/30 border border-bento-line text-xs font-bold uppercase resize-none h-24 sm:h-32"
-                placeholder="Declare reason for request..."
+                placeholder="REASON..."
+                className="w-full p-2 border border-bento-line text-[9px] font-bold uppercase resize-none h-16"
                 value={leaveForm.reason}
-                onChange={(e) => setLeaveForm({...leaveForm, reason: e.target.value})}
+                onChange={e => setLeaveForm({...leaveForm, reason: e.target.value})}
               />
-            </div>
-
-            <button className="btn-accent w-full text-[10px] sm:text-xs tracking-[0.2em] sm:tracking-[0.3em] font-black py-3.5 sm:py-4">
-              DISPATCH REQUEST
-            </button>
-          </form>
-        </div>
-
-        <div className="bento-box p-4 sm:p-6 flex flex-col">
-          <div className="mb-6 sm:mb-8 text-center sm:text-left">
-            <h3 className="font-serif italic text-base sm:text-lg">Log Archive <span className="text-[10px] not-italic font-bold opacity-40 uppercase tracking-widest ml-2">HISTORY</span></h3>
+              <button type="submit" className="w-full bg-bento-accent text-white py-2 text-[9px] font-black uppercase tracking-widest shadow-sm">
+                SUBMIT PROTOCOL
+              </button>
+            </form>
           </div>
-          <div className="flex-1 overflow-x-auto -mx-4 sm:mx-0">
-            <div className="min-w-[400px] sm:min-w-0 p-4 sm:p-0">
+
+          <div className="flex-1 border-t md:border-t-0 md:border-l border-bento-line/10 pt-4 md:pt-0 md:pl-6">
+            <h3 className="mini-label mb-3">Audit Registry</h3>
+            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-2">
               {employee.leaveRequests.length === 0 ? (
-                <div className="h-40 flex flex-col items-center justify-center text-center opacity-20">
-                  <AlertCircle size={32} className="mb-3" />
-                  <p className="font-bold uppercase tracking-widest text-[9px]">Registry Empty</p>
-                </div>
+                <div className="py-10 text-center opacity-10"><p className="text-[7px] font-black italic">NO ENTRIES FOUND</p></div>
               ) : (
-                <table className="w-full text-left font-mono text-[9px] sm:text-[10px]">
-                  <thead>
-                    <tr className="border-b-2 border-bento-ink/10 opacity-40 font-bold">
-                      <th className="py-3 uppercase">Type</th>
-                      <th className="py-3 text-center uppercase">Span</th>
-                      <th className="py-3 text-right uppercase">Verdict</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-bento-bg">
-                    {employee.leaveRequests.map(req => (
-                      <tr key={req.id}>
-                        <td className="py-3">
-                          <div className="font-black uppercase">{req.type}</div>
-                          <div className="opacity-40 italic truncate max-w-[100px] sm:max-w-[120px]">{req.reason}</div>
-                        </td>
-                        <td className="py-3 text-center opacity-60">
-                          {req.from} <br className="sm:hidden" /> <span className="hidden sm:inline">-</span> {req.to}
-                        </td>
-                        <td className="py-3 text-right">
-                          <span className={cn(
-                            "status-pill px-1.5 sm:px-2 py-0.5 sm:py-1",
-                            req.status === 'Pending' && "bg-orange-100 text-orange-800",
-                            req.status === 'Approved' && "bg-emerald-100 text-emerald-800",
-                            req.status === 'Rejected' && "bg-red-100 text-red-800"
-                          )}>
-                            {req.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                employee.leaveRequests.map((req, i) => (
+                  <div key={i} className="p-2 border border-bento-line/50 flex justify-between items-center bg-bento-bg/10 hover:bg-bento-bg/20 transition-colors">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-tighter">{req.type}</p>
+                      <p className="text-[7px] opacity-40 font-mono">{req.from} - {req.to}</p>
+                    </div>
+                    <span className={cn(
+                      "text-[7px] font-black px-1.5 py-0.5 rounded-sm border",
+                      req.status === 'Pending' ? "bg-orange-50 text-orange-600 border-orange-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                    )}>{req.status.toUpperCase()}</span>
+                  </div>
+                ))
               )}
             </div>
           </div>
@@ -338,42 +352,38 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   );
 
   const BalanceCard = ({ label, total, used, accent }: any) => {
+    const available = total - used;
     return (
-      <div className={cn("stat-card", accent && "border-l-4 sm:border-l-8 border-l-bento-accent")}>
-        <div className="stat-label text-[8px] sm:text-[10px]">{label}</div>
-        <div className="flex items-end justify-between mt-4 sm:mt-6">
-          <div className="flex flex-col">
-            <span className="stat-value text-xl sm:text-3xl">{total - used}</span>
-            <span className="text-[8px] sm:text-[9px] font-bold uppercase opacity-30 mt-1 tracking-widest">Available</span>
-          </div>
-          <div className="text-right font-mono text-[9px] sm:text-xs font-bold opacity-60 uppercase">
-            {used} / {total}
-          </div>
+      <div className={cn("bg-white border-2 border-bento-line/10 p-3 flex flex-col justify-between", accent && "border-bento-accent/30 bg-bento-accent/[0.02]")}>
+        <div className="flex justify-between items-start">
+          <span className="mini-label">{label}</span>
+          <span className="text-[9px] font-black opacity-30">{used}/{total}</span>
         </div>
-        <div className="mt-3 sm:mt-4 h-1 w-full bg-bento-bg">
-          <div className={cn("h-full transition-all duration-500", 
-            accent ? 'bg-bento-accent' : 'bg-bento-ink'
-          )} style={{ width: `${(used / total) * 100}%` }}></div>
+        <div className="flex items-baseline space-x-1 mt-2">
+          <span className="text-xl font-black tracking-tighter">{available}</span>
+          <span className="text-[8px] font-bold opacity-30 uppercase">Left</span>
+        </div>
+        <div className="mt-2 h-1 w-full bg-bento-bg rounded-full overflow-hidden">
+          <div className={cn("h-full", accent ? 'bg-bento-accent' : 'bg-bento-ink')} style={{ width: `${(used / total) * 100}%` }}></div>
         </div>
       </div>
     );
   };
 
   const renderProfileTab = () => (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500 max-w-full overflow-hidden">
-      <div className="bento-box grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 p-6 sm:p-10">
-        <div className="flex flex-col items-center space-y-4 sm:space-y-6 border-b sm:border-b-0 sm:border-r border-bento-bg pb-6 sm:pb-0 sm:pr-8">
-          <div className="w-24 h-24 sm:w-40 sm:h-40 bg-bento-ink text-white flex items-center justify-center text-4xl sm:text-6xl font-black border-4 border-bento-accent rotate-2 shadow-[8px_8px_0px_#14141410]">
+    <div className="animate-in slide-in-from-bottom-4 duration-500 overflow-hidden">
+      <div className="bento-box p-4 md:p-6 flex flex-col md:flex-row gap-6">
+        <div className="md:w-56 space-y-3">
+          <div className="aspect-square bg-bento-ink text-white flex items-center justify-center text-5xl font-black border-2 border-bento-accent">
             {employee.name.charAt(0)}
           </div>
-          <div className="text-center">
-            <h3 className="text-lg sm:text-xl font-black text-bento-ink uppercase tracking-tighter">{employee.name}</h3>
-            <span className="text-[9px] sm:text-[10px] font-bold text-bento-accent tracking-[0.2em] sm:tracking-[0.3em] uppercase opacity-60">{employee.id}</span>
+          <div className="bg-bento-bg/30 p-2 border border-bento-line text-center">
+            <h3 className="text-sm font-black text-bento-ink uppercase tracking-tighter">{employee.name}</h3>
+            <span className="mini-label">{employee.id}</span>
           </div>
         </div>
-
-        <div className="md:col-span-2 space-y-8 sm:space-y-10">
-          <div className="grid grid-cols-2 sm:grid-cols-2 gap-6 sm:gap-8 font-mono">
+        <div className="flex-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
             <ProfileInfo label="Role" value={(employee?.designation || 'N/A').toUpperCase()} />
             <ProfileInfo label="Dept" value={(employee?.department || 'N/A').toUpperCase()} />
             <ProfileInfo label="Campus" value={(employee?.campus || 'N/A').toUpperCase()} />
@@ -381,19 +391,11 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
             <ProfileInfo label="User ID" value={employee.username} />
             <ProfileInfo label="Security" value="SECURE" />
           </div>
-
-          <div className="pt-8 sm:pt-10 border-t border-bento-bg space-y-4 sm:space-y-6">
-            <h4 className="font-serif italic text-base sm:text-lg">Key Management</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <input 
-                type="password" 
-                placeholder="NEW SECRET KEY" 
-                className="w-full p-3 sm:p-4 bg-bento-bg/30 border border-bento-line text-[10px] sm:text-xs font-bold uppercase"
-              />
-              <button className="btn-primary w-full text-[10px] sm:text-xs font-black tracking-widest py-3 sm:py-4">
-                UPDATE VAULT ACCESS
-              </button>
-            </div>
+          <div className="bg-yellow-50 p-2 border border-yellow-100 flex items-start space-x-2">
+            <Lock size={12} className="text-yellow-600 mt-0.5 shrink-0" />
+            <p className="text-[8px] font-bold text-yellow-800 uppercase tracking-widest leading-normal">
+              Profile locked by Central Registry. Contact Mudeer for credential updates.
+            </p>
           </div>
         </div>
       </div>
@@ -401,84 +403,251 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   );
 
   const ProfileInfo = ({ label, value }: any) => (
-    <div className="space-y-1">
-      <span className="text-[7px] sm:text-[8px] font-black text-bento-ink opacity-30 uppercase tracking-[0.2em]">{label}</span>
-      <p className="font-bold text-bento-ink tracking-tight text-xs sm:text-sm truncate">{value}</p>
+    <div className="bg-bento-bg/20 p-2 sm:p-3 border border-bento-line/50 flex flex-col justify-center min-h-[50px]">
+      <span className="mini-label block">{label}</span>
+      <p className="font-black text-bento-ink tracking-tighter text-[10px] sm:text-xs truncate">{value}</p>
     </div>
   );
 
-  const renderPerformanceTab = () => (
-    <div className="animate-in fade-in duration-500 max-w-full overflow-hidden">
-      <div className="bento-box p-4 sm:p-6">
-        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-0">
-          <h3 className="font-serif italic text-base sm:text-lg text-center sm:text-left">Performance <span className="text-[10px] not-italic font-bold opacity-40 uppercase tracking-widest ml-2">REVIEW HISTORY</span></h3>
-          <div className="flex items-center space-x-3 bg-bento-bg/30 p-2 sm:p-3 border border-bento-line">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-bento-ink text-white flex items-center justify-center font-mono font-bold text-lg sm:text-xl border border-bento-accent shrink-0">4.8</div>
-            <span className="text-[7px] sm:text-[8px] font-black text-bento-ink opacity-40 uppercase tracking-widest">Aggregate <br/> Rating</span>
+  const renderPerformanceTab = () => {
+    const records = employee.attendance.filter(r => r.date.startsWith(currentMonth.toISOString().slice(0, 7)));
+    return (
+      <div className="animate-in fade-in duration-500 h-full">
+        <div className="bento-box p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="md:col-span-8 space-y-4">
+            <div className="bg-bento-ink p-4 rounded-sm text-white flex justify-between items-center h-24">
+              <div>
+                <h3 className="text-xl font-black italic tracking-tighter">ELITE PERFORMANCE</h3>
+                <p className="mini-label text-white/40 mt-1">Global Ranking: Top 5%</p>
+              </div>
+              <div className="text-right">
+                <p className="text-4xl font-black text-bento-accent leading-none">{attendanceStats.score}%</p>
+                <p className="mini-label text-white/40 mt-1">Index Score</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2">
+              <div className="border border-bento-line p-3">
+                <div className="flex items-center space-x-2 mb-2 text-bento-accent"><Zap size={10} /><span className="mini-label">AGILITY</span></div>
+                <p className="text-base font-black">HIGH</p>
+              </div>
+              <div className="border border-bento-line p-3">
+                <div className="flex items-center space-x-2 mb-2 text-blue-500"><Target size={10} /><span className="mini-label">KPI ACCURACY</span></div>
+                <p className="text-base font-black">94%</p>
+              </div>
+              <div className="border border-bento-line p-3">
+                <div className="flex items-center space-x-2 mb-2 text-orange-400"><TrendingUp size={10} /><span className="mini-label">MOMENTUM</span></div>
+                <p className="text-base font-black">+12%</p>
+              </div>
+            </div>
+
+            <div className="border border-bento-line p-4 h-[240px]">
+               <h4 className="mini-label mb-3">ACHIEVEMENTS GALLERY</h4>
+               <div className="space-y-2 overflow-y-auto max-h-[180px] pr-2">
+                 {[
+                   { title: 'Early Bird', date: 'Oct 2025', desc: 'Punctual for 20 days' },
+                   { title: 'Review Star', date: 'Sep 2025', desc: 'Positive Mudeer Feedback' }
+                 ].map((ach, i) => (
+                   <div key={i} className="bg-bento-bg/30 p-2 border border-bento-line flex items-center space-x-3">
+                     <Star size={14} className="text-bento-accent" />
+                     <div className="flex-1">
+                       <p className="text-[10px] font-black uppercase leading-tight">{ach.title}</p>
+                       <p className="text-[8px] opacity-40">{ach.desc}</p>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+            </div>
+          </div>
+
+          <div className="md:col-span-4 border-t md:border-t-0 md:border-l border-bento-line pt-4 md:pt-0 md:pl-4">
+            <h4 className="mini-label mb-4">ASSESSMENT LOG</h4>
+            <div className="space-y-3 overflow-y-auto max-h-[440px] pr-2">
+              {employee.performanceReviews.length === 0 ? (
+                <div className="p-8 text-center opacity-10"><AlertCircle size={24} className="mx-auto mb-2"/><p className="text-[8px] font-black">NO ENTRIES</p></div>
+              ) : (
+                employee.performanceReviews.map((rev, i) => (
+                  <div key={i} className="p-3 border border-bento-line hover:border-bento-accent transition-colors">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[8px] font-black opacity-30">{rev.date}</span>
+                      <div className="flex space-x-0.5">
+                        {[...Array(5)].map((_, j) => <Star key={j} size={6} className={j < rev.rating ? "text-bento-accent fill-bento-accent" : "text-slate-100"} />)}
+                      </div>
+                    </div>
+                    <p className="text-[9px] italic opacity-60 leading-tight">{rev.feedback}</p>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
-        <div className="overflow-x-auto -mx-4 sm:mx-0">
-          <div className="min-w-[500px] sm:min-w-0 p-4 sm:p-0">
-            {employee.performanceReviews.length === 0 ? (
-              <div className="p-12 sm:p-20 text-center opacity-20">
-                 <AlertCircle size={32} className="mx-auto mb-3" />
-                 <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Registry Empty</span>
-              </div>
+      </div>
+    );
+  };
+
+  const renderMobileCheckIn = () => (
+    <div className="flex flex-col items-center min-h-[calc(100vh-140px)] pt-6 sm:hidden bg-slate-50/50">
+      <div className="w-full flex items-center justify-between px-6 mb-8">
+        <div>
+          <h2 className="text-2xl font-black text-[#141414] tracking-tighter">Hey {employee.name.split(' ')[0]}</h2>
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1 opacity-70">Good Morning! Mark your attendance</p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <button 
+            onClick={onLogout}
+            className="w-10 h-10 flex items-center justify-center text-red-500 bg-white shadow-sm border border-slate-100 rounded-xl active:scale-95 transition-transform"
+          >
+            <LogOut size={18} />
+          </button>
+          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-xl">
+            <div className="w-full h-full bg-bento-ink text-white flex items-center justify-center font-bold text-lg">
+              {employee.name.charAt(0)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center mt-2">
+        <h1 className="text-5xl font-black text-slate-800 tracking-tighter opacity-90">{currentTime}</h1>
+        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-3">{dateDisplay}</p>
+      </div>
+
+      <div className="mt-12 relative flex items-center justify-center w-[280px] h-[280px]">
+        {/* Animated Ripples */}
+        {!todayAttendance?.timeOut && (
+          <>
+            <div className="ripple bg-bento-accent/5" style={{ animationDelay: '0s' }}></div>
+            <div className="ripple bg-bento-accent/5" style={{ animationDelay: '1.2s' }}></div>
+            <div className="ripple bg-bento-accent/5" style={{ animationDelay: '2.4s' }}></div>
+          </>
+        )}
+        
+        <button 
+          onClick={() => handleMarkAttendance(todayAttendance?.timeIn ? 'out' : 'in')}
+          disabled={!!todayAttendance?.timeOut}
+          className={cn(
+            "neo-button w-40 h-40 flex flex-col items-center justify-center z-10 disabled:opacity-50 group",
+            todayAttendance?.timeIn && !todayAttendance?.timeOut ? "text-bento-accent" : "text-slate-400"
+          )}
+        >
+          <div className="mb-3 transition-transform group-active:scale-90">
+            {todayAttendance?.timeIn && !todayAttendance?.timeOut ? (
+              <LogOut size={32} />
             ) : (
-              <table className="w-full text-left font-mono text-[9px] sm:text-[10px]">
-                <thead>
-                  <tr className="border-b-2 border-bento-ink/10 opacity-40 font-bold uppercase">
-                    <th className="py-3 sm:py-4">Timestamp</th>
-                    <th className="py-3 sm:py-4">Gauge</th>
-                    <th className="py-3 sm:py-4">Assessment</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-bento-bg">
-                  {employee.performanceReviews.map((rev, i) => (
-                    <tr key={i}>
-                      <td className="py-4 sm:py-6 font-bold">{rev.date}</td>
-                      <td className="py-4 sm:py-6">
-                        <div className="flex items-center space-x-1">
-                          {[...Array(5)].map((_, j) => (
-                            <div key={j} className={cn("w-1.5 h-1.5 sm:w-2 sm:h-2", j < rev.rating ? "bg-bento-accent" : "bg-bento-bg")}></div>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-4 sm:py-6 italic opacity-70 text-[10px] sm:text-xs">{rev.feedback}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="relative">
+                <div className="absolute inset-0 bg-bento-accent/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <Clock size={32} className="relative" />
+              </div>
             )}
           </div>
+          <span className="font-black text-[11px] uppercase tracking-widest">
+            {todayAttendance?.timeIn ? 'Check out' : 'Check in'}
+          </span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 w-full mt-auto px-4 pb-28 gap-3">
+        <div className="neo-stat-card border border-transparent hover:border-slate-100 transition-colors">
+          <div className="p-2.5 bg-white shadow-sm rounded-2xl mb-2 text-bento-accent border border-slate-50">
+            <Clock size={18} />
+          </div>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Check in</span>
+          <span className="text-xs font-black mt-1 text-slate-700">{todayAttendance?.timeIn || '--:--'}</span>
+        </div>
+        <div className="neo-stat-card border border-transparent hover:border-slate-100 transition-colors">
+          <div className="p-2.5 bg-white shadow-sm rounded-2xl mb-2 text-bento-accent border border-slate-50">
+             <LogOut size={18} />
+          </div>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Check out</span>
+          <span className="text-xs font-black mt-1 text-slate-700">{todayAttendance?.timeOut || '--:--'}</span>
+        </div>
+        <div className="neo-stat-card border border-transparent hover:border-slate-100 transition-colors">
+          <div className="p-2.5 bg-white shadow-sm rounded-2xl mb-2 text-bento-accent border border-slate-50">
+            <CheckCircle2 size={18} />
+          </div>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Hours</span>
+          <span className="text-xs font-black mt-1 text-slate-700">{calculateHoursWorked(todayAttendance)}</span>
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-10 max-w-full overflow-hidden">
-      <div className="tabs-container sticky top-4 z-[30] mx-auto w-full sm:w-fit bg-bento-ink border border-bento-line shadow-lg">
-        <nav className="flex items-center">
-          <TabButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={Clock} label="Terminal" />
-          <TabButton active={activeTab === 'leaves'} onClick={() => setActiveTab('leaves')} icon={Briefcase} label="Leaves" />
-          <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Profile" />
-          <TabButton active={activeTab === 'performance'} onClick={() => setActiveTab('performance')} icon={FileText} label="Reviews" />
-          <button 
-            onClick={onLogout}
-            className="tab-item flex items-center space-x-2 text-red-400 hover:text-red-500 hover:bg-white/5 transition-all duration-200 px-4 flex-shrink-0"
-          >
-            <LogOut size={14} className="shrink-0" />
-            <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Logout</span>
-          </button>
-        </nav>
+    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-10 max-w-full overflow-hidden min-h-screen pb-10">
+      {/* Desktop View */}
+      <div className="hidden sm:block space-y-10">
+        <div className="tabs-container sticky top-4 z-[30] mx-auto w-full sm:w-fit bg-bento-ink border border-bento-line shadow-lg">
+          <nav className="flex items-center">
+            <TabButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={Clock} label="Terminal" />
+            <TabButton active={activeTab === 'leaves'} onClick={() => setActiveTab('leaves')} icon={Briefcase} label="Leaves" />
+            <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Profile" />
+            <TabButton active={activeTab === 'performance'} onClick={() => setActiveTab('performance')} icon={FileText} label="Reviews" />
+            <button 
+              onClick={onLogout}
+              className="tab-item flex items-center space-x-2 text-red-400 hover:text-red-500 hover:bg-white/5 transition-all duration-200 px-4 flex-shrink-0"
+            >
+              <LogOut size={14} className="shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Logout</span>
+            </button>
+          </nav>
+        </div>
+
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          {activeTab === 'attendance' && renderAttendanceTab()}
+          {activeTab === 'leaves' && renderLeavesTab()}
+          {activeTab === 'profile' && renderProfileTab()}
+          {activeTab === 'performance' && renderPerformanceTab()}
+        </div>
       </div>
 
-      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-        {activeTab === 'attendance' && renderAttendanceTab()}
-        {activeTab === 'leaves' && renderLeavesTab()}
-        {activeTab === 'profile' && renderProfileTab()}
-        {activeTab === 'performance' && renderPerformanceTab()}
+      {/* Mobile View */}
+      <div className="sm:hidden flex flex-col min-h-[calc(100vh-80px)]">
+        <div className="flex-1 pb-24">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={mobileTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {mobileTab === 'checkin' && renderMobileCheckIn()}
+              {mobileTab === 'calendar' && <div className="p-4 pt-6">{renderAttendanceTab()}</div>}
+              {mobileTab === 'summary' && <div className="p-4 pt-6">{renderPerformanceTab()}</div>}
+              {mobileTab === 'leaves' && <div className="p-4 pt-6">{renderLeavesTab()}</div>}
+              {mobileTab === 'profile' && <div className="p-4 pt-6">{renderProfileTab()}</div>}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        <div className="bottom-nav">
+          {[
+            { id: 'checkin', icon: Clock, label: 'Entry' },
+            { id: 'calendar', icon: Calendar, label: 'Logs' },
+            { id: 'summary', icon: TrendingUp, label: 'Stats' },
+            { id: 'leaves', icon: Briefcase, label: 'Leaves' },
+            { id: 'profile', icon: User, label: 'Me' }
+          ].map((item) => (
+            <button 
+              key={item.id}
+              onClick={() => setMobileTab(item.id as any)} 
+              className={cn(
+                "nav-item", 
+                mobileTab === item.id && "active"
+              )}
+            >
+              {mobileTab === item.id && (
+                <motion.div
+                  layoutId="nav-bg"
+                  className="absolute inset-0 bg-bento-accent/10 rounded-2xl -z-10"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <item.icon size={20} />
+              <span className="nav-label">{item.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
