@@ -274,7 +274,9 @@ export function usePersistence() {
     const intervalMs = (systemSettings.syncInterval || 5) * 1000;
     
     const syncLoop = setInterval(async () => {
-      console.log(`[Auto-Sync] Triggering background sync (${systemSettings.syncInterval}s interval)`);
+      if (isSyncing) return; // Prevent overlapping syncs
+      
+      console.log(`[Auto-Sync] Heartbeat - Interval: ${systemSettings.syncInterval}s`);
       try {
         const [dbEmployees, dbUsers, dbSettings] = await Promise.all([
           supabaseService.getEmployees(),
@@ -282,21 +284,37 @@ export function usePersistence() {
           supabaseService.getSystemSettings()
         ]);
 
+        // Sync Settings
         if (dbSettings && JSON.stringify(dbSettings) !== JSON.stringify(systemSettings)) {
+          console.log('[Auto-Sync] Settings updated from cloud');
           setSystemSettings(dbSettings);
         }
         
+        // Sync Employees (Deep comparison)
         if (dbEmployees.length > 0) {
-          const remoteSerialized = JSON.stringify(dbEmployees.map(e => e.id).sort());
-          const localSerialized = JSON.stringify(employees.map(e => e.id).sort());
+          const remoteNormalized = dbEmployees.map((e: any) => ({ ...e, campus: normalizeCampus(e?.campus || 'main') }));
+          const remoteSerialized = JSON.stringify(remoteNormalized);
+          const localSerialized = JSON.stringify(employees);
           
           if (remoteSerialized !== localSerialized) {
-            console.log('[Auto-Sync] Remote employee list differs, updating...');
-            setEmployees(dbEmployees.map((e: any) => ({ ...e, campus: normalizeCampus(e?.campus || 'main') })));
+            console.log('[Auto-Sync] Data change detected (Leaves/Attendance), updating local state...');
+            setEmployees(remoteNormalized);
           }
         }
+
+        // Sync Admin Users
+        if (dbUsers.length > 0) {
+          const remoteSerialized = JSON.stringify(dbUsers.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') })));
+          const localSerialized = JSON.stringify(users);
+          if (remoteSerialized !== localSerialized) {
+            setUsers(dbUsers.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') })));
+          }
+        }
+        
+        setIsOnline(true);
       } catch (err) {
         console.warn('[Auto-Sync] Background sync failed:', err);
+        setIsOnline(false);
       }
     }, intervalMs);
 
