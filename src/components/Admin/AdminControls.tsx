@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { User, CampusCode, UserRole } from '../../types';
+import { User, CampusCode, UserRole, SystemSettings } from '../../types';
 import { 
   ShieldCheck, 
   UserPlus, 
@@ -17,17 +17,21 @@ import {
   Unlock, 
   Copy, 
   Filter,
-  Plus
+  Plus,
+  MapPin,
+  Settings
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface AdminControlsProps {
   users: User[];
   user: User;
+  settings: SystemSettings;
   onUpdateUsers: (users: User[]) => void;
+  onUpdateSettings: (settings: SystemSettings) => void;
 }
 
-export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, onUpdateUsers }) => {
+export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, settings, onUpdateUsers, onUpdateSettings }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -35,6 +39,21 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, onUpd
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  const handleToggleLocation = async () => {
+    const newSettings = { ...settings, enforceLocation: !settings.enforceLocation };
+    onUpdateSettings(newSettings);
+    setSettingsError(null);
+    
+    // Test persistence immediately
+    try {
+      await supabaseService.saveSystemSettings(newSettings);
+    } catch (err: any) {
+      setSettingsError(err.message || 'Sync failed');
+    }
+  };
 
   const [formData, setFormData] = useState<User>({
     id: '',
@@ -60,8 +79,8 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, onUpd
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
       const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+                           u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           u.email?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesRole = roleFilter === 'all' || u.role === roleFilter;
       const matchesStatus = statusFilter === 'all' || 
                            (statusFilter === 'locked' ? u.accountLocked : !u.accountLocked);
@@ -162,6 +181,80 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, onUpd
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Global System Configuration */}
+      {user.role === 'admin' && (
+        <div className="bento-box bg-bento-ink text-white border-bento-accent border-l-[6px]">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-3">
+                <Settings size={20} className="text-bento-accent animate-spin-slow" />
+                <h2 className="text-sm font-black uppercase tracking-[0.4em]">Strategic Overrides</h2>
+              </div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest max-w-xl leading-relaxed">
+                Configure global security protocols. These settings override individual user configurations and affect system-wide behavior.
+              </p>
+            </div>
+            
+            <div className="flex items-center space-x-4 bg-white/5 p-4 border border-white/10">
+              <div className="flex items-center space-x-3 mr-6">
+                <MapPin size={18} className={cn(settings.enforceLocation ? "text-bento-accent" : "text-slate-500")} />
+                <div>
+                  <div className="text-[9px] font-black uppercase tracking-tighter">GPS Verification</div>
+                  <div className="text-[8px] font-bold text-slate-400 uppercase">{settings.enforceLocation ? 'ENFORCED GLOBALLY' : 'BYPASSED'}</div>
+                </div>
+              </div>
+              
+              <button 
+                onClick={handleToggleLocation}
+                className={cn(
+                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
+                  settings.enforceLocation ? "bg-bento-accent" : "bg-slate-700"
+                )}
+              >
+                <span 
+                  className={cn(
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                    settings.enforceLocation ? "translate-x-5" : "translate-x-0"
+                  )}
+                />
+              </button>
+            </div>
+          </div>
+
+          {settingsError && (
+            <div className="mt-6 border-t border-white/10 pt-4 animate-in slide-in-from-top duration-300">
+              <div className="bg-red-500/20 border border-red-500/50 p-4 rounded-sm flex items-start space-x-3">
+                <ShieldCheck size={16} className="text-red-400 mt-0.5 shrink-0" />
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black uppercase text-red-100">Persistence Protocol Failure (Error: {settingsError.includes('cache') ? 'Table Missing' : 'RLS Violation'})</p>
+                  <p className="text-[9px] font-bold text-slate-300 leading-relaxed uppercase">
+                    Your database permissions are blocking this update. To fix this permanently, paste the following into your Supabase SQL Editor:
+                  </p>
+                  <div className="bg-black/40 p-3 font-mono text-[9px] text-bento-accent border border-white/10 select-all cursor-copy">
+                    {settingsError.includes('cache') ? (
+                      `CREATE TABLE IF NOT EXISTS public.system_settings (
+  id INT PRIMARY KEY,
+  enforce_location BOOLEAN DEFAULT TRUE,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public Access" ON public.system_settings FOR ALL USING (true) WITH CHECK (true);
+INSERT INTO public.system_settings (id, enforce_location) VALUES (1, true) ON CONFLICT (id) DO NOTHING;`
+                    ) : (
+                      `ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public Complete Access" ON public.system_settings FOR ALL USING (true) WITH CHECK (true);`
+                    )}
+                  </div>
+                  <p className="text-[8px] font-black text-slate-500 italic uppercase">
+                    NOTE: The switch above will still work in this session even if not saved to the database.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Header Controls */}
       <div className="bento-box space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-6">

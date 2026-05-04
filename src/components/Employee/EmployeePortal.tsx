@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Employee, AttendanceRecord, AttendanceStatus, LeaveRequest } from '../../types';
+import { Employee, AttendanceRecord, AttendanceStatus, LeaveRequest, SystemSettings } from '../../types';
 import { 
   Clock, 
   Calendar, 
@@ -20,16 +20,17 @@ import {
   TrendingUp,
   LogOut
 } from 'lucide-react';
-import { calculateLateHours, calculateOvertime, cn, getLocalDate, calculateAttendanceHours } from '../../lib/utils';
+import { calculateLateHours, calculateOvertime, cn, getLocalDate, calculateAttendanceHours, calculateAttendanceMs } from '../../lib/utils';
 
 interface EmployeePortalProps {
   employee: Employee;
   allEmployees: Employee[];
+  systemSettings: SystemSettings;
   onUpdateEmployees: (employees: Employee[]) => void;
   onLogout: () => void;
 }
 
-export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmployees, onUpdateEmployees, onLogout }) => {
+export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmployees, systemSettings, onUpdateEmployees, onLogout }) => {
   const [activeTab, setActiveTab] = useState<'attendance' | 'leaves' | 'profile' | 'performance'>('attendance');
   const [mobileTab, setMobileTab] = useState<'checkin' | 'calendar' | 'summary' | 'leaves' | 'profile'>('checkin');
   const [remarks, setRemarks] = useState('');
@@ -72,12 +73,12 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     return now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric', weekday: 'long' }).replace(',', ' -');
   });
 
-  // Precise Campus Locations derived from provided Google Maps links
+  // Precise Campus Locations adjusted for Karachi as per user request
   const CAMPUS_LOCATIONS: Record<string, { lat: number, lng: number, radius: number }> = {
-    'Main Campus': { lat: 31.4815, lng: 74.3475, radius: 250 },   // FFP / Model Town Area
-    'Johar Campus': { lat: 31.4705, lng: 74.2742, radius: 250 },  // Johar Town
-    'Masjid Campus': { lat: 31.5146, lng: 74.3439, radius: 250 }, // Mall Road/Masjid Area
-    'Maktab Campus': { lat: 31.5828, lng: 74.3214, radius: 250 }, // Walled City Area
+    'Main Campus': { lat: 24.9265, lng: 67.1256, radius: 250 },   // Gulistan-e-Johar Area, Karachi
+    'Johar Campus': { lat: 24.9180, lng: 67.1320, radius: 250 },  // Near Safari Park Area
+    'Masjid Campus': { lat: 24.8607, lng: 67.0011, radius: 250 }, // Saddar/City Area
+    'Maktab Campus': { lat: 24.8900, lng: 67.0800, radius: 250 }, // Bahadurabad Area
   };
 
   const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -97,43 +98,56 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
 
   const handleMarkAttendance = async (type: 'in' | 'out') => {
     setIsLoading(true);
-    try {
-      if (!navigator.geolocation) {
-        alert("CRITICAL: Geolocation is not supported by your browser version. Terminal access denied.");
-        setIsLoading(false);
-        return;
-      }
+    
+    // GPS Verification Protocol
+    if (systemSettings.enforceLocation) {
+      try {
+        if (!navigator.geolocation) {
+          alert("CRITICAL: Geolocation is not supported by your browser version. Terminal access denied.");
+          setIsLoading(false);
+          return;
+        }
 
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { 
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 0
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { 
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+          });
         });
-      });
 
-      const userLat = position.coords.latitude;
-      const userLng = position.coords.longitude;
-      
-      const campusConfig = CAMPUS_LOCATIONS[employee.campus] || CAMPUS_LOCATIONS['Main Campus'];
-      const distance = getDistance(userLat, userLng, campusConfig.lat, campusConfig.lng);
-      
-      // Enforce strict radius (e.g., 250 meters)
-      if (distance > campusConfig.radius) {
-        const errorMsg = `SECURITY: Position Mismatch. You are outside ${employee.campus} boundaries.\nDistance: ${Math.round(distance)}m\nAllowed: ${campusConfig.radius}m`;
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+        
+        const campusConfig = CAMPUS_LOCATIONS[employee.campus] || CAMPUS_LOCATIONS['Main Campus'];
+        const distance = getDistance(userLat, userLng, campusConfig.lat, campusConfig.lng);
+        
+        // Enforce strict radius (e.g., 250 meters)
+        if (distance > campusConfig.radius) {
+          const errorMsg = `SECURITY: Position Mismatch.\n\n` +
+                          `Detected: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}\n` +
+                          `Target: ${campusConfig.lat.toFixed(4)}, ${campusConfig.lng.toFixed(4)}\n` +
+                          `Distance: ${distance > 1000 ? Math.round(distance / 1000) + 'km' : Math.round(distance) + 'm'}\n` +
+                          `Max Allowed: ${campusConfig.radius}m\n\n` +
+                          `HINT: If you are physically at the campus, your browser's location (IP-based) may be inaccurate. ` +
+                          `Please use a device with GPS or ask Admin to disable 'GPS Verification' in Admin Controls.`;
+                        
+          alert(errorMsg);
+          setIsLoading(false);
+          return;
+        }
+      } catch (err: any) {
+        console.error('Geolocation error:', err);
+        let errorMsg = "ERROR: Failed to verify location.";
+        if (err.code === 1) errorMsg = "PERMISSIONS: Please enable GPS/Location access to mark attendance.";
+        if (err.code === 3) errorMsg = "TIMEOUT: Location verification timed out. Please try again.";
+        
         alert(errorMsg);
         setIsLoading(false);
         return;
       }
-    } catch (err: any) {
-      console.error('Geolocation error:', err);
-      let errorMsg = "ERROR: Failed to verify location.";
-      if (err.code === 1) errorMsg = "PERMISSIONS: Please enable GPS/Location access to mark attendance.";
-      if (err.code === 3) errorMsg = "TIMEOUT: Location verification timed out. Please try again.";
-      
-      alert(errorMsg);
-      setIsLoading(false);
-      return;
+    } else {
+      console.log('Location verification bypassed via Remote Admin Command');
     }
 
     const now = new Date();
@@ -142,6 +156,31 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     const seconds = now.getSeconds().toString().padStart(2, '0');
     const timeString = `${hours}:${minutes}:${seconds}`;
     
+    // Capture location and identify campus
+    let currentCoords: { lat: number; lng: number } | undefined;
+    let detectedCampus: string = employee.campus;
+    
+    try {
+      if (navigator.geolocation) {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+        });
+        currentCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        
+        // Find nearest campus from defined locations
+        let closestDist = Infinity;
+        Object.entries(CAMPUS_LOCATIONS).forEach(([name, loc]) => {
+          const d = getDistance(pos.coords.latitude, pos.coords.longitude, loc.lat, loc.lng);
+          if (d < loc.radius && d < closestDist) {
+            closestDist = d;
+            detectedCampus = name;
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Could not capture location for audit:', e);
+    }
+
     const latestEmployee = allEmployees.find(emp => emp.id === employee.id) || employee;
     let updatedAttendance = [...latestEmployee.attendance];
     const existingIndex = updatedAttendance.findIndex(a => a.date === today);
@@ -162,7 +201,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
 
         updatedAttendance[existingIndex] = {
           ...record,
-          sessions: [...sessions, { checkIn: timeString, checkOut: '' }],
+          sessions: [...sessions, { checkIn: timeString, checkOut: '', location: currentCoords, campusName: detectedCampus }],
           timeIn: record.timeIn || timeString,
           status: record.status === 'Present' ? status : record.status
         };
@@ -171,7 +210,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
           date: today,
           timeIn: timeString,
           timeOut: '',
-          sessions: [{ checkIn: timeString, checkOut: '' }],
+          sessions: [{ checkIn: timeString, checkOut: '', location: currentCoords, campusName: detectedCampus }],
           lateHours,
           overtime: 0,
           onTime: lateHours === 0,
@@ -180,7 +219,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
         };
         updatedAttendance.push(newRecord);
       }
-      alert(`SUCCESS: Registered Entry at ${timeString}`);
+      alert(`SUCCESS: Registered Entry at ${timeString} (${detectedCampus})`);
     } else {
       if (existingIndex < 0) {
         alert('ERROR: Entry record missing. Access denied.');
@@ -235,8 +274,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     if (sessions.length > 0) {
       if (!activeSession) return null;
       
-      const totalHours = Number(calculateAttendanceHours(todayAttendance, nowVisible));
-      const totalMs = totalHours * 3600000;
+      const totalMs = calculateAttendanceMs(todayAttendance, nowVisible);
 
       const h = Math.floor(totalMs / 3600000);
       const m = Math.floor((totalMs % 3600000) / 60000);
@@ -245,8 +283,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     }
 
     if (!todayAttendance.timeIn || todayAttendance.timeOut) return null;
-    const diffHours = Number(calculateAttendanceHours(todayAttendance, nowVisible));
-    const diffMs = diffHours * 3600000;
+    const diffMs = calculateAttendanceMs(todayAttendance, nowVisible);
     
     const h = Math.floor(diffMs / 3600000);
     const m = Math.floor((diffMs % 3600000) / 60000);
@@ -277,8 +314,11 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     alert('Leave request submitted successfully!');
   };
 
-  const renderAttendanceTab = () => (
-    <div className="animate-in fade-in duration-500 overflow-hidden">
+  const renderAttendanceTab = () => {
+    const activeSession = todayAttendance?.sessions?.find(s => !s.checkOut);
+    
+    return (
+      <div className="animate-in fade-in duration-500 overflow-hidden">
       <div className="bento-box p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="md:col-span-4 space-y-4 border-b md:border-b-0 md:border-r border-bento-line pb-4 md:pb-0 md:pr-6">
           <div className="flex items-center space-x-3 mb-4">
@@ -317,6 +357,14 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
             />
+            {activeSession && (
+              <div className="bg-bento-accent/10 border border-bento-accent/30 p-2 text-center animate-pulse">
+                <p className="text-[7px] font-black text-bento-accent uppercase tracking-widest">SESSION IN PROGRESS</p>
+                <p className="text-[9px] font-mono text-white mt-1">CHECKED IN AT: <span className="font-black text-bento-accent">{activeSession.checkIn}</span></p>
+                <p className="text-[7px] font-medium text-slate-400 mt-0.5">LOCATION: <span className="font-black text-slate-200 uppercase">{activeSession.campusName || 'DETECTING...'}</span></p>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <button 
                 onClick={() => handleMarkAttendance('in')}
@@ -336,11 +384,47 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
           </div>
 
           <div className="pt-4 border-t border-bento-line">
-            <h4 className="mini-label mb-2">Session Log</h4>
-            <div className="bg-bento-bg/20 p-2 border border-bento-line text-[8px] font-mono space-y-1">
-              <div className="flex justify-between"><span>ENTRY</span><span className="font-black">{todayAttendance?.timeIn || 'NONE'}</span></div>
-              <div className="flex justify-between"><span>EXIT</span><span className="font-black">{todayAttendance?.timeOut || 'NONE'}</span></div>
-              <div className="flex justify-between"><span>DURATION</span><span className="font-black">{calculateHoursWorked(todayAttendance)} H</span></div>
+            <h4 className="mini-label mb-2">Session History (Today)</h4>
+            <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+              {todayAttendance?.sessions && todayAttendance.sessions.length > 0 ? (
+                todayAttendance.sessions.map((session, idx) => (
+                  <div key={idx} className="bg-bento-bg/20 p-2 border border-bento-line text-[8px] font-mono">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[7px] font-black text-slate-400">SESSION #{idx + 1}</span>
+                      {!session.checkOut && (
+                        <span className="flex items-center gap-1 text-bento-accent animate-pulse">
+                          <div className="w-1 h-1 bg-bento-accent rounded-full" />
+                          ACTIVE
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex justify-between"><span>IN:</span><span className="font-black">{session.checkIn}</span></div>
+                    <div className="flex justify-between"><span>OUT:</span><span className="font-black">{session.checkOut || 'PENDING'}</span></div>
+                    {session.location && (
+                      <div className="flex flex-col mt-1 pt-1 border-t border-bento-line/30 text-[7px] text-bento-accent">
+                        <div className="flex justify-between">
+                          <span>LOCATION:</span>
+                          <span className="font-black underline">{session.campusName || 'OFF-CAMPUS'}</span>
+                        </div>
+                        <div className="flex justify-between mt-0.5 opacity-70">
+                          <span>COORDS:</span>
+                          <span>{session.location.lat.toFixed(4)}, {session.location.lng.toFixed(4)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="bg-bento-bg/10 p-4 border border-dashed border-bento-line text-center">
+                  <p className="text-[8px] font-bold text-slate-400 italic">NO ACTIVE REQUISITIONS</p>
+                </div>
+              )}
+              {todayAttendance && (
+                <div className="bg-bento-ink text-white p-2 text-[8px] font-mono flex justify-between">
+                  <span>TOTAL WORKED</span>
+                  <span className="font-black">{calculateHoursWorked(todayAttendance)} H</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -389,7 +473,8 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   const LegendItem = ({ color, text }: any) => (
     <div className="flex items-center space-x-1.5 sm:space-x-2">

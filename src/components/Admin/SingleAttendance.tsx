@@ -247,7 +247,14 @@ export const SingleAttendance: React.FC<SingleAttendanceProps> = ({ employees, u
                         {att.status.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-8 py-4 font-bold opacity-60">{att.timeIn} - {att.timeOut}</td>
+                    <td className="px-8 py-4 font-bold opacity-60">
+                      <div>{att.timeIn} - {att.timeOut}</div>
+                      {att.sessions && att.sessions.map((s, idx) => s.location && (
+                        <div key={idx} className="text-[7px] text-bento-accent mt-1 opacity-80 uppercase tracking-tighter">
+                          Session {idx+1}: {s.campusName || 'OFF-CAMPUS'} ({s.location.lat.toFixed(4)}, {s.location.lng.toFixed(4)})
+                        </div>
+                      ))}
+                    </td>
                     <td className="px-8 py-4">
                       {att.lateHours > 0 && <span className="text-red-500 font-black tracking-tighter">DELAYED: {att.lateHours.toFixed(1)}H</span>}
                       {att.overtime > 0 && <span className="text-bento-accent font-black tracking-tighter ml-2">SURPLUS: {att.overtime.toFixed(1)}H</span>}

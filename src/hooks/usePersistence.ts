@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Employee, User } from '../types';
+import { Employee, User, SystemSettings } from '../types';
 import { INITIAL_EMPLOYEES, INITIAL_USERS } from '../data/initialData';
 import { supabaseService } from '../services/supabaseService';
 import { normalizeCampus } from '../lib/utils';
@@ -16,6 +16,11 @@ export function usePersistence() {
     const saved = localStorage.getItem('fa_users');
     const data = saved ? JSON.parse(saved) : INITIAL_USERS;
     return data.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') }));
+  });
+
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
+    const saved = localStorage.getItem('fa_settings');
+    return saved ? JSON.parse(saved) : { enforceLocation: true };
   });
 
   const [currentUser, setCurrentUser] = useState<User | Employee | null>(() => {
@@ -40,12 +45,17 @@ export function usePersistence() {
       try {
         setIsSyncing(true);
         console.log('Fetching data from Supabase...');
-        const [dbEmployees, dbUsers] = await Promise.all([
+        const [dbEmployees, dbUsers, dbSettings] = await Promise.all([
           supabaseService.getEmployees(),
-          supabaseService.getAdminUsers()
+          supabaseService.getAdminUsers(),
+          supabaseService.getSystemSettings()
         ]);
 
         setIsOnline(true);
+        if (dbSettings) {
+          setSystemSettings(dbSettings);
+        }
+
         if (dbEmployees.length > 0) {
           console.log(`Found ${dbEmployees.length} employees in Supabase`);
           setEmployees(dbEmployees.map((e: any) => ({ ...e, campus: normalizeCampus(e?.campus || 'main') })));
@@ -101,6 +111,10 @@ export function usePersistence() {
     localStorage.setItem('fa_current_user', JSON.stringify(currentUser));
   }, [currentUser]);
 
+  useEffect(() => {
+    localStorage.setItem('fa_settings', JSON.stringify(systemSettings));
+  }, [systemSettings]);
+
   // Keep currentUser in sync with the employees/users lists
   useEffect(() => {
     if (!currentUser) return;
@@ -117,6 +131,22 @@ export function usePersistence() {
       }
     }
   }, [employees, users]);
+
+  const updateSystemSettings = async (newSettings: SystemSettings) => {
+    // Optimistic update
+    setSystemSettings(newSettings);
+    localStorage.setItem('fa_settings', JSON.stringify(newSettings));
+    
+    setIsSyncing(true);
+    try {
+      await supabaseService.saveSystemSettings(newSettings);
+    } catch (err) {
+      console.warn('Failed to sync system settings to cloud, strictly using local storage:', err);
+      // We don't rollback state here because we want local to work if DB fails
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const login = (username: string, password: string, portal: 'admin' | 'employee', campus?: string, rememberMe?: boolean) => {
     const normalizedUsername = username.toLowerCase();
@@ -233,6 +263,7 @@ export function usePersistence() {
   return {
     employees,
     users,
+    systemSettings,
     currentUser,
     isSyncing,
     isOnline,
@@ -240,6 +271,7 @@ export function usePersistence() {
     logout,
     updateEmployees,
     updateUsers,
+    updateSystemSettings,
     setCurrentUser
   };
 }

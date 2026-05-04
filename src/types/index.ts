@@ -6,6 +6,12 @@ export type AttendanceStatus = 'Present' | 'Late' | 'Absent' | 'Holiday' | 'Leav
 export interface AttendanceSession {
   checkIn: string;
   checkOut: string;
+  location?: { lat: number; lng: number };
+  campusName?: string;
+}
+
+export interface SystemSettings {
+  enforceLocation: boolean;
 }
 
 export interface AttendanceRecord {

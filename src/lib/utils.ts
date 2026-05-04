@@ -46,48 +46,53 @@ export function calculateOvertime(timeOut: string, shiftEnd: string): number {
   return 0;
 }
 
-export function calculateAttendanceHours(att: any, now?: Date): string {
-  if (!att) return "0.00";
+export function calculateAttendanceMs(att: any, now?: Date): number {
+  if (!att) return 0;
+  
+  const referenceDate = now || new Date();
+  let totalMs = 0;
   
   // If we have sessions, calculate total from sessions
   if (att.sessions && att.sessions.length > 0) {
-    let totalMs = 0;
     att.sessions.forEach((session: any) => {
       const [inH, inM, inS] = session.checkIn.split(':').map(Number);
-      const inDate = now ? new Date(now) : new Date();
+      const inDate = new Date(referenceDate);
       inDate.setHours(inH, inM, inS || 0, 0);
       
       let outDate;
       if (session.checkOut) {
         const [outH, outM, outS] = session.checkOut.split(':').map(Number);
-        outDate = now ? new Date(now) : new Date();
+        outDate = new Date(referenceDate);
         outDate.setHours(outH, outM, outS || 0, 0);
-      } else if (now) {
-        outDate = now;
+      } else {
+        outDate = referenceDate;
       }
 
-      if (outDate) {
-        const diff = outDate.getTime() - inDate.getTime();
-        if (diff > 0) totalMs += diff;
-      }
+      const diff = outDate.getTime() - inDate.getTime();
+      if (diff > 0) totalMs += diff;
     });
-    return (totalMs / 3600000).toFixed(2);
-  }
+  } else if (att.timeIn) {
+    // Fallback for logic without sessions (old records)
+    const [inH, inM, inS] = att.timeIn.split(':').map(Number);
+    let outDate = new Date(referenceDate);
+    
+    if (att.timeOut) {
+      const [outH, outM, outS] = att.timeOut.split(':').map(Number);
+      outDate.setHours(outH, outM, outS || 0, 0);
+    }
 
-  // Fallback for logic without sessions (old records)
-  if (!att.timeIn) return "0.00";
-  const [inH, inM, inS] = att.timeIn.split(':').map(Number);
-  let outDate = now || new Date();
+    const inDate = new Date(outDate);
+    inDate.setHours(inH, inM, inS || 0, 0);
+    const diffMs = outDate.getTime() - inDate.getTime();
+    if (diffMs > 0) totalMs = diffMs;
+  }
   
-  if (att.timeOut) {
-    const [outH, outM, outS] = att.timeOut.split(':').map(Number);
-    outDate.setHours(outH, outM, outS || 0, 0);
-  }
+  return totalMs;
+}
 
-  const inDate = new Date(outDate);
-  inDate.setHours(inH, inM, inS || 0, 0);
-  const diffMs = outDate.getTime() - inDate.getTime();
-  return diffMs < 0 ? "0.00" : (diffMs / 3600000).toFixed(2);
+export function calculateAttendanceHours(att: any, now?: Date): string {
+  const totalMs = calculateAttendanceMs(att, now);
+  return (totalMs / 3600000).toFixed(2);
 }
 
 export function formatTimeDisplay(decimalHours: number): string {

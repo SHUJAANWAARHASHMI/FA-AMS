@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Employee, User, AttendanceRecord, LeaveRequest, PerformanceReview } from '../types';
+import { Employee, User, AttendanceRecord, LeaveRequest, PerformanceReview, SystemSettings } from '../types';
 
 export const supabaseService = {
   // --- Admin Users ---
@@ -142,6 +142,47 @@ export const supabaseService = {
   async deleteEmployee(id: string) {
     const { error } = await supabase.from('employees').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  // --- System Settings ---
+  async getSystemSettings(): Promise<SystemSettings> {
+    try {
+      const { data, error } = await supabase.from('system_settings').select('*').single();
+      if (error) {
+        // PGRST205: Table not found, PGRST116: Row not found, 42501: RLS Violation
+        if (error.code === 'PGRST116') return { enforceLocation: true };
+        if (error.code === 'PGRST205' || error.code === '42501') {
+          console.info(`System Settings sync issue (${error.code}). Using local state.`);
+          const local = localStorage.getItem('fa_settings');
+          return local ? JSON.parse(local) : { enforceLocation: true };
+        }
+        throw error;
+      }
+      return {
+        enforceLocation: data.enforce_location ?? true
+      };
+    } catch (err) {
+      const local = localStorage.getItem('fa_settings');
+      return local ? JSON.parse(local) : { enforceLocation: true };
+    }
+  },
+
+  async saveSystemSettings(settings: SystemSettings) {
+    try {
+      const { error } = await supabase.from('system_settings').upsert({
+        id: 1, // Only one row
+        enforce_location: settings.enforceLocation,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+      
+      if (error) {
+        console.error('Supabase Sync Error:', error);
+        throw error; // Rethrow to be caught by the hook
+      }
+    } catch (err: any) {
+      // Re-throw specific message for UI to handle
+      throw err;
+    }
   },
 
   // --- Attendance ---

@@ -38,7 +38,7 @@ import { EmployeePortal } from './components/Employee/EmployeePortal';
 type Tab = 'dashboard' | 'manual-attendance' | 'single-attendance' | 'employee-management' | 'leave-management' | 'reports' | 'backup-restore' | 'admin-controls';
 
 export default function App() {
-  const { employees, users, currentUser, login, logout, updateEmployees, updateUsers, isSyncing, isOnline } = usePersistence();
+  const { employees, users, systemSettings, currentUser, login, logout, updateEmployees, updateUsers, updateSystemSettings, isSyncing, isOnline } = usePersistence();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -80,6 +80,7 @@ export default function App() {
       return <EmployeePortal 
         employee={currentUser as Employee} 
         allEmployees={employees}
+        systemSettings={systemSettings}
         onUpdateEmployees={updateEmployees} 
         onLogout={logout}
       />;
@@ -103,7 +104,7 @@ export default function App() {
       case 'backup-restore':
         return <BackupRestore employees={employees} users={users} onUpdateEmployees={updateEmployees} onUpdateUsers={updateUsers} />;
       case 'admin-controls':
-        return <AdminControls users={users} user={adminUser} onUpdateUsers={updateUsers} />;
+        return <AdminControls users={users} user={adminUser} settings={systemSettings} onUpdateUsers={updateUsers} onUpdateSettings={updateSystemSettings} />;
       default:
         return <AdminDashboard employees={employees} user={adminUser} />;
     }
