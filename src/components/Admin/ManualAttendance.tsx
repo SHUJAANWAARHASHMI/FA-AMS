@@ -78,10 +78,15 @@ export const ManualAttendance: React.FC<ManualAttendanceProps> = ({ employees, u
           finalStatus = 'Late';
         }
 
+        // Preserve existing sessions if any
+        const existingRecord = emp.attendance.find(a => a.date === date);
+        const sessions = existingRecord?.sessions || [];
+
         const newRecord: AttendanceRecord = {
           date,
           timeIn,
           timeOut,
+          sessions,
           lateHours,
           overtime,
           onTime: lateHours === 0 && (status === 'Present' || status === 'Late'),

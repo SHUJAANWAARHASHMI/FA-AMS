@@ -32,25 +32,39 @@ export function usePersistence() {
   });
 
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
 
   // Load from Supabase on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsSyncing(true);
+        console.log('Fetching data from Supabase...');
         const [dbEmployees, dbUsers] = await Promise.all([
           supabaseService.getEmployees(),
           supabaseService.getAdminUsers()
         ]);
 
+        setIsOnline(true);
         if (dbEmployees.length > 0) {
+          console.log(`Found ${dbEmployees.length} employees in Supabase`);
           setEmployees(dbEmployees.map((e: any) => ({ ...e, campus: normalizeCampus(e?.campus || 'main') })));
+        } else {
+          console.log('Supabase empty, initializing with local data...');
+          // Force sync local employees to Supabase
+          await forceSyncEmployeesToSupabase(employees);
         }
+
         if (dbUsers.length > 0) {
+          console.log(`Found ${dbUsers.length} admin users in Supabase`);
           setUsers(dbUsers.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') })));
+        } else {
+          // Initialize users if empty
+          users.forEach(u => supabaseService.saveAdminUser(u));
         }
       } catch (err) {
         console.error('Failed to fetch from Supabase:', err);
+        setIsOnline(false);
       } finally {
         setIsSyncing(false);
       }
@@ -58,6 +72,22 @@ export function usePersistence() {
 
     fetchData();
   }, []);
+
+  const forceSyncEmployeesToSupabase = async (employeeList: Employee[]) => {
+    try {
+      for (const emp of employeeList) {
+        await supabaseService.saveEmployee(emp);
+        if (emp.attendance.length > 0) {
+          await supabaseService.upsertAttendance(emp.id, emp.attendance);
+        }
+        for (const req of emp.leaveRequests) {
+          await supabaseService.upsertLeaveRequest(emp.id, req);
+        }
+      }
+    } catch (err) {
+      console.error('Force sync error:', err);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('fa_employees', JSON.stringify(employees));
@@ -97,7 +127,6 @@ export function usePersistence() {
           return { success: false, locked: true };
         }
         setCurrentUser(user);
-        // We handle persistence via useEffect on currentUser, but we could use rememberMe to decide if it should be in localStorage vs sessionStorage
         return { success: true, user };
       }
     } else {
@@ -134,17 +163,32 @@ export function usePersistence() {
 
       // Sync added/updated
       const syncPromises = addedOrUpdated.map(async (emp) => {
+        const oldEmp = oldEmployees.find(e => e.id === emp.id);
+        
+        // Always save employee basic info if they are new or changed
         await supabaseService.saveEmployee(emp);
         
-        // Parallelize attendance and leave updates for the employee
-        const attendancePromises = emp.attendance.map(record => 
-          supabaseService.upsertAttendance(emp.id, record)
-        );
-        const leavePromises = emp.leaveRequests.map(req => 
-          supabaseService.upsertLeaveRequest(emp.id, req)
-        );
+        // Find specifically which attendance records changed or are new
+        const changedAttendance = emp.attendance.filter(record => {
+          if (!oldEmp) return true;
+          const oldRecord = oldEmp.attendance.find(r => r.date === record.date);
+          return !oldRecord || JSON.stringify(oldRecord) !== JSON.stringify(record);
+        });
+
+        if (changedAttendance.length > 0) {
+          await supabaseService.upsertAttendance(emp.id, changedAttendance);
+        }
         
-        await Promise.all([...attendancePromises, ...leavePromises]);
+        // Handle leave requests specifically too
+        const changedLeaves = emp.leaveRequests.filter(req => {
+          if (!oldEmp) return true;
+          const oldReq = oldEmp.leaveRequests.find(r => r.id === req.id);
+          return !oldReq || JSON.stringify(oldReq) !== JSON.stringify(req);
+        });
+
+        for (const req of changedLeaves) {
+          await supabaseService.upsertLeaveRequest(emp.id, req);
+        }
       });
 
       // Sync deletions
@@ -191,6 +235,7 @@ export function usePersistence() {
     users,
     currentUser,
     isSyncing,
+    isOnline,
     login,
     logout,
     updateEmployees,

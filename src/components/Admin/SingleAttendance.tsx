@@ -59,10 +59,15 @@ export const SingleAttendance: React.FC<SingleAttendanceProps> = ({ employees, u
       finalStatus = 'Late';
     }
 
+    // Preserve existing sessions if editing
+    const existingRecord = selectedEmployee.attendance.find(a => a.date === date);
+    const sessions = existingRecord?.sessions || [];
+
     const newRecord: AttendanceRecord = {
       date,
       timeIn: form.timeIn,
       timeOut: form.timeOut,
+      sessions,
       lateHours,
       overtime,
       onTime: lateHours === 0 && (form.status === 'Present' || form.status === 'Late'),

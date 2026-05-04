@@ -3,10 +3,16 @@ export type CampusCode = 'Main Campus' | 'Johar Campus' | 'Masjid Campus' | 'Mak
 export type UserRole = 'admin' | 'mudeer' | 'user' | 'employee';
 export type AttendanceStatus = 'Present' | 'Late' | 'Absent' | 'Holiday' | 'Leave';
 
+export interface AttendanceSession {
+  checkIn: string;
+  checkOut: string;
+}
+
 export interface AttendanceRecord {
   date: string;
   timeIn: string;
   timeOut: string;
+  sessions?: AttendanceSession[];
   lateHours: number;
   overtime: number;
   onTime: boolean;

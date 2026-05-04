@@ -20,7 +20,7 @@ export const supabaseService = {
   },
 
   async saveAdminUser(user: User) {
-    const { error } = await supabase.from('admin_users').upsert({
+    const payload: any = {
       id: user.id,
       username: user.username,
       password: user.password,
@@ -28,9 +28,9 @@ export const supabaseService = {
       email: user.email,
       campus: user.campus,
       role: user.role,
-      account_locked: user.accountLocked || false,
       created_at: user.createdAt
-    });
+    };
+    const { error } = await supabase.from('admin_users').upsert(payload);
     if (error) throw error;
   },
 
@@ -62,7 +62,10 @@ export const supabaseService = {
           overtime: Number(a.overtime),
           onTime: a.on_time,
           status: a.status as any,
-          remarks: a.remarks
+          remarks: a.remarks?.split('||SESSIONS:')[0] || a.remarks,
+          sessions: a.remarks?.includes('||SESSIONS:') 
+            ? JSON.parse(a.remarks.split('||SESSIONS:')[1]) 
+            : []
         }));
 
       const leaveRequests = (leaveRes.data || [])
@@ -111,7 +114,7 @@ export const supabaseService = {
   },
 
   async saveEmployee(emp: Employee) {
-    const { error } = await supabase.from('employees').upsert({
+    const payload: any = {
       id: emp.id,
       name: emp.name,
       designation: emp.designation,
@@ -122,14 +125,14 @@ export const supabaseService = {
       shift_end: emp.shiftEnd,
       username: emp.username,
       password: emp.password,
-      account_locked: emp.accountLocked || false,
       leaves_annual_total: emp.leaves.annual.total,
       leaves_annual_used: emp.leaves.annual.used,
       leaves_casual_total: emp.leaves.casual.total,
       leaves_casual_used: emp.leaves.casual.used,
       leaves_medical_total: emp.leaves.medical.total,
       leaves_medical_used: emp.leaves.medical.used
-    });
+    };
+    const { error } = await supabase.from('employees').upsert(payload);
     if (error) throw error;
 
     // Sync sub-collections (this is naive, but works for the current logic)
@@ -142,19 +145,27 @@ export const supabaseService = {
   },
 
   // --- Attendance ---
-  async upsertAttendance(employeeId: string, record: AttendanceRecord) {
-    const { error } = await supabase.from('attendance').upsert({
-      employee_id: employeeId,
-      date: record.date,
-      time_in: record.timeIn,
-      time_out: record.timeOut,
-      late_hours: record.lateHours,
-      overtime: record.overtime,
-      on_time: record.onTime,
-      status: record.status,
-      remarks: record.remarks
-    }, { onConflict: 'employee_id,date' });
-    if (error) throw error;
+  async upsertAttendance(employeeId: string, records: AttendanceRecord[]) {
+    if (records.length === 0) return;
+    
+    const { error } = await supabase.from('attendance').upsert(
+      records.map(r => ({
+        employee_id: employeeId,
+        date: r.date,
+        time_in: r.timeIn,
+        time_out: r.timeOut,
+        late_hours: r.lateHours,
+        overtime: r.overtime,
+        on_time: r.onTime,
+        status: r.status,
+        remarks: `${r.remarks || ''}||SESSIONS:${JSON.stringify(r.sessions || [])}`
+      })), 
+      { onConflict: 'employee_id,date' }
+    );
+    if (error) {
+      console.error('Attendance Batch Upsert Error:', error);
+      throw error;
+    }
   },
 
   // --- Leave Requests ---

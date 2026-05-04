@@ -37,7 +37,12 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   const [nowVisible, setNowVisible] = useState(new Date());
 
   const today = getLocalDate();
-  const todayAttendance = useMemo(() => employee.attendance.find(a => a.date === today), [employee, today]);
+  const todayAttendance = useMemo(() => {
+    const latestEmployee = allEmployees.find(emp => emp.id === employee.id) || employee;
+    return latestEmployee.attendance.find(a => a.date === today);
+  }, [allEmployees, employee.id, today]);
+
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setNowVisible(new Date()), 1000);
@@ -50,7 +55,8 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
 
   const attendanceStats = useMemo(() => {
     const monthStr = currentMonth.toISOString().slice(0, 7);
-    const records = employee.attendance.filter(r => r.date.startsWith(monthStr));
+    const latestEmployee = allEmployees.find(emp => emp.id === employee.id) || employee;
+    const records = latestEmployee.attendance.filter(r => r.date.startsWith(monthStr));
     const presents = records.filter(r => r.status === 'Present' || r.status === 'Late').length;
     const onTime = records.filter(r => r.onTime).length;
     return {
@@ -59,96 +65,241 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
       total: records.length,
       absents: records.filter(r => r.status === 'Absent').length
     };
-  }, [employee, currentMonth]);
+  }, [allEmployees, employee.id, currentMonth]);
 
   const [dateDisplay, setDateDisplay] = useState(() => {
     const now = new Date();
     return now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric', weekday: 'long' }).replace(',', ' -');
   });
 
-  const handleMarkAttendance = (type: 'in' | 'out') => {
+  // Campus Locations (Latitude, Longitude)
+  const CAMPUS_LOCATIONS: Record<string, { lat: number, lng: number }> = {
+    'Main Campus': { lat: 31.4826, lng: 74.3411 }, // Example: Model Town, Lahore
+    'Johar Campus': { lat: 31.4697, lng: 74.2728 }, // Example: Johar Town, Lahore
+    'Masjid Campus': { lat: 31.5204, lng: 74.3587 }, // Example: Mall Road, Lahore
+    'Maktab Campus': { lat: 31.5820, lng: 74.3294 }, // Example: Walled City, Lahore
+  };
+
+  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // metres
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c; // in metres
+  };
+
+  const handleMarkAttendance = async (type: 'in' | 'out') => {
+    setIsLoading(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { 
+          enableHighAccuracy: true,
+          timeout: 10000 
+        });
+      });
+
+      const userLat = position.coords.latitude;
+      const userLng = position.coords.longitude;
+      const campusCoords = CAMPUS_LOCATIONS[employee.campus] || CAMPUS_LOCATIONS['Main Campus'];
+      
+      const distance = getDistance(userLat, userLng, campusCoords.lat, campusCoords.lng);
+      
+      // Allow 200 meters margin
+      if (distance > 200) {
+        alert(`SECURITY BREACH: Access Refused. You are too far from ${employee.campus}. Distance: ${Math.round(distance)}m.`);
+        setIsLoading(false);
+        return;
+      }
+    } catch (err) {
+      alert("ERROR: Location access required for attendance. Please enable location permissions.");
+      setIsLoading(false);
+      return;
+    }
+
     const now = new Date();
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
-    const timeString = `${hours}:${minutes}`;
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const timeString = `${hours}:${minutes}:${seconds}`;
     
-    let updatedAttendance = [...employee.attendance];
+    const latestEmployee = allEmployees.find(emp => emp.id === employee.id) || employee;
+    let updatedAttendance = [...latestEmployee.attendance];
     const existingIndex = updatedAttendance.findIndex(a => a.date === today);
 
     if (type === 'in') {
-      if (existingIndex >= 0 && updatedAttendance[existingIndex].timeIn) {
-        alert('SECURITY: Terminal already accessed for session IN');
-        return;
-      }
-      
-      const lateHours = calculateLateHours(timeString, employee.shiftStart);
+      const lateHours = calculateLateHours(timeString, latestEmployee.shiftStart);
       const status: AttendanceStatus = lateHours > 0 ? 'Late' : 'Present';
       
-      const newRecord: AttendanceRecord = {
-        date: today,
-        timeIn: timeString,
-        timeOut: '',
-        lateHours,
-        overtime: 0,
-        onTime: lateHours === 0,
-        status,
-        remarks: remarks || 'Terminal Access'
-      };
-
       if (existingIndex >= 0) {
-        updatedAttendance[existingIndex] = { ...updatedAttendance[existingIndex], ...newRecord };
+        const record = updatedAttendance[existingIndex];
+        const sessions = record.sessions || [];
+        
+        if (sessions.some(s => !s.checkOut)) {
+          alert('SECURITY: Already checked in.');
+          setIsLoading(false);
+          return;
+        }
+
+        updatedAttendance[existingIndex] = {
+          ...record,
+          sessions: [...sessions, { checkIn: timeString, checkOut: '' }],
+          timeIn: record.timeIn || timeString,
+          status: record.status === 'Present' ? status : record.status
+        };
       } else {
+        const newRecord: AttendanceRecord = {
+          date: today,
+          timeIn: timeString,
+          timeOut: '',
+          sessions: [{ checkIn: timeString, checkOut: '' }],
+          lateHours,
+          overtime: 0,
+          onTime: lateHours === 0,
+          status,
+          remarks: remarks || 'Terminal Access'
+        };
         updatedAttendance.push(newRecord);
       }
       alert(`SUCCESS: Registered Entry at ${timeString}`);
     } else {
-      if (existingIndex < 0 || !updatedAttendance[existingIndex].timeIn) {
+      if (existingIndex < 0) {
         alert('ERROR: Entry record missing. Access denied.');
-        return;
-      }
-      if (updatedAttendance[existingIndex].timeOut) {
-        alert('SECURITY: Terminal already accessed for session OUT');
+        setIsLoading(false);
         return;
       }
 
-      const overtime = calculateOvertime(timeString, employee.shiftEnd);
+      const record = updatedAttendance[existingIndex];
+      const sessions = [...(record.sessions || [])];
+      const activeSessionIndex = sessions.findIndex(s => !s.checkOut);
+
+      if (activeSessionIndex === -1) {
+        alert('SECURITY: No active session found to Check Out.');
+        setIsLoading(false);
+        return;
+      }
+
+      sessions[activeSessionIndex] = { ...sessions[activeSessionIndex], checkOut: timeString };
+      
+      const overtime = calculateOvertime(timeString, latestEmployee.shiftEnd);
       updatedAttendance[existingIndex] = {
-        ...updatedAttendance[existingIndex],
+        ...record,
         timeOut: timeString,
+        sessions: sessions,
         overtime,
-        remarks: remarks || updatedAttendance[existingIndex].remarks
+        remarks: remarks || record.remarks
       };
       alert(`SUCCESS: Registered Exit at ${timeString}`);
     }
 
     const updatedEmployees = allEmployees.map(emp => 
-      emp.id === employee.id ? { ...emp, attendance: updatedAttendance } : emp
+      emp.id === latestEmployee.id ? { ...emp, attendance: updatedAttendance } : emp
     );
     onUpdateEmployees(updatedEmployees);
     setRemarks('');
+    setIsLoading(false);
   };
 
   const calculateHoursWorked = (att: AttendanceRecord | undefined) => {
-    if (!att || !att.timeIn) return "0.00";
+    if (!att) return "0.00";
     
-    const [inH, inM] = att.timeIn.split(':').map(Number);
-    let outH, outM;
+    // If we have sessions, calculate total from sessions
+    if (att.sessions && att.sessions.length > 0) {
+      let totalMs = 0;
+      att.sessions.forEach(session => {
+        const [inH, inM, inS] = session.checkIn.split(':').map(Number);
+        const inDate = new Date(nowVisible);
+        inDate.setHours(inH, inM, inS || 0, 0);
+        
+        let outDate;
+        if (session.checkOut) {
+          const [outH, outM, outS] = session.checkOut.split(':').map(Number);
+          outDate = new Date(nowVisible);
+          outDate.setHours(outH, outM, outS || 0, 0);
+        } else {
+          outDate = nowVisible;
+        }
 
-    if (att.timeOut) {
-      [outH, outM] = att.timeOut.split(':').map(Number);
-    } else {
-      // Live calculation
-      outH = nowVisible.getHours();
-      outM = nowVisible.getMinutes();
+        const diff = outDate.getTime() - inDate.getTime();
+        if (diff > 0) totalMs += diff;
+      });
+      return (totalMs / 3600000).toFixed(2);
     }
 
-    const inMinutes = inH * 60 + inM;
-    const outMinutes = outH * 60 + outM;
-    const diff = outMinutes - inMinutes;
-    
-    if (diff < 0) return "0.00";
-    return (diff / 60).toFixed(2);
+    // Fallback for logic without sessions (old records)
+    if (!att.timeIn) return "0.00";
+    const [inH, inM, inS] = att.timeIn.split(':').map(Number);
+    let outDate = new Date(nowVisible);
+    if (att.timeOut) {
+      const [outH, outM, outS] = att.timeOut.split(':').map(Number);
+      outDate.setHours(outH, outM, outS || 0, 0);
+    }
+    const inDate = new Date(outDate);
+    inDate.setHours(inH, inM, inS || 0, 0);
+    const diffMs = outDate.getTime() - inDate.getTime();
+    return diffMs < 0 ? "0.00" : (diffMs / 3600000).toFixed(2);
   };
+
+  const sessionDuration = useMemo(() => {
+    if (!todayAttendance) return null;
+    
+    // Find active session
+    const sessions = todayAttendance.sessions || [];
+    const activeSession = sessions.find(s => !s.checkOut);
+    
+    // If no active session and no sessions at all, return null
+    if (!activeSession && sessions.length === 0 && !todayAttendance.timeIn) return null;
+    
+    // If we have sessions, sum them up
+    if (sessions.length > 0) {
+      // If none are active, we show null (or we could show the last total, but the UI expects null to show the clock)
+      // Actually, if they are checked out, we should probably show the clock or something?
+      // The user said "if user check in so time will start".
+      if (!activeSession) return null;
+
+      let totalMs = 0;
+      sessions.forEach(session => {
+        const [inH, inM, inS] = session.checkIn.split(':').map(Number);
+        const inDate = new Date(nowVisible);
+        inDate.setHours(inH, inM, inS || 0, 0);
+        
+        let outDate;
+        if (session.checkOut) {
+          const [outH, outM, outS] = session.checkOut.split(':').map(Number);
+          outDate = new Date(nowVisible);
+          outDate.setHours(outH, outM, outS || 0, 0);
+        } else {
+          outDate = nowVisible;
+        }
+
+        const diff = outDate.getTime() - inDate.getTime();
+        if (diff > 0) totalMs += diff;
+      });
+
+      const h = Math.floor(totalMs / 3600000);
+      const m = Math.floor((totalMs % 3600000) / 60000);
+      const s = Math.floor((totalMs % 60000) / 1000);
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // Legacy fallback
+    if (!todayAttendance.timeIn || todayAttendance.timeOut) return null;
+    const [inH, inM, inS] = todayAttendance.timeIn.split(':').map(Number);
+    const inDate = new Date(nowVisible);
+    inDate.setHours(inH, inM, inS || 0, 0);
+    const diffMs = nowVisible.getTime() - inDate.getTime();
+    if (diffMs < 0) return "00:00:00";
+    const h = Math.floor(diffMs / 3600000);
+    const m = Math.floor((diffMs % 3600000) / 60000);
+    const s = Math.floor((diffMs % 60000) / 1000);
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }, [todayAttendance, nowVisible]);
 
   const [leaveForm, setLeaveForm] = useState({
     type: 'Annual' as any,
@@ -183,6 +334,17 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
             </div>
             <h3 className="text-sm font-black uppercase tracking-tighter">Terminal Access</h3>
           </div>
+
+          {sessionDuration && (
+            <div className="py-10 border-b border-bento-line mb-6 text-center">
+              <div className="inline-flex flex-col items-center justify-center w-40 h-40 rounded-full border-4 border-bento-accent/10 relative shadow-[0_0_30px_rgba(42,92,67,0.05)]">
+                <div className="flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-black text-bento-accent uppercase tracking-[0.2em] mb-1">Active</span>
+                  <span className="text-3xl font-black tabular-nums tracking-tight text-bento-ink drop-shadow-sm">{sessionDuration}</span>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-bento-bg/30 p-2 border border-bento-line">
@@ -195,32 +357,30 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
             </div>
           </div>
 
-          {!todayAttendance?.timeOut && (
-            <div className="space-y-2">
-              <textarea 
-                placeholder="LOG MESSAGE..."
-                className="w-full p-2 bg-bento-bg/30 border border-bento-line text-[9px] font-bold uppercase resize-none h-16"
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-              />
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => handleMarkAttendance('in')}
-                  disabled={!!todayAttendance?.timeIn}
-                  className="flex-1 bg-bento-accent text-white py-2 shadow-sm text-[9px] font-black uppercase tracking-widest disabled:opacity-20"
-                >
-                  CLOCK IN
-                </button>
-                <button 
-                  onClick={() => handleMarkAttendance('out')}
-                  disabled={!todayAttendance?.timeIn || !!todayAttendance?.timeOut}
-                  className="flex-1 bg-bento-ink text-white py-2 shadow-sm text-[9px] font-black uppercase tracking-widest disabled:opacity-20"
-                >
-                  CLOCK OUT
-                </button>
-              </div>
+          <div className="space-y-2">
+            <textarea 
+              placeholder="LOG MESSAGE..."
+              className="w-full p-2 bg-bento-bg/30 border border-bento-line text-[9px] font-bold uppercase resize-none h-16"
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <button 
+                onClick={() => handleMarkAttendance('in')}
+                disabled={!!(todayAttendance?.sessions?.some(s => !s.checkOut))}
+                className="flex-1 bg-bento-accent text-white py-2 shadow-sm text-[9px] font-black uppercase tracking-widest disabled:opacity-20 transition-opacity"
+              >
+                CLOCK IN
+              </button>
+              <button 
+                onClick={() => handleMarkAttendance('out')}
+                disabled={!(todayAttendance?.sessions?.some(s => !s.checkOut))}
+                className="flex-1 bg-bento-ink text-white py-2 shadow-sm text-[9px] font-black uppercase tracking-widest disabled:opacity-20 transition-opacity"
+              >
+                CLOCK OUT
+              </button>
             </div>
-          )}
+          </div>
 
           <div className="pt-4 border-t border-bento-line">
             <h4 className="mini-label mb-2">Session Log</h4>
@@ -253,7 +413,8 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
               const m = (currentMonth.getMonth() + 1).toString().padStart(2, '0');
               const y = currentMonth.getFullYear();
               const dateStr = `${y}-${m}-${d}`;
-              const att = employee.attendance.find(a => a.date === dateStr);
+              const latestEmployee = allEmployees.find(emp => emp.id === employee.id) || employee;
+              const att = latestEmployee.attendance.find(a => a.date === dateStr);
               return (
                 <div key={i} className={cn(
                   "aspect-square flex items-center justify-center text-[9px] font-black border border-bento-line/10 relative group cursor-pointer transition-colors",
@@ -507,14 +668,40 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
         </div>
       </div>
 
-      <div className="flex flex-col items-center mt-2">
-        <h1 className="text-5xl font-black text-slate-800 tracking-tighter opacity-90">{currentTime}</h1>
-        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-3">{dateDisplay}</p>
+      <div className="flex flex-col items-center mt-4 h-32 justify-center">
+        <AnimatePresence mode="wait">
+          {sessionDuration ? (
+            <motion.div 
+              key="active-session"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="text-center"
+            >
+               <div className="text-[11px] font-black text-bento-accent uppercase tracking-[0.4em] mb-3 animate-pulse">Session Active</div>
+               <div className="relative inline-block">
+                  <div className="absolute -inset-8 bg-bento-accent/10 blur-3xl rounded-full animate-pulse"></div>
+                  <h1 className="text-7xl sm:text-8xl font-black text-slate-900 tracking-tighter tabular-nums relative drop-shadow-2xl">{sessionDuration}</h1>
+               </div>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="clock"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center"
+            >
+              <h1 className="text-6xl font-black text-slate-800 tracking-tighter opacity-90 drop-shadow-sm">{currentTime}</h1>
+              <p className="text-slate-400 text-[11px] font-bold uppercase tracking-[0.3em] mt-4">{dateDisplay}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="mt-12 relative flex items-center justify-center w-[280px] h-[280px]">
         {/* Animated Ripples */}
-        {!todayAttendance?.timeOut && (
+        {todayAttendance?.sessions?.some(s => !s.checkOut) && (
           <>
             <div className="ripple bg-bento-accent/5" style={{ animationDelay: '0s' }}></div>
             <div className="ripple bg-bento-accent/5" style={{ animationDelay: '1.2s' }}></div>
@@ -523,15 +710,14 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
         )}
         
         <button 
-          onClick={() => handleMarkAttendance(todayAttendance?.timeIn ? 'out' : 'in')}
-          disabled={!!todayAttendance?.timeOut}
+          onClick={() => handleMarkAttendance(todayAttendance?.sessions?.some(s => !s.checkOut) ? 'out' : 'in')}
           className={cn(
-            "neo-button w-40 h-40 flex flex-col items-center justify-center z-10 disabled:opacity-50 group",
-            todayAttendance?.timeIn && !todayAttendance?.timeOut ? "text-bento-accent" : "text-slate-400"
+            "neo-button w-40 h-40 flex flex-col items-center justify-center z-10 group",
+            todayAttendance?.sessions?.some(s => !s.checkOut) ? "text-bento-accent border-bento-accent/50" : "text-slate-400"
           )}
         >
           <div className="mb-3 transition-transform group-active:scale-90">
-            {todayAttendance?.timeIn && !todayAttendance?.timeOut ? (
+            {todayAttendance?.sessions?.some(s => !s.checkOut) ? (
               <LogOut size={32} />
             ) : (
               <div className="relative">
@@ -541,7 +727,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
             )}
           </div>
           <span className="font-black text-[11px] uppercase tracking-widest">
-            {todayAttendance?.timeIn ? 'Check out' : 'Check in'}
+            {todayAttendance?.sessions?.some(s => !s.checkOut) ? 'Check out' : 'Check in'}
           </span>
         </button>
       </div>
@@ -551,21 +737,21 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
           <div className="p-2.5 bg-white shadow-sm rounded-2xl mb-2 text-bento-accent border border-slate-50">
             <Clock size={18} />
           </div>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Check in</span>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Day Entry</span>
           <span className="text-xs font-black mt-1 text-slate-700">{todayAttendance?.timeIn || '--:--'}</span>
         </div>
         <div className="neo-stat-card border border-transparent hover:border-slate-100 transition-colors">
           <div className="p-2.5 bg-white shadow-sm rounded-2xl mb-2 text-bento-accent border border-slate-50">
              <LogOut size={18} />
           </div>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Check out</span>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Last Exit</span>
           <span className="text-xs font-black mt-1 text-slate-700">{todayAttendance?.timeOut || '--:--'}</span>
         </div>
         <div className="neo-stat-card border border-transparent hover:border-slate-100 transition-colors">
           <div className="p-2.5 bg-white shadow-sm rounded-2xl mb-2 text-bento-accent border border-slate-50">
             <CheckCircle2 size={18} />
           </div>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Hours</span>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Work H</span>
           <span className="text-xs font-black mt-1 text-slate-700">{calculateHoursWorked(todayAttendance)}</span>
         </div>
       </div>
@@ -573,7 +759,23 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-10 max-w-full overflow-hidden min-h-screen pb-10">
+    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-10 max-w-full overflow-hidden min-h-screen pb-10 relative">
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-white/60 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-6 text-center"
+          >
+            <div className="w-12 h-12 border-4 border-bento-accent/20 border-t-bento-accent rounded-full animate-spin mb-4" />
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-bento-ink">Verifying Protocol...</p>
+              <p className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Authenticating physical site presence</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Desktop View */}
       <div className="hidden sm:block space-y-10">
         <div className="tabs-container sticky top-4 z-[30] mx-auto w-full sm:w-fit bg-bento-ink border border-bento-line shadow-lg">
