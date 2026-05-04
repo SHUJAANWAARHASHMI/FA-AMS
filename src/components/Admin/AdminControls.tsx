@@ -73,19 +73,25 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, setti
   });
 
   const generateUserId = () => {
+    if (users.length === 0) {
+      // If no users, use a random-ish starting point mixed with timestamp to avoid collisions
+      // until the first sync is complete
+      return `USR${Date.now().toString().slice(-3)}${Math.floor(Math.random() * 100).toString().padStart(2, '0')}`;
+    }
     const lastId = users.reduce((max, u) => {
-      if (!u.id) return max;
+      if (!u.id || !u.id.startsWith('USR')) return max;
       const num = parseInt(u.id.replace('USR', ''));
-      return num > max ? num : max;
+      return isNaN(num) ? max : (num > max ? num : max);
     }, 0);
     return `USR${(lastId + 1).toString().padStart(3, '0')}`;
   };
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
-      const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!u) return false;
+      const matchesSearch = (u.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+                           (u.username?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                           (u.email?.toLowerCase() || '').includes(searchTerm.toLowerCase());
       const matchesRole = roleFilter === 'all' || u.role === roleFilter;
       const matchesStatus = statusFilter === 'all' || 
                            (statusFilter === 'locked' ? u.accountLocked : !u.accountLocked);
@@ -95,8 +101,8 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, setti
 
   const handleOpenModal = (u?: User) => {
     if (u) {
-      setEditingUser(u);
-      setFormData({ ...u });
+      setEditingUser({ ...u }); // Clone
+      setFormData({ ...u }); // Clone
     } else {
       setEditingUser(null);
       setFormData({
@@ -120,7 +126,7 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, setti
       ...u,
       id: newId,
       name: `${u.name} (Copy)`,
-      username: `${u.username}_copy`,
+      username: `${u.username}_${Math.random().toString(36).substr(2, 4)}`,
       password: '',
       createdAt: new Date().toISOString(),
       accountLocked: false
@@ -130,14 +136,18 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, setti
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Deep clone formData to avoid reference sharing
+    const submissionData = { ...formData };
+    
     if (editingUser) {
-      onUpdateUsers(users.map(u => u.id === editingUser.id ? formData : u));
+      onUpdateUsers(users.map(u => u.id === editingUser.id ? submissionData : u));
     } else {
-      if (users.find(u => u.username === formData.username)) {
+      if (users.find(u => u.username === submissionData.username)) {
         alert('Username already exists!');
         return;
       }
-      onUpdateUsers([...users, formData]);
+      onUpdateUsers([...users, submissionData]);
     }
     setIsModalOpen(false);
   };

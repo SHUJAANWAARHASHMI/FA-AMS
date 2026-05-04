@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { Employee, User, SystemSettings } from '../types';
+import { Employee, User, SystemSettings, AppNotification } from '../types';
 import { INITIAL_EMPLOYEES, INITIAL_USERS } from '../data/initialData';
 import { supabaseService } from '../services/supabaseService';
 import { normalizeCampus } from '../lib/utils';
@@ -45,6 +45,69 @@ export function usePersistence() {
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const isFirstSyncDone = useRef(false);
+
+  const dismissNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const addNotification = (title: string, message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    const newNotif: AppNotification = {
+      id: Math.random().toString(36).substr(2, 9),
+      title,
+      message,
+      type,
+      timestamp: new Date(),
+      read: false
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+  };
+
+  // Detect data changes for notifications
+  const detectChanges = (oldEmps: Employee[], newEmps: Employee[], user: User | Employee | null) => {
+    if (!user || oldEmps.length === 0 || !isFirstSyncDone.current) return;
+
+    const isAdmin = 'role' in user && (user.role === 'admin' || user.role === 'mudeer');
+    const isEmployee = 'designation' in user;
+
+    if (isAdmin) {
+      // Check for NEW leave requests for Admin
+      newEmps.forEach(newEmp => {
+        const oldEmp = oldEmps.find(e => e.id === newEmp.id);
+        const newRequests = newEmp.leaveRequests.filter(nr => 
+          nr.status === 'Pending' && (!oldEmp || !oldEmp.leaveRequests.find(or => or.id === nr.id))
+        );
+
+        if (newRequests.length > 0) {
+          addNotification(
+            'New Leave Request', 
+            `${newEmp.name} submitted a ${newRequests[0].type} leave request.`,
+            'info'
+          );
+        }
+      });
+    }
+
+    if (isEmployee) {
+      // Check for STATUS changes for Employee
+      const oldMe = oldEmps.find(e => e.id === user.id);
+      const newMe = newEmps.find(e => e.id === user.id);
+
+      if (oldMe && newMe) {
+        newMe.leaveRequests.forEach(nr => {
+          const oldReq = oldMe.leaveRequests.find(or => or.id === nr.id);
+          if (oldReq && oldReq.status !== nr.status) {
+            addNotification(
+              'Leave Request Updated',
+              `Your ${nr.type} leave (${nr.from} to ${nr.to}) is now ${nr.status.toUpperCase()}.`,
+              nr.status === 'Approved' ? 'success' : 'error'
+            );
+          }
+        });
+      }
+    }
+  };
 
   // Load from Supabase on mount
   useEffect(() => {
@@ -79,6 +142,9 @@ export function usePersistence() {
           // Initialize users if empty
           users.forEach(u => supabaseService.saveAdminUser(u));
         }
+
+        // Mark initial sync as done
+        isFirstSyncDone.current = true;
       } catch (err) {
         console.error('Failed to fetch from Supabase:', err);
         setIsOnline(false);
@@ -288,6 +354,10 @@ export function usePersistence() {
       if (dbSettings) setSystemSettings(dbSettings);
       if (dbEmployees.length > 0) {
         const remoteNormalized = dbEmployees.map((e: any) => ({ ...e, campus: normalizeCampus(e?.campus || 'main') }));
+        
+        // Detect changes before setting new state
+        detectChanges(employeesRef.current, remoteNormalized, currentUser);
+        
         setEmployees(remoteNormalized);
       }
       if (dbUsers.length > 0) {
@@ -329,11 +399,26 @@ export function usePersistence() {
         // Sync Employees (Deep comparison)
         if (dbEmployees.length > 0) {
           const remoteNormalized = dbEmployees.map((e: any) => ({ ...e, campus: normalizeCampus(e?.campus || 'main') }));
-          const remoteSerialized = JSON.stringify(remoteNormalized);
-          const localSerialized = JSON.stringify(employeesRef.current);
+          
+          // Use a more stable serialization for comparison
+          const normalizeForCompare = (arr: any[]) => JSON.stringify(arr.map(item => {
+            const { ...rest } = item;
+            // Ensure stable key order
+            return Object.keys(rest).sort().reduce((obj: any, key) => {
+              obj[key] = rest[key];
+              return obj;
+            }, {});
+          }));
+
+          const remoteSerialized = normalizeForCompare(remoteNormalized);
+          const localSerialized = normalizeForCompare(employeesRef.current);
           
           if (remoteSerialized !== localSerialized) {
-            console.log('[Auto-Sync] Data change detected, updating local state...');
+            console.log('[Auto-Sync] Employee data change detected, updating local state...');
+            
+            // Detect changes for notifications
+            detectChanges(employeesRef.current, remoteNormalized, currentUser);
+            
             setEmployees(remoteNormalized);
           }
         }
@@ -341,9 +426,20 @@ export function usePersistence() {
         // Sync Admin Users
         if (dbUsers.length > 0) {
           const remoteNormalized = dbUsers.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') }));
-          const remoteSerialized = JSON.stringify(remoteNormalized);
-          const localSerialized = JSON.stringify(usersRef.current);
+          
+          const normalizeForCompare = (arr: any[]) => JSON.stringify(arr.map(item => {
+            const { ...rest } = item;
+            return Object.keys(rest).sort().reduce((obj: any, key) => {
+              obj[key] = rest[key];
+              return obj;
+            }, {});
+          }));
+
+          const remoteSerialized = normalizeForCompare(remoteNormalized);
+          const localSerialized = normalizeForCompare(usersRef.current);
+          
           if (remoteSerialized !== localSerialized) {
+            console.log('[Auto-Sync] Admin user change detected, updating local state...');
             setUsers(remoteNormalized);
           }
         }
@@ -371,6 +467,8 @@ export function usePersistence() {
     updateUsers,
     updateSystemSettings,
     setCurrentUser,
-    triggerManualSync
+    triggerManualSync,
+    notifications,
+    dismissNotification
   };
 }

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Login } from './components/Login';
 import { usePersistence } from './hooks/usePersistence';
-import { User, Employee, UserRole } from './types';
+import { User, Employee, UserRole, AppNotification } from './types';
 import { 
   LayoutDashboard, 
   Users, 
@@ -20,9 +20,13 @@ import {
   Bell,
   Search,
   Cloud,
-  CloudOff
+  CloudOff,
+  CheckCircle,
+  AlertCircle,
+  Info
 } from 'lucide-react';
 import { cn } from './lib/utils';
+import { motion, AnimatePresence } from 'motion/react';
 
 // Portals
 import { AdminDashboard } from './components/Admin/Dashboard';
@@ -50,7 +54,9 @@ export default function App() {
     updateSystemSettings, 
     isSyncing, 
     isOnline,
-    triggerManualSync
+    triggerManualSync,
+    notifications,
+    dismissNotification
   } = usePersistence();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -87,6 +93,95 @@ export default function App() {
       </button>
     );
   };
+
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  const NotificationDropdown = () => (
+    <div className="absolute right-0 top-12 w-80 bg-white border-2 border-bento-line shadow-[8px_8px_0px_#E2E8F0] z-50 max-h-[400px] overflow-y-auto">
+      <div className="p-3 border-b-2 border-bento-line bg-slate-50 flex items-center justify-between">
+        <span className="text-[10px] font-black uppercase tracking-widest text-bento-ink">Notifications</span>
+        {notifications.length > 0 && (
+          <button 
+            onClick={() => {
+              notifications.forEach(n => dismissNotification(n.id));
+              setIsNotificationsOpen(false);
+            }}
+            className="text-[8px] font-bold text-bento-accent uppercase hover:underline"
+          >
+            Clear All
+          </button>
+        )}
+      </div>
+      <div className="divide-y-2 divide-bento-line">
+        {notifications.length === 0 ? (
+          <div className="p-8 text-center">
+            <Bell size={24} className="mx-auto text-slate-300 mb-2" />
+            <p className="text-[9px] font-bold text-slate-400 uppercase">No new alerts</p>
+          </div>
+        ) : (
+          notifications.map((notif) => (
+            <div key={notif.id} className="p-4 hover:bg-slate-50 transition-colors relative group">
+              <div className="flex items-start space-x-3">
+                <div className={cn(
+                  "p-1.5 shrink-0 border",
+                  notif.type === 'success' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                  notif.type === 'error' ? "bg-red-50 text-red-600 border-red-100" :
+                  "bg-bento-accent/10 text-bento-accent border-bento-line"
+                )}>
+                  {notif.type === 'success' ? <CheckCircle size={12} /> : 
+                   notif.type === 'error' ? <AlertCircle size={12} /> : 
+                   <Info size={12} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[9px] font-black uppercase tracking-tight text-bento-ink mb-0.5">{notif.title}</div>
+                  <div className="text-[9px] font-medium text-bento-ink/70 leading-tight">{notif.message}</div>
+                  <div className="text-[7px] font-bold text-slate-400 mt-1 uppercase">
+                    {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dismissNotification(notif.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  const NotificationOverlay = () => (
+    <div className="absolute top-4 right-4 z-100 pointer-events-none">
+      <AnimatePresence mode="popLayout">
+        {notifications.slice(0, 1).map((notif) => (
+          <motion.div
+            key={notif.id}
+            initial={{ opacity: 0, scale: 0.8, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+            className="pointer-events-auto bg-bento-ink text-white p-3 shadow-xl flex items-center space-x-3 w-64 border border-white/10"
+          >
+            <div className="p-1.5 bg-bento-accent text-white">
+              <Bell size={14} className="animate-bounce" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[8px] font-black uppercase tracking-widest text-bento-accent">Alert</div>
+              <div className="text-[9px] font-bold truncate uppercase">{notif.title}</div>
+            </div>
+            <button onClick={() => dismissNotification(notif.id)} className="text-white/40 hover:text-white">
+              <X size={14} />
+            </button>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
 
   const renderContent = () => {
     if (isEmployeePortal) {
@@ -189,6 +284,9 @@ export default function App() {
         </aside>
       )}
 
+      {/* Notifications */}
+      <NotificationOverlay />
+
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Header */}
@@ -246,10 +344,23 @@ export default function App() {
                 </button>
               </div>
 
-              <button className="relative p-2 text-bento-ink/60 hover:text-bento-ink transition-colors">
-                <Bell size={20} className="sm:w-6 sm:h-6" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-bento-accent border-2 border-white"></span>
-              </button>
+              <div className="relative">
+                <button 
+                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                  className={cn(
+                    "relative p-2 transition-colors",
+                    isNotificationsOpen ? "text-bento-accent bg-bento-accent/5" : "text-bento-ink/60 hover:text-bento-ink"
+                  )}
+                >
+                  <Bell size={20} className="sm:w-6 sm:h-6" />
+                  {notifications.length > 0 && (
+                    <span className="absolute top-1 right-1 w-4 h-4 bg-bento-accent text-white text-[8px] font-black flex items-center justify-center border-2 border-white leading-none">
+                      {notifications.length}
+                    </span>
+                  )}
+                </button>
+                {isNotificationsOpen && <NotificationDropdown />}
+              </div>
               
               <button 
                 onClick={logout}

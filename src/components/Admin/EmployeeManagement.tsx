@@ -90,11 +90,18 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
       'Masjid Campus': 'FAMS', 
       'Maktab Campus': 'FAMT' 
     }[campus];
-    const campusEmployees = employees.filter(e => e.id.startsWith(prefix));
+    
+    if (employees.length === 0) {
+      // Fallback for empty list before sync
+      return `${prefix}${Date.now().toString().slice(-4)}`;
+    }
+
+    const campusEmployees = employees.filter(e => e.id?.startsWith(prefix));
     const nextNum = campusEmployees.length > 0 
       ? Math.max(...campusEmployees.map(e => {
         if (!e.id) return 0;
-        return parseInt(e.id.replace(prefix, ''));
+        const num = parseInt(e.id.replace(prefix, ''));
+        return isNaN(num) ? 0 : num;
       })) + 1 
       : 1001;
     return `${prefix}${nextNum}`;
@@ -102,7 +109,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
 
   const handleOpenModal = (emp?: Employee) => {
     if (emp) {
-      setEditingEmployee(emp);
+      setEditingEmployee({ ...emp }); // Clone
       setFormData({
         name: emp.name,
         designation: emp.designation,
@@ -118,7 +125,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
         name: '',
         designation: '',
         department: '',
-        campus: (user.campus === 'all' ? 'Main Campus' : user.campus) as CampusCode,
+        campus: (user.campus === 'all' || !user.campus ? 'Main Campus' : user.campus) as CampusCode,
         shiftStart: '08:00',
         shiftEnd: '17:00',
         status: 'full_time'
@@ -141,6 +148,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
         id: newId,
         username: newId,
         password: 'abc123',
+        accountLocked: false,
         attendance: [],
         leaves: {
           annual: { total: 20, used: 0 },
