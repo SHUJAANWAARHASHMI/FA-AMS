@@ -46,6 +46,50 @@ export function calculateOvertime(timeOut: string, shiftEnd: string): number {
   return 0;
 }
 
+export function calculateAttendanceHours(att: any, now?: Date): string {
+  if (!att) return "0.00";
+  
+  // If we have sessions, calculate total from sessions
+  if (att.sessions && att.sessions.length > 0) {
+    let totalMs = 0;
+    att.sessions.forEach((session: any) => {
+      const [inH, inM, inS] = session.checkIn.split(':').map(Number);
+      const inDate = now ? new Date(now) : new Date();
+      inDate.setHours(inH, inM, inS || 0, 0);
+      
+      let outDate;
+      if (session.checkOut) {
+        const [outH, outM, outS] = session.checkOut.split(':').map(Number);
+        outDate = now ? new Date(now) : new Date();
+        outDate.setHours(outH, outM, outS || 0, 0);
+      } else if (now) {
+        outDate = now;
+      }
+
+      if (outDate) {
+        const diff = outDate.getTime() - inDate.getTime();
+        if (diff > 0) totalMs += diff;
+      }
+    });
+    return (totalMs / 3600000).toFixed(2);
+  }
+
+  // Fallback for logic without sessions (old records)
+  if (!att.timeIn) return "0.00";
+  const [inH, inM, inS] = att.timeIn.split(':').map(Number);
+  let outDate = now || new Date();
+  
+  if (att.timeOut) {
+    const [outH, outM, outS] = att.timeOut.split(':').map(Number);
+    outDate.setHours(outH, outM, outS || 0, 0);
+  }
+
+  const inDate = new Date(outDate);
+  inDate.setHours(inH, inM, inS || 0, 0);
+  const diffMs = outDate.getTime() - inDate.getTime();
+  return diffMs < 0 ? "0.00" : (diffMs / 3600000).toFixed(2);
+}
+
 export function formatTimeDisplay(decimalHours: number): string {
   const hours = Math.floor(decimalHours);
   const minutes = Math.round((decimalHours - hours) * 60);

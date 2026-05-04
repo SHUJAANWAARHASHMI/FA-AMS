@@ -148,8 +148,8 @@ export const supabaseService = {
   async upsertAttendance(employeeId: string, records: AttendanceRecord[]) {
     if (records.length === 0) return;
     
-    const { error } = await supabase.from('attendance').upsert(
-      records.map(r => ({
+    const payload = records.map(r => {
+      const row: any = {
         employee_id: employeeId,
         date: r.date,
         time_in: r.timeIn,
@@ -159,9 +159,11 @@ export const supabaseService = {
         on_time: r.onTime,
         status: r.status,
         remarks: `${r.remarks || ''}||SESSIONS:${JSON.stringify(r.sessions || [])}`
-      })), 
-      { onConflict: 'employee_id,date' }
-    );
+      };
+      return row;
+    });
+
+    const { error } = await supabase.from('attendance').upsert(payload, { onConflict: 'employee_id,date' });
     if (error) {
       console.error('Attendance Batch Upsert Error:', error);
       throw error;

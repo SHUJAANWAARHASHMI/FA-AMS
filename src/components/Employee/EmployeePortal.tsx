@@ -20,7 +20,7 @@ import {
   TrendingUp,
   LogOut
 } from 'lucide-react';
-import { calculateLateHours, calculateOvertime, cn, getLocalDate } from '../../lib/utils';
+import { calculateLateHours, calculateOvertime, cn, getLocalDate, calculateAttendanceHours } from '../../lib/utils';
 
 interface EmployeePortalProps {
   employee: Employee;
@@ -72,12 +72,12 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     return now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric', weekday: 'long' }).replace(',', ' -');
   });
 
-  // Campus Locations (Latitude, Longitude)
-  const CAMPUS_LOCATIONS: Record<string, { lat: number, lng: number }> = {
-    'Main Campus': { lat: 31.4826, lng: 74.3411 }, // Example: Model Town, Lahore
-    'Johar Campus': { lat: 31.4697, lng: 74.2728 }, // Example: Johar Town, Lahore
-    'Masjid Campus': { lat: 31.5204, lng: 74.3587 }, // Example: Mall Road, Lahore
-    'Maktab Campus': { lat: 31.5820, lng: 74.3294 }, // Example: Walled City, Lahore
+  // Precise Campus Locations derived from provided Google Maps links
+  const CAMPUS_LOCATIONS: Record<string, { lat: number, lng: number, radius: number }> = {
+    'Main Campus': { lat: 31.4815, lng: 74.3475, radius: 250 },   // FFP / Model Town Area
+    'Johar Campus': { lat: 31.4705, lng: 74.2742, radius: 250 },  // Johar Town
+    'Masjid Campus': { lat: 31.5146, lng: 74.3439, radius: 250 }, // Mall Road/Masjid Area
+    'Maktab Campus': { lat: 31.5828, lng: 74.3214, radius: 250 }, // Walled City Area
   };
 
   const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -98,27 +98,40 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   const handleMarkAttendance = async (type: 'in' | 'out') => {
     setIsLoading(true);
     try {
+      if (!navigator.geolocation) {
+        alert("CRITICAL: Geolocation is not supported by your browser version. Terminal access denied.");
+        setIsLoading(false);
+        return;
+      }
+
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, { 
           enableHighAccuracy: true,
-          timeout: 10000 
+          timeout: 15000,
+          maximumAge: 0
         });
       });
 
       const userLat = position.coords.latitude;
       const userLng = position.coords.longitude;
-      const campusCoords = CAMPUS_LOCATIONS[employee.campus] || CAMPUS_LOCATIONS['Main Campus'];
       
-      const distance = getDistance(userLat, userLng, campusCoords.lat, campusCoords.lng);
+      const campusConfig = CAMPUS_LOCATIONS[employee.campus] || CAMPUS_LOCATIONS['Main Campus'];
+      const distance = getDistance(userLat, userLng, campusConfig.lat, campusConfig.lng);
       
-      // Allow 200 meters margin
-      if (distance > 200) {
-        alert(`SECURITY BREACH: Access Refused. You are too far from ${employee.campus}. Distance: ${Math.round(distance)}m.`);
+      // Enforce strict radius (e.g., 250 meters)
+      if (distance > campusConfig.radius) {
+        const errorMsg = `SECURITY: Position Mismatch. You are outside ${employee.campus} boundaries.\nDistance: ${Math.round(distance)}m\nAllowed: ${campusConfig.radius}m`;
+        alert(errorMsg);
         setIsLoading(false);
         return;
       }
-    } catch (err) {
-      alert("ERROR: Location access required for attendance. Please enable location permissions.");
+    } catch (err: any) {
+      console.error('Geolocation error:', err);
+      let errorMsg = "ERROR: Failed to verify location.";
+      if (err.code === 1) errorMsg = "PERMISSIONS: Please enable GPS/Location access to mark attendance.";
+      if (err.code === 3) errorMsg = "TIMEOUT: Location verification timed out. Please try again.";
+      
+      alert(errorMsg);
       setIsLoading(false);
       return;
     }
@@ -207,43 +220,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   };
 
   const calculateHoursWorked = (att: AttendanceRecord | undefined) => {
-    if (!att) return "0.00";
-    
-    // If we have sessions, calculate total from sessions
-    if (att.sessions && att.sessions.length > 0) {
-      let totalMs = 0;
-      att.sessions.forEach(session => {
-        const [inH, inM, inS] = session.checkIn.split(':').map(Number);
-        const inDate = new Date(nowVisible);
-        inDate.setHours(inH, inM, inS || 0, 0);
-        
-        let outDate;
-        if (session.checkOut) {
-          const [outH, outM, outS] = session.checkOut.split(':').map(Number);
-          outDate = new Date(nowVisible);
-          outDate.setHours(outH, outM, outS || 0, 0);
-        } else {
-          outDate = nowVisible;
-        }
-
-        const diff = outDate.getTime() - inDate.getTime();
-        if (diff > 0) totalMs += diff;
-      });
-      return (totalMs / 3600000).toFixed(2);
-    }
-
-    // Fallback for logic without sessions (old records)
-    if (!att.timeIn) return "0.00";
-    const [inH, inM, inS] = att.timeIn.split(':').map(Number);
-    let outDate = new Date(nowVisible);
-    if (att.timeOut) {
-      const [outH, outM, outS] = att.timeOut.split(':').map(Number);
-      outDate.setHours(outH, outM, outS || 0, 0);
-    }
-    const inDate = new Date(outDate);
-    inDate.setHours(inH, inM, inS || 0, 0);
-    const diffMs = outDate.getTime() - inDate.getTime();
-    return diffMs < 0 ? "0.00" : (diffMs / 3600000).toFixed(2);
+    return calculateAttendanceHours(att, nowVisible);
   };
 
   const sessionDuration = useMemo(() => {
@@ -253,34 +230,13 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     const sessions = todayAttendance.sessions || [];
     const activeSession = sessions.find(s => !s.checkOut);
     
-    // If no active session and no sessions at all, return null
     if (!activeSession && sessions.length === 0 && !todayAttendance.timeIn) return null;
     
-    // If we have sessions, sum them up
     if (sessions.length > 0) {
-      // If none are active, we show null (or we could show the last total, but the UI expects null to show the clock)
-      // Actually, if they are checked out, we should probably show the clock or something?
-      // The user said "if user check in so time will start".
       if (!activeSession) return null;
-
-      let totalMs = 0;
-      sessions.forEach(session => {
-        const [inH, inM, inS] = session.checkIn.split(':').map(Number);
-        const inDate = new Date(nowVisible);
-        inDate.setHours(inH, inM, inS || 0, 0);
-        
-        let outDate;
-        if (session.checkOut) {
-          const [outH, outM, outS] = session.checkOut.split(':').map(Number);
-          outDate = new Date(nowVisible);
-          outDate.setHours(outH, outM, outS || 0, 0);
-        } else {
-          outDate = nowVisible;
-        }
-
-        const diff = outDate.getTime() - inDate.getTime();
-        if (diff > 0) totalMs += diff;
-      });
+      
+      const totalHours = Number(calculateAttendanceHours(todayAttendance, nowVisible));
+      const totalMs = totalHours * 3600000;
 
       const h = Math.floor(totalMs / 3600000);
       const m = Math.floor((totalMs % 3600000) / 60000);
@@ -288,13 +244,10 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
       return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
 
-    // Legacy fallback
     if (!todayAttendance.timeIn || todayAttendance.timeOut) return null;
-    const [inH, inM, inS] = todayAttendance.timeIn.split(':').map(Number);
-    const inDate = new Date(nowVisible);
-    inDate.setHours(inH, inM, inS || 0, 0);
-    const diffMs = nowVisible.getTime() - inDate.getTime();
-    if (diffMs < 0) return "00:00:00";
+    const diffHours = Number(calculateAttendanceHours(todayAttendance, nowVisible));
+    const diffMs = diffHours * 3600000;
+    
     const h = Math.floor(diffMs / 3600000);
     const m = Math.floor((diffMs % 3600000) / 60000);
     const s = Math.floor((diffMs % 60000) / 1000);
