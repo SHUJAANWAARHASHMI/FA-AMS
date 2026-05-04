@@ -38,7 +38,20 @@ import { EmployeePortal } from './components/Employee/EmployeePortal';
 type Tab = 'dashboard' | 'manual-attendance' | 'single-attendance' | 'employee-management' | 'leave-management' | 'reports' | 'backup-restore' | 'admin-controls';
 
 export default function App() {
-  const { employees, users, systemSettings, currentUser, login, logout, updateEmployees, updateUsers, updateSystemSettings, isSyncing, isOnline } = usePersistence();
+  const { 
+    employees, 
+    users, 
+    systemSettings, 
+    currentUser, 
+    login, 
+    logout, 
+    updateEmployees, 
+    updateUsers, 
+    updateSystemSettings, 
+    isSyncing, 
+    isOnline,
+    triggerManualSync
+  } = usePersistence();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -211,20 +224,26 @@ export default function App() {
             
             <div className="flex items-center space-x-2 sm:space-x-4">
               {/* Cloud Sync Status */}
-              <div 
-                className={cn(
-                  "flex items-center space-x-2 px-3 py-1.5 border transition-all text-[8px] font-black uppercase tracking-widest",
-                  !isOnline 
-                    ? "bg-red-50 border-red-200 text-red-600" 
-                    : isSyncing 
-                      ? "bg-bento-accent/10 border-bento-accent/30 text-bento-accent animate-pulse" 
-                      : "bg-emerald-50 border-emerald-100 text-emerald-700"
-                )}
-              >
-                {!isOnline ? <CloudOff size={12} /> : <Cloud size={12} className={cn(isSyncing && "animate-bounce")} />}
-                <span className="hidden sm:inline">
-                  {!isOnline ? 'Cloud Offline' : isSyncing ? 'Syncing...' : 'Cloud Active'}
-                </span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={triggerManualSync}
+                  disabled={isSyncing}
+                  className={cn(
+                    "flex items-center space-x-2 px-3 py-1.5 border transition-all text-[8px] font-black uppercase tracking-widest outline-hidden",
+                    !isOnline 
+                      ? "bg-red-50 border-red-200 text-red-600" 
+                      : isSyncing 
+                        ? "bg-bento-accent/10 border-bento-accent/30 text-bento-accent animate-pulse" 
+                        : "bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                  )}
+                  title="Force Instant Cloud Sync"
+                >
+                  {!isOnline ? <CloudOff size={12} /> : <Cloud size={12} className={cn(isSyncing && "animate-bounce")} />}
+                  <span className="hidden sm:inline">
+                    {!isOnline ? 'Cloud Offline' : isSyncing ? 'Syncing...' : 'Cloud Active'}
+                  </span>
+                  {isOnline && !isSyncing && <Search size={8} className="opacity-40" />}
+                </button>
               </div>
 
               <button className="relative p-2 text-bento-ink/60 hover:text-bento-ink transition-colors">

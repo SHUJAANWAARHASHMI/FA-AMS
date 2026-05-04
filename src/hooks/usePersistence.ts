@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Employee, User, SystemSettings } from '../types';
 import { INITIAL_EMPLOYEES, INITIAL_USERS } from '../data/initialData';
 import { supabaseService } from '../services/supabaseService';
@@ -267,6 +267,41 @@ export function usePersistence() {
     }
   };
 
+  const employeesRef = useRef(employees);
+  const usersRef = useRef(users);
+  const systemSettingsRef = useRef(systemSettings);
+
+  useEffect(() => { employeesRef.current = employees; }, [employees]);
+  useEffect(() => { usersRef.current = users; }, [users]);
+  useEffect(() => { systemSettingsRef.current = systemSettings; }, [systemSettings]);
+
+  const triggerManualSync = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      const [dbEmployees, dbUsers, dbSettings] = await Promise.all([
+        supabaseService.getEmployees(),
+        supabaseService.getAdminUsers(),
+        supabaseService.getSystemSettings()
+      ]);
+
+      if (dbSettings) setSystemSettings(dbSettings);
+      if (dbEmployees.length > 0) {
+        const remoteNormalized = dbEmployees.map((e: any) => ({ ...e, campus: normalizeCampus(e?.campus || 'main') }));
+        setEmployees(remoteNormalized);
+      }
+      if (dbUsers.length > 0) {
+        setUsers(dbUsers.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') })));
+      }
+      setIsOnline(true);
+    } catch (err) {
+      console.error('Manual sync failed:', err);
+      setIsOnline(false);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Background Auto-Sync Loop
   useEffect(() => {
     if (!systemSettings.autoSyncEnabled || !isOnline) return;
@@ -274,7 +309,8 @@ export function usePersistence() {
     const intervalMs = (systemSettings.syncInterval || 5) * 1000;
     
     const syncLoop = setInterval(async () => {
-      if (isSyncing) return; // Prevent overlapping syncs
+      // Use the refs to check if we are already syncing or if settings changed
+      if (isSyncing) return;
       
       console.log(`[Auto-Sync] Heartbeat - Interval: ${systemSettings.syncInterval}s`);
       try {
@@ -285,7 +321,7 @@ export function usePersistence() {
         ]);
 
         // Sync Settings
-        if (dbSettings && JSON.stringify(dbSettings) !== JSON.stringify(systemSettings)) {
+        if (dbSettings && JSON.stringify(dbSettings) !== JSON.stringify(systemSettingsRef.current)) {
           console.log('[Auto-Sync] Settings updated from cloud');
           setSystemSettings(dbSettings);
         }
@@ -294,20 +330,21 @@ export function usePersistence() {
         if (dbEmployees.length > 0) {
           const remoteNormalized = dbEmployees.map((e: any) => ({ ...e, campus: normalizeCampus(e?.campus || 'main') }));
           const remoteSerialized = JSON.stringify(remoteNormalized);
-          const localSerialized = JSON.stringify(employees);
+          const localSerialized = JSON.stringify(employeesRef.current);
           
           if (remoteSerialized !== localSerialized) {
-            console.log('[Auto-Sync] Data change detected (Leaves/Attendance), updating local state...');
+            console.log('[Auto-Sync] Data change detected, updating local state...');
             setEmployees(remoteNormalized);
           }
         }
 
         // Sync Admin Users
         if (dbUsers.length > 0) {
-          const remoteSerialized = JSON.stringify(dbUsers.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') })));
-          const localSerialized = JSON.stringify(users);
+          const remoteNormalized = dbUsers.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') }));
+          const remoteSerialized = JSON.stringify(remoteNormalized);
+          const localSerialized = JSON.stringify(usersRef.current);
           if (remoteSerialized !== localSerialized) {
-            setUsers(dbUsers.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') })));
+            setUsers(remoteNormalized);
           }
         }
         
@@ -319,7 +356,7 @@ export function usePersistence() {
     }, intervalMs);
 
     return () => clearInterval(syncLoop);
-  }, [systemSettings.autoSyncEnabled, systemSettings.syncInterval, isOnline, employees, systemSettings]);
+  }, [systemSettings.autoSyncEnabled, systemSettings.syncInterval, isOnline]);
 
   return {
     employees,
@@ -333,6 +370,7 @@ export function usePersistence() {
     updateEmployees,
     updateUsers,
     updateSystemSettings,
-    setCurrentUser
+    setCurrentUser,
+    triggerManualSync
   };
 }
