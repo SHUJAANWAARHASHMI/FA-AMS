@@ -20,7 +20,7 @@ import {
   TrendingUp,
   LogOut
 } from 'lucide-react';
-import { calculateLateHours, calculateOvertime, cn, getLocalDate, calculateAttendanceHours, calculateAttendanceMs } from '../../lib/utils';
+import { calculateLateHours, calculateOvertime, cn, getLocalDate, calculateAttendanceHours, calculateAttendanceMs, formatTimeDisplay } from '../../lib/utils';
 
 interface EmployeePortalProps {
   employee: Employee;

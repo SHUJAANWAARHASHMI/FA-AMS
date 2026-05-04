@@ -13,14 +13,17 @@ interface ManualAttendanceProps {
 export const ManualAttendance: React.FC<ManualAttendanceProps> = ({ employees, user, onUpdateEmployees }) => {
   const [date, setDate] = useState(getLocalDate());
   const [searchTerm, setSearchTerm] = useState('');
-  const [campusFilter, setCampusFilter] = useState<string>(user?.campus === 'all' ? 'Main Campus' : (user?.campus || 'Main Campus'));
+  const [campusFilter, setCampusFilter] = useState<string>(user?.role === 'admin' ? 'Main Campus' : (user?.campus || 'Main Campus'));
   const [statusBuffer, setStatusBuffer] = useState<Record<string, { timeIn: string; timeOut: string; status: AttendanceStatus; remarks: string }>>({});
   const [isSaved, setIsSaved] = useState(false);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
       if (!emp) return false;
-      const matchesCampus = user?.role === 'admin' || user?.role === 'mudeer' ? (campusFilter === 'all' || emp.campus === campusFilter) : (emp.campus === user?.campus);
+      // Admin can filter global or specific. Mudeer is locked to their campus.
+      const matchesCampus = user?.role === 'admin' 
+        ? (campusFilter === 'all' || emp.campus === campusFilter)
+        : (emp.campus === user?.campus);
       const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || emp.id.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCampus && matchesSearch;
     });
@@ -124,7 +127,7 @@ export const ManualAttendance: React.FC<ManualAttendanceProps> = ({ employees, u
           </div>
         </div>
 
-        {(user?.role === 'admin' || user?.role === 'mudeer') && (
+        {user?.role === 'admin' && (
           <div className="flex-1 min-w-[200px]">
             <label className="block text-[10px] font-black text-bento-ink uppercase tracking-widest mb-2 opacity-40">Campus Terminal</label>
             <div className="relative">

@@ -20,7 +20,7 @@ export function usePersistence() {
 
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
     const saved = localStorage.getItem('fa_settings');
-    const defaultSettings: SystemSettings = { enforceLocation: true, autoSyncEnabled: true, syncInterval: 5 };
+    const defaultSettings: SystemSettings = { enforceLocation: true, autoSyncEnabled: true, syncInterval: 300 };
     if (!saved) return defaultSettings;
     try {
       const parsed = JSON.parse(saved);
@@ -376,13 +376,13 @@ export function usePersistence() {
   useEffect(() => {
     if (!systemSettings.autoSyncEnabled || !isOnline) return;
 
-    const intervalMs = (systemSettings.syncInterval || 5) * 1000;
+    const intervalMs = (systemSettings.syncInterval || 300) * 1000;
     
     const syncLoop = setInterval(async () => {
       // Use the refs to check if we are already syncing or if settings changed
       if (isSyncing) return;
       
-      console.log(`[Auto-Sync] Heartbeat - Interval: ${systemSettings.syncInterval}s`);
+      console.log(`[Auto-Sync] Heartbeat - Interval: ${systemSettings.syncInterval || 300}s`);
       try {
         const [dbEmployees, dbUsers, dbSettings] = await Promise.all([
           supabaseService.getEmployees(),

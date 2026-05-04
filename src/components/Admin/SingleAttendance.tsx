@@ -21,7 +21,7 @@ export const SingleAttendance: React.FC<SingleAttendanceProps> = ({ employees, u
   });
 
   const filteredEmployees = useMemo(() => {
-    if (user?.role === 'admin' || user?.role === 'mudeer') return employees;
+    if (user?.role === 'admin') return employees;
     return employees.filter(e => e?.campus === user?.campus);
   }, [employees, user]);
 

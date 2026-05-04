@@ -93,7 +93,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
             <ShieldCheck className="mr-3 text-bento-accent shrink-0" size={24} />
             Pending Authorization
           </h3>
-          {(user.role === 'admin' || user.role === 'mudeer') && (
+          {user.role === 'admin' && (
             <div className="relative w-full sm:w-auto">
               <select 
                 value={campusFilter}

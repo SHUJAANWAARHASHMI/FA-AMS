@@ -9,7 +9,10 @@ import {
   Clock, 
   TrendingUp, 
   Calendar,
-  Award
+  Award,
+  Shield,
+  LogOut,
+  Check
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -40,12 +43,61 @@ ChartJS.register(
 interface DashboardProps {
   employees: Employee[];
   user: User;
+  onUpdateEmployees: (employees: Employee[]) => void;
 }
 
-export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user }) => {
+export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUpdateEmployees }) => {
   const [targetDate, setTargetDate] = React.useState(getLocalDate());
+  
+  // Find self as employee
+  const selfEmployee = useMemo(() => {
+    return employees.find(e => e.id === user.username || e.name === user.name);
+  }, [employees, user]);
+
+  const todayStatus = useMemo(() => {
+    if (!selfEmployee) return null;
+    return selfEmployee.attendance.find(a => a.date === getLocalDate());
+  }, [selfEmployee]);
+
+  const handleSelfAttendance = () => {
+    if (!selfEmployee) return;
+    
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    const today = getLocalDate();
+    
+    const updatedEmployees = employees.map(emp => {
+      if (emp.id === selfEmployee.id) {
+        const attendance = [...emp.attendance];
+        const existingIdx = attendance.findIndex(a => a.date === today);
+        
+        if (existingIdx >= 0) {
+          // Update checkout
+          attendance[existingIdx] = { ...attendance[existingIdx], timeOut: timeStr };
+        } else {
+          // New checkin
+          attendance.push({
+            date: today,
+            timeIn: timeStr,
+            timeOut: '--:--',
+            lateHours: 0,
+            overtime: 0,
+            onTime: timeStr <= emp.shiftStart,
+            status: timeStr <= emp.shiftStart ? 'Present' : 'Late',
+            remarks: 'Self Registered (System Portal)'
+          });
+        }
+        return { ...emp, attendance };
+      }
+      return emp;
+    });
+    
+    onUpdateEmployees(updatedEmployees);
+  };
+
   const filteredEmployees = useMemo(() => {
-    if (user?.role === 'admin' || user?.role === 'mudeer') return employees;
+    if (user?.role === 'admin' || (user?.role === 'mudeer' && user?.campus === 'all')) return employees;
+    if (user?.role === 'mudeer') return employees.filter(e => e?.campus === user?.campus);
     return employees.filter(e => e?.campus === user?.campus);
   }, [employees, user]);
 
@@ -159,6 +211,43 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user }) =>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {selfEmployee && (
+          <div className="col-span-2 sm:col-span-2 lg:col-span-1 bento-box border-b-bento-accent bg-bento-accent/5 flex flex-col justify-between p-4">
+            <div>
+              <div className="text-[10px] font-black uppercase text-bento-accent mb-1 tracking-widest flex items-center">
+                <Shield size={12} className="mr-1" /> System Access (MUDEER)
+              </div>
+              <div className="text-[9px] font-bold text-bento-ink opacity-40 uppercase truncate">ID: {selfEmployee.id}</div>
+            </div>
+            
+            <div className="mt-4 flex items-center justify-between">
+              <div>
+                <div className="text-[8px] font-black uppercase opacity-30 leading-none mb-1">Status</div>
+                <div className={cn(
+                  "text-[10px] font-black uppercase",
+                  todayStatus ? "text-emerald-600" : "text-red-500 animate-pulse"
+                )}>
+                  {todayStatus ? (todayStatus.timeOut !== '--:--' ? 'COMPLETED' : 'ON-DUTY') : 'INACTIVE'}
+                </div>
+              </div>
+              <button 
+                onClick={handleSelfAttendance}
+                disabled={todayStatus?.timeOut !== '--:--' && todayStatus !== undefined}
+                className={cn(
+                  "px-4 py-2 text-[10px] font-black tracking-widest uppercase transition-all flex items-center space-x-2 h-[36px]",
+                  !todayStatus 
+                    ? "bg-bento-accent text-white hover:bg-bento-ink" 
+                    : todayStatus.timeOut === '--:--' 
+                      ? "bg-bento-ink text-white hover:bg-red-600" 
+                      : "bg-bento-bg text-bento-ink/30 cursor-not-allowed"
+                )}
+              >
+                {!todayStatus ? <Clock size={12} /> : (todayStatus.timeOut === '--:--' ? <LogOut size={12} /> : <Check size={12} />)}
+                <span>{!todayStatus ? 'Clock In' : (todayStatus.timeOut === '--:--' ? 'Clock Out' : 'Done')}</span>
+              </button>
+            </div>
+          </div>
+        )}
         <StatCard 
           title="Employees" 
           value={stats.totalEmployees} 

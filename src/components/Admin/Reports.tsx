@@ -154,8 +154,8 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
               <select 
                 value={targetCampus}
                 onChange={(e) => setTargetCampus(e.target.value)}
-                disabled={user.role !== 'admin' && user.role !== 'mudeer'}
-                className="w-full pl-10 pr-4 py-3 bg-white border border-bento-line text-[10px] font-black uppercase appearance-none disabled:opacity-30 h-[44px]"
+                disabled={user.role !== 'admin'}
+                className="w-full pl-10 pr-4 py-3 bg-white border border-bento-line text-[10px] font-black uppercase appearance-none disabled:opacity-50 h-[44px]"
               >
                  <option value="all">Global Network</option>
                 <option value="Main Campus">Main Complex</option>

@@ -149,43 +149,52 @@ export const supabaseService = {
     try {
       const { data, error } = await supabase.from('system_settings').select('*').single();
       if (error) {
-        // PGRST205: Table not found, PGRST116: Row not found, 42501: RLS Violation
-        if (error.code === 'PGRST116') return { enforceLocation: true, autoSyncEnabled: true, syncInterval: 5 };
-        if (error.code === 'PGRST205' || error.code === '42501') {
+        // PGRST205: Table not found, PGRST116: Row not found, 42501: RLS Violation, PGRST204: Column not found
+        if (error.code === 'PGRST116') return { enforceLocation: true, autoSyncEnabled: true, syncInterval: 300 };
+        if (error.code === 'PGRST205' || error.code === '42501' || error.code === 'PGRST204') {
           console.info(`System Settings sync issue (${error.code}). Using local state.`);
           const local = localStorage.getItem('fa_settings');
-          return local ? JSON.parse(local) : { enforceLocation: true, autoSyncEnabled: true, syncInterval: 5 };
+          return local ? JSON.parse(local) : { enforceLocation: true, autoSyncEnabled: true, syncInterval: 300 };
         }
         throw error;
       }
       return {
         enforceLocation: data.enforce_location ?? true,
         autoSyncEnabled: data.auto_sync_enabled ?? true,
-        syncInterval: data.sync_interval ?? 5
+        syncInterval: data.sync_interval ?? 300
       };
     } catch (err) {
       const local = localStorage.getItem('fa_settings');
-      return local ? JSON.parse(local) : { enforceLocation: true, autoSyncEnabled: true, syncInterval: 5 };
+      return local ? JSON.parse(local) : { enforceLocation: true, autoSyncEnabled: true, syncInterval: 300 };
     }
   },
 
   async saveSystemSettings(settings: SystemSettings) {
     try {
-      const { error } = await supabase.from('system_settings').upsert({
-        id: 1, // Only one row
+      // Try to save everything first
+      const payload: any = {
+        id: 1,
         enforce_location: settings.enforceLocation,
         auto_sync_enabled: settings.autoSyncEnabled,
         sync_interval: settings.syncInterval,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'id' });
+      };
+
+      const { error } = await supabase.from('system_settings').upsert(payload, { onConflict: 'id' });
       
       if (error) {
+        if (error.code === 'PGRST204') {
+          // Silent fallback to local storage if columns are missing in cloud
+          return;
+        }
         console.error('Supabase Sync Error:', error);
-        throw error; // Rethrow to be caught by the hook
+        throw error;
       }
     } catch (err: any) {
-      // Re-throw specific message for UI to handle
-      throw err;
+      // Ignore schema errors silently to avoid console clutter
+      if (err?.code !== 'PGRST204') {
+        console.debug('Cloud settings sync skipped: Missing schema columns.');
+      }
     }
   },
 

@@ -89,15 +89,19 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, setti
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
       if (!u) return false;
+      
+      // Campus Filter for Mudeer
+      const matchesCampus = user.role === 'admin' || (u.campus === user.campus);
+      
       const matchesSearch = (u.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
                            (u.username?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                            (u.email?.toLowerCase() || '').includes(searchTerm.toLowerCase());
       const matchesRole = roleFilter === 'all' || u.role === roleFilter;
       const matchesStatus = statusFilter === 'all' || 
                            (statusFilter === 'locked' ? u.accountLocked : !u.accountLocked);
-      return matchesSearch && matchesRole && matchesStatus;
+      return matchesCampus && matchesSearch && matchesRole && matchesStatus;
     });
-  }, [users, searchTerm, roleFilter, statusFilter]);
+  }, [users, searchTerm, roleFilter, statusFilter, user]);
 
   const handleOpenModal = (u?: User) => {
     if (u) {
@@ -111,7 +115,7 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, setti
         password: '',
         name: '',
         email: '',
-        campus: 'Main Campus',
+        campus: (user.campus === 'all' ? 'Main Campus' : user.campus) as CampusCode,
         role: 'user',
         accountLocked: false,
         createdAt: new Date().toISOString()
@@ -600,8 +604,9 @@ CREATE POLICY "Public Complete Access" ON public.system_settings FOR ALL USING (
                   <label className="block text-[9px] font-black text-bento-ink uppercase tracking-widest mb-2 opacity-40">Campus Territory</label>
                   <select 
                     value={formData.campus}
+                    disabled={user.role !== 'admin'}
                     onChange={(e) => setFormData({...formData, campus: e.target.value as CampusCode})}
-                    className="w-full px-4 py-3 bg-bento-bg/30 border border-bento-line text-[10px] font-black uppercase h-[44px] focus:ring-1 focus:ring-bento-ink focus:outline-hidden appearance-none"
+                    className="w-full px-4 py-3 bg-bento-bg/30 border border-bento-line text-[10px] font-black uppercase h-[44px] focus:ring-1 focus:ring-bento-ink focus:outline-hidden appearance-none disabled:opacity-50"
                   >
                     <option value="Main Campus">MAIN COMPLEX</option>
                     <option value="Johar Campus">JOHAR FACILITY</option>
@@ -613,8 +618,9 @@ CREATE POLICY "Public Complete Access" ON public.system_settings FOR ALL USING (
                   <label className="block text-[9px] font-black text-bento-ink uppercase tracking-widest mb-2 opacity-40">Privilege Tier</label>
                   <select 
                     value={formData.role}
+                    disabled={user.role !== 'admin'}
                     onChange={(e) => setFormData({...formData, role: e.target.value as UserRole})}
-                    className="w-full px-4 py-3 bg-bento-bg/30 border border-bento-line text-[10px] font-black uppercase h-[44px] focus:ring-1 focus:ring-bento-ink focus:outline-hidden appearance-none"
+                    className="w-full px-4 py-3 bg-bento-bg/30 border border-bento-line text-[10px] font-black uppercase h-[44px] focus:ring-1 focus:ring-bento-ink focus:outline-hidden appearance-none disabled:opacity-50"
                   >
                     <option value="admin">ROOT ADMIN (TIER I)</option>
                     <option value="mudeer">MUDEER (TIER II)</option>

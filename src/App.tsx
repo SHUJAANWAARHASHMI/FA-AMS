@@ -156,32 +156,45 @@ export default function App() {
     </div>
   );
 
-  const NotificationOverlay = () => (
-    <div className="absolute top-4 right-4 z-100 pointer-events-none">
-      <AnimatePresence mode="popLayout">
-        {notifications.slice(0, 1).map((notif) => (
-          <motion.div
-            key={notif.id}
-            initial={{ opacity: 0, scale: 0.8, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
-            className="pointer-events-auto bg-bento-ink text-white p-3 shadow-xl flex items-center space-x-3 w-64 border border-white/10"
-          >
-            <div className="p-1.5 bg-bento-accent text-white">
-              <Bell size={14} className="animate-bounce" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[8px] font-black uppercase tracking-widest text-bento-accent">Alert</div>
-              <div className="text-[9px] font-bold truncate uppercase">{notif.title}</div>
-            </div>
-            <button onClick={() => dismissNotification(notif.id)} className="text-white/40 hover:text-white">
-              <X size={14} />
-            </button>
-          </motion.div>
-        ))}
-      </AnimatePresence>
-    </div>
-  );
+  const NotificationOverlay = () => {
+    const firstNotif = notifications[0];
+    
+    useEffect(() => {
+      if (firstNotif) {
+        const timer = setTimeout(() => {
+          dismissNotification(firstNotif.id);
+        }, 5000);
+        return () => clearTimeout(timer);
+      }
+    }, [firstNotif]);
+
+    return (
+      <div className="absolute top-4 right-4 z-100 pointer-events-none">
+        <AnimatePresence mode="popLayout">
+          {firstNotif && (
+            <motion.div
+              key={firstNotif.id}
+              initial={{ opacity: 0, scale: 0.8, y: -20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+              className="pointer-events-auto bg-bento-ink text-white p-3 shadow-xl flex items-center space-x-3 w-64 border border-white/10"
+            >
+              <div className="p-1.5 bg-bento-accent text-white">
+                <Bell size={14} className="animate-bounce" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[8px] font-black uppercase tracking-widest text-bento-accent">Alert</div>
+                <div className="text-[9px] font-bold truncate uppercase">{firstNotif.title}</div>
+              </div>
+              <button onClick={() => dismissNotification(firstNotif.id)} className="text-white/40 hover:text-white">
+                <X size={14} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
   const renderContent = () => {
     if (isEmployeePortal) {
@@ -198,7 +211,7 @@ export default function App() {
     
     switch (activeTab) {
       case 'dashboard':
-        return <AdminDashboard employees={employees} user={adminUser} />;
+        return <AdminDashboard employees={employees} user={adminUser} onUpdateEmployees={updateEmployees} />;
       case 'manual-attendance':
         return <ManualAttendance employees={employees} user={adminUser} onUpdateEmployees={updateEmployees} />;
       case 'single-attendance':

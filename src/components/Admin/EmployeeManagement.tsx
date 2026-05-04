@@ -29,7 +29,7 @@ interface EmployeeManagementProps {
 
 export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, user, onUpdateEmployees }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [campusFilter, setCampusFilter] = useState<string>('all');
+  const [campusFilter, setCampusFilter] = useState<string>(user.role === 'admin' ? 'all' : (user.campus || 'all'));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -77,7 +77,10 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
 
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
-      const matchesCampus = user.role === 'admin' || user.role === 'mudeer' ? (campusFilter === 'all' || emp.campus === campusFilter) : (emp.campus === user.campus);
+      // Admin sees global or filtered. Mudeer sees only their campus.
+      const matchesCampus = user.role === 'admin' 
+        ? (campusFilter === 'all' || emp.campus === campusFilter)
+        : (emp.campus === user.campus);
       const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || emp.id.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCampus && matchesSearch;
     });
@@ -184,7 +187,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
               className="w-full pl-10 pr-4 py-3 bg-bento-bg/30 border border-bento-line text-xs font-bold uppercase focus:outline-hidden focus:ring-1 focus:ring-bento-ink h-[44px]"
             />
           </div>
-          {(user.role === 'admin' || user.role === 'mudeer') && (
+          {user.role === 'admin' && (
             <div className="relative w-full sm:w-48">
               <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-bento-ink/40" size={16} />
               <select 
@@ -423,8 +426,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
                   <label className="block text-[10px] font-bold text-bento-ink uppercase tracking-widest mb-2 opacity-40">Hub</label>
                   <select 
                     value={formData.campus}
+                    disabled={user.role !== 'admin'}
                     onChange={(e) => setFormData({...formData, campus: e.target.value as CampusCode})}
-                    className="w-full px-4 py-3 bg-bento-bg/30 border border-bento-line text-xs font-bold uppercase focus:ring-1 focus:ring-bento-ink focus:outline-hidden appearance-none h-[44px]"
+                    className="w-full px-4 py-3 bg-bento-bg/30 border border-bento-line text-xs font-bold uppercase focus:ring-1 focus:ring-bento-ink focus:outline-hidden appearance-none h-[44px] disabled:opacity-50"
                   >
                     <option value="Main Campus">Main Complex</option>
                     <option value="Johar Campus">Johar Facility</option>
