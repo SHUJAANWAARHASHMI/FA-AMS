@@ -95,9 +95,15 @@ export function calculateAttendanceHours(att: any, now?: Date): string {
   return (totalMs / 3600000).toFixed(2);
 }
 
-export function formatTimeDisplay(decimalHours: number): string {
-  const hours = Math.floor(decimalHours);
-  const minutes = Math.round((decimalHours - hours) * 60);
+export function formatTimeDisplay(decimalHours: number, includeSeconds: boolean = false): string {
+  const totalSeconds = Math.round(decimalHours * 3600);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  
+  if (includeSeconds) {
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
   return `${hours}h ${minutes}m`;
 }
 

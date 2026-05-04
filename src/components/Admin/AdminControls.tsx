@@ -19,7 +19,9 @@ import {
   Filter,
   Plus,
   MapPin,
-  Settings
+  Settings,
+  RefreshCw,
+  Clock
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -46,13 +48,16 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, setti
     const newSettings = { ...settings, enforceLocation: !settings.enforceLocation };
     onUpdateSettings(newSettings);
     setSettingsError(null);
-    
-    // Test persistence immediately
-    try {
-      await supabaseService.saveSystemSettings(newSettings);
-    } catch (err: any) {
-      setSettingsError(err.message || 'Sync failed');
-    }
+  };
+
+  const handleToggleAutoSync = () => {
+    const newSettings = { ...settings, autoSyncEnabled: !settings.autoSyncEnabled };
+    onUpdateSettings(newSettings);
+  };
+
+  const handleChangeSyncInterval = (val: number) => {
+    const newSettings = { ...settings, syncInterval: val };
+    onUpdateSettings(newSettings);
   };
 
   const [formData, setFormData] = useState<User>({
@@ -195,7 +200,7 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, setti
               </p>
             </div>
             
-            <div className="flex items-center space-x-4 bg-white/5 p-4 border border-white/10">
+            <div className="flex flex-wrap items-center gap-4 bg-white/5 p-4 border border-white/10">
               <div className="flex items-center space-x-3 mr-6">
                 <MapPin size={18} className={cn(settings.enforceLocation ? "text-bento-accent" : "text-slate-500")} />
                 <div>
@@ -218,6 +223,53 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, setti
                   )}
                 />
               </button>
+
+              <div className="w-[1px] h-8 bg-white/10 mx-2 hidden md:block" />
+
+              <div className="flex items-center space-x-3 mr-6">
+                <RefreshCw size={18} className={cn(settings.autoSyncEnabled ? "text-bento-accent animate-spin-slow" : "text-slate-500")} />
+                <div>
+                  <div className="text-[9px] font-black uppercase tracking-tighter">Auto-Sync Protocol</div>
+                  <div className="text-[8px] font-bold text-slate-400 uppercase">{settings.autoSyncEnabled ? 'ACTIVE' : 'DISABLED'}</div>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleToggleAutoSync}
+                className={cn(
+                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
+                  settings.autoSyncEnabled ? "bg-bento-accent" : "bg-slate-700"
+                )}
+              >
+                <span 
+                  className={cn(
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                    settings.autoSyncEnabled ? "translate-x-5" : "translate-x-0"
+                  )}
+                />
+              </button>
+
+              <div className="w-[1px] h-8 bg-white/10 mx-2 hidden md:block" />
+
+              <div className="flex items-center space-x-3">
+                <Clock size={18} className="text-slate-500" />
+                <div className="flex flex-col">
+                  <div className="text-[9px] font-black uppercase tracking-tighter">Sync Every</div>
+                  <div className="flex items-center mt-1">
+                    <select 
+                      value={settings.syncInterval}
+                      onChange={(e) => handleChangeSyncInterval(Number(e.target.value))}
+                      className="bg-black/40 border border-white/10 text-[10px] font-black text-bento-accent px-2 py-0.5 focus:outline-hidden"
+                    >
+                      <option value={5}>5 SEC</option>
+                      <option value={10}>10 SEC</option>
+                      <option value={30}>30 SEC</option>
+                      <option value={60}>1 MIN</option>
+                      <option value={300}>5 MIN</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -235,11 +287,13 @@ export const AdminControls: React.FC<AdminControlsProps> = ({ users, user, setti
                       `CREATE TABLE IF NOT EXISTS public.system_settings (
   id INT PRIMARY KEY,
   enforce_location BOOLEAN DEFAULT TRUE,
+  auto_sync_enabled BOOLEAN DEFAULT TRUE,
+  sync_interval INT DEFAULT 5,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public Access" ON public.system_settings FOR ALL USING (true) WITH CHECK (true);
-INSERT INTO public.system_settings (id, enforce_location) VALUES (1, true) ON CONFLICT (id) DO NOTHING;`
+INSERT INTO public.system_settings (id, enforce_location, auto_sync_enabled, sync_interval) VALUES (1, true, true, 5) ON CONFLICT (id) DO NOTHING;`
                     ) : (
                       `ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public Complete Access" ON public.system_settings FOR ALL USING (true) WITH CHECK (true);`

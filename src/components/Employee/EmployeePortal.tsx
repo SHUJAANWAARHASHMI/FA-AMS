@@ -360,8 +360,16 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
             {activeSession && (
               <div className="bg-bento-accent/10 border border-bento-accent/30 p-2 text-center animate-pulse">
                 <p className="text-[7px] font-black text-bento-accent uppercase tracking-widest">SESSION IN PROGRESS</p>
-                <p className="text-[9px] font-mono text-white mt-1">CHECKED IN AT: <span className="font-black text-bento-accent">{activeSession.checkIn}</span></p>
-                <p className="text-[7px] font-medium text-slate-400 mt-0.5">LOCATION: <span className="font-black text-slate-200 uppercase">{activeSession.campusName || 'DETECTING...'}</span></p>
+                <p className="text-[9px] font-mono text-white mt-1">
+                  SESSION START: <span className="font-black text-bento-accent">{activeSession.checkIn}</span>
+                </p>
+                <div className="mt-2 flex items-center justify-center space-x-2">
+                   <Clock size={12} className="text-bento-accent" />
+                   <span className="text-lg font-black font-mono text-white tracking-widest">
+                     {formatTimeDisplay(calculateAttendanceMs(todayAttendance, nowVisible) / 3600000, true)}
+                   </span>
+                </div>
+                <p className="text-[7px] font-medium text-slate-400 mt-1">LOCATION: <span className="font-black text-slate-200 uppercase">{activeSession.campusName || 'DETECTING...'}</span></p>
               </div>
             )}
 

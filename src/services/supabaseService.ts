@@ -150,20 +150,22 @@ export const supabaseService = {
       const { data, error } = await supabase.from('system_settings').select('*').single();
       if (error) {
         // PGRST205: Table not found, PGRST116: Row not found, 42501: RLS Violation
-        if (error.code === 'PGRST116') return { enforceLocation: true };
+        if (error.code === 'PGRST116') return { enforceLocation: true, autoSyncEnabled: true, syncInterval: 5 };
         if (error.code === 'PGRST205' || error.code === '42501') {
           console.info(`System Settings sync issue (${error.code}). Using local state.`);
           const local = localStorage.getItem('fa_settings');
-          return local ? JSON.parse(local) : { enforceLocation: true };
+          return local ? JSON.parse(local) : { enforceLocation: true, autoSyncEnabled: true, syncInterval: 5 };
         }
         throw error;
       }
       return {
-        enforceLocation: data.enforce_location ?? true
+        enforceLocation: data.enforce_location ?? true,
+        autoSyncEnabled: data.auto_sync_enabled ?? true,
+        syncInterval: data.sync_interval ?? 5
       };
     } catch (err) {
       const local = localStorage.getItem('fa_settings');
-      return local ? JSON.parse(local) : { enforceLocation: true };
+      return local ? JSON.parse(local) : { enforceLocation: true, autoSyncEnabled: true, syncInterval: 5 };
     }
   },
 
@@ -172,6 +174,8 @@ export const supabaseService = {
       const { error } = await supabase.from('system_settings').upsert({
         id: 1, // Only one row
         enforce_location: settings.enforceLocation,
+        auto_sync_enabled: settings.autoSyncEnabled,
+        sync_interval: settings.syncInterval,
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' });
       

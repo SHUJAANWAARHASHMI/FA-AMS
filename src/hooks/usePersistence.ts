@@ -20,7 +20,14 @@ export function usePersistence() {
 
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
     const saved = localStorage.getItem('fa_settings');
-    return saved ? JSON.parse(saved) : { enforceLocation: true };
+    const defaultSettings: SystemSettings = { enforceLocation: true, autoSyncEnabled: true, syncInterval: 5 };
+    if (!saved) return defaultSettings;
+    try {
+      const parsed = JSON.parse(saved);
+      return { ...defaultSettings, ...parsed };
+    } catch (e) {
+      return defaultSettings;
+    }
   });
 
   const [currentUser, setCurrentUser] = useState<User | Employee | null>(() => {
@@ -259,6 +266,42 @@ export function usePersistence() {
       setIsSyncing(false);
     }
   };
+
+  // Background Auto-Sync Loop
+  useEffect(() => {
+    if (!systemSettings.autoSyncEnabled || !isOnline) return;
+
+    const intervalMs = (systemSettings.syncInterval || 5) * 1000;
+    
+    const syncLoop = setInterval(async () => {
+      console.log(`[Auto-Sync] Triggering background sync (${systemSettings.syncInterval}s interval)`);
+      try {
+        const [dbEmployees, dbUsers, dbSettings] = await Promise.all([
+          supabaseService.getEmployees(),
+          supabaseService.getAdminUsers(),
+          supabaseService.getSystemSettings()
+        ]);
+
+        if (dbSettings && JSON.stringify(dbSettings) !== JSON.stringify(systemSettings)) {
+          setSystemSettings(dbSettings);
+        }
+        
+        if (dbEmployees.length > 0) {
+          const remoteSerialized = JSON.stringify(dbEmployees.map(e => e.id).sort());
+          const localSerialized = JSON.stringify(employees.map(e => e.id).sort());
+          
+          if (remoteSerialized !== localSerialized) {
+            console.log('[Auto-Sync] Remote employee list differs, updating...');
+            setEmployees(dbEmployees.map((e: any) => ({ ...e, campus: normalizeCampus(e?.campus || 'main') })));
+          }
+        }
+      } catch (err) {
+        console.warn('[Auto-Sync] Background sync failed:', err);
+      }
+    }, intervalMs);
+
+    return () => clearInterval(syncLoop);
+  }, [systemSettings.autoSyncEnabled, systemSettings.syncInterval, isOnline, employees, systemSettings]);
 
   return {
     employees,

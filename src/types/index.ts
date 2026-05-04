@@ -12,6 +12,8 @@ export interface AttendanceSession {
 
 export interface SystemSettings {
   enforceLocation: boolean;
+  autoSyncEnabled: boolean;
+  syncInterval: number; // in seconds
 }
 
 export interface AttendanceRecord {
