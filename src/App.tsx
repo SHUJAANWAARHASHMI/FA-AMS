@@ -41,6 +41,125 @@ import { EmployeePortal } from './components/Employee/EmployeePortal';
 
 type Tab = 'dashboard' | 'manual-attendance' | 'single-attendance' | 'employee-management' | 'leave-management' | 'reports' | 'backup-restore' | 'admin-controls';
 
+const NavItem = ({ tab, icon: Icon, label, roles, userRole, activeTab, setActiveTab, isSidebarOpen }: { tab: Tab, icon: any, label: string, roles: UserRole[], userRole: string, activeTab: Tab, setActiveTab: (t: Tab) => void, isSidebarOpen: boolean }) => {
+  if (!roles.includes(userRole as any)) return null;
+  
+  return (
+    <button
+      onClick={() => setActiveTab(tab)}
+      className={cn(
+        "flex items-center space-x-3 w-full px-6 py-3 transition-all duration-200 text-sm font-bold uppercase tracking-tight",
+        activeTab === tab 
+          ? "bg-bento-ink text-white border-r-4 border-bento-accent" 
+          : "text-bento-ink opacity-60 hover:opacity-100 hover:bg-black/5"
+      )}
+    >
+      <Icon size={18} />
+      {isSidebarOpen && <span>{label}</span>}
+    </button>
+  );
+};
+
+const NotificationDropdown = ({ notifications, dismissNotification, setIsNotificationsOpen }: { notifications: AppNotification[], dismissNotification: (id: string) => void, setIsNotificationsOpen: (o: boolean) => void }) => (
+  <div className="absolute right-0 top-12 w-80 bg-white border-2 border-bento-line shadow-[8px_8px_0px_#E2E8F0] z-50 max-h-[400px] overflow-y-auto">
+    <div className="p-3 border-b-2 border-bento-line bg-slate-50 flex items-center justify-between">
+      <span className="text-[10px] font-black uppercase tracking-widest text-bento-ink">Notifications</span>
+      {notifications.length > 0 && (
+        <button 
+          onClick={() => {
+            notifications.forEach(n => dismissNotification(n.id));
+            setIsNotificationsOpen(false);
+          }}
+          className="text-[8px] font-bold text-bento-accent uppercase hover:underline"
+        >
+          Clear All
+        </button>
+      )}
+    </div>
+    <div className="divide-y-2 divide-bento-line">
+      {notifications.length === 0 ? (
+        <div className="p-8 text-center">
+          <Bell size={24} className="mx-auto text-slate-300 mb-2" />
+          <p className="text-[9px] font-bold text-slate-400 uppercase">No new alerts</p>
+        </div>
+      ) : (
+        notifications.map((notif) => (
+          <div key={notif.id} className="p-4 hover:bg-slate-50 transition-colors relative group">
+            <div className="flex items-start space-x-3">
+              <div className={cn(
+                "p-1.5 shrink-0 border",
+                notif.type === 'success' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                notif.type === 'error' ? "bg-red-50 text-red-600 border-red-100" :
+                "bg-bento-accent/10 text-bento-accent border-bento-line"
+              )}>
+                {notif.type === 'success' ? <CheckCircle size={12} /> : 
+                 notif.type === 'error' ? <AlertCircle size={12} /> : 
+                 <Info size={12} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[9px] font-black uppercase tracking-tight text-bento-ink mb-0.5">{notif.title}</div>
+                <div className="text-[9px] font-medium text-bento-ink/70 leading-tight">{notif.message}</div>
+                <div className="text-[7px] font-bold text-slate-400 mt-1 uppercase">
+                  {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dismissNotification(notif.id);
+                }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
+);
+
+const NotificationOverlay = ({ notifications, dismissNotification }: { notifications: AppNotification[], dismissNotification: (id: string) => void }) => {
+  const firstNotif = notifications[0];
+  
+  useEffect(() => {
+    if (firstNotif) {
+      const timer = setTimeout(() => {
+        dismissNotification(firstNotif.id);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [firstNotif, dismissNotification]);
+
+  return (
+    <div className="absolute top-4 right-4 z-100 pointer-events-none">
+      <AnimatePresence mode="popLayout">
+        {firstNotif && (
+          <motion.div
+            key={firstNotif.id}
+            initial={{ opacity: 0, scale: 0.8, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+            className="pointer-events-auto bg-bento-ink text-white p-3 shadow-xl flex items-center space-x-3 w-64 border border-white/10"
+          >
+            <div className="p-1.5 bg-bento-accent text-white">
+              <Bell size={14} className="animate-bounce" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[8px] font-black uppercase tracking-widest text-bento-accent">Alert</div>
+              <div className="text-[9px] font-bold truncate uppercase">{firstNotif.title}</div>
+            </div>
+            <button onClick={() => dismissNotification(firstNotif.id)} className="text-white/40 hover:text-white">
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 export default function App() {
   const { 
     employees, 
@@ -61,6 +180,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -71,132 +191,11 @@ export default function App() {
     return <Login onLogin={login} />;
   }
 
-  // Determine if it's an employee or a user
-  const isEmployeePortal = 'designation' in currentUser;
-  const userRole = isEmployeePortal ? 'employee' : (currentUser as User).role;
-
-  const NavItem = ({ tab, icon: Icon, label, roles }: { tab: Tab, icon: any, label: string, roles: UserRole[] }) => {
-    if (!roles.includes(userRole)) return null;
-    
-    return (
-      <button
-        onClick={() => setActiveTab(tab)}
-        className={cn(
-          "flex items-center space-x-3 w-full px-6 py-3 transition-all duration-200 text-sm font-bold uppercase tracking-tight",
-          activeTab === tab 
-            ? "bg-bento-ink text-white border-r-4 border-bento-accent" 
-            : "text-bento-ink opacity-60 hover:opacity-100 hover:bg-black/5"
-        )}
-      >
-        <Icon size={18} />
-        {isSidebarOpen && <span>{label}</span>}
-      </button>
-    );
-  };
-
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-
-  const NotificationDropdown = () => (
-    <div className="absolute right-0 top-12 w-80 bg-white border-2 border-bento-line shadow-[8px_8px_0px_#E2E8F0] z-50 max-h-[400px] overflow-y-auto">
-      <div className="p-3 border-b-2 border-bento-line bg-slate-50 flex items-center justify-between">
-        <span className="text-[10px] font-black uppercase tracking-widest text-bento-ink">Notifications</span>
-        {notifications.length > 0 && (
-          <button 
-            onClick={() => {
-              notifications.forEach(n => dismissNotification(n.id));
-              setIsNotificationsOpen(false);
-            }}
-            className="text-[8px] font-bold text-bento-accent uppercase hover:underline"
-          >
-            Clear All
-          </button>
-        )}
-      </div>
-      <div className="divide-y-2 divide-bento-line">
-        {notifications.length === 0 ? (
-          <div className="p-8 text-center">
-            <Bell size={24} className="mx-auto text-slate-300 mb-2" />
-            <p className="text-[9px] font-bold text-slate-400 uppercase">No new alerts</p>
-          </div>
-        ) : (
-          notifications.map((notif) => (
-            <div key={notif.id} className="p-4 hover:bg-slate-50 transition-colors relative group">
-              <div className="flex items-start space-x-3">
-                <div className={cn(
-                  "p-1.5 shrink-0 border",
-                  notif.type === 'success' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                  notif.type === 'error' ? "bg-red-50 text-red-600 border-red-100" :
-                  "bg-bento-accent/10 text-bento-accent border-bento-line"
-                )}>
-                  {notif.type === 'success' ? <CheckCircle size={12} /> : 
-                   notif.type === 'error' ? <AlertCircle size={12} /> : 
-                   <Info size={12} />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[9px] font-black uppercase tracking-tight text-bento-ink mb-0.5">{notif.title}</div>
-                  <div className="text-[9px] font-medium text-bento-ink/70 leading-tight">{notif.message}</div>
-                  <div className="text-[7px] font-bold text-slate-400 mt-1 uppercase">
-                    {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    dismissNotification(notif.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-
-  const NotificationOverlay = () => {
-    const firstNotif = notifications[0];
-    
-    useEffect(() => {
-      if (firstNotif) {
-        const timer = setTimeout(() => {
-          dismissNotification(firstNotif.id);
-        }, 5000);
-        return () => clearTimeout(timer);
-      }
-    }, [firstNotif]);
-
-    return (
-      <div className="absolute top-4 right-4 z-100 pointer-events-none">
-        <AnimatePresence mode="popLayout">
-          {firstNotif && (
-            <motion.div
-              key={firstNotif.id}
-              initial={{ opacity: 0, scale: 0.8, y: -20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
-              className="pointer-events-auto bg-bento-ink text-white p-3 shadow-xl flex items-center space-x-3 w-64 border border-white/10"
-            >
-              <div className="p-1.5 bg-bento-accent text-white">
-                <Bell size={14} className="animate-bounce" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[8px] font-black uppercase tracking-widest text-bento-accent">Alert</div>
-                <div className="text-[9px] font-bold truncate uppercase">{firstNotif.title}</div>
-              </div>
-              <button onClick={() => dismissNotification(firstNotif.id)} className="text-white/40 hover:text-white">
-                <X size={14} />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
-  };
+  const isEmployeePortal = currentUser ? 'designation' in currentUser : false;
+  const userRole = currentUser ? (isEmployeePortal ? 'employee' : (currentUser as User).role) : 'user';
 
   const renderContent = () => {
+    if (!currentUser) return null;
     if (isEmployeePortal) {
       return <EmployeePortal 
         employee={currentUser as Employee} 
@@ -274,15 +273,15 @@ export default function App() {
           </div>
 
           <nav className="flex-1 overflow-y-auto pt-6 space-y-1 custom-scrollbar">
-            <NavItem tab="dashboard" icon={LayoutDashboard} label="Dashboard" roles={['admin', 'mudeer', 'user']} />
-            <NavItem tab="manual-attendance" icon={CalendarCheck} label="Manual Entry" roles={['admin', 'mudeer', 'user']} />
-            <NavItem tab="single-attendance" icon={UserCheck} label="Quick Check" roles={['admin', 'mudeer', 'user']} />
+            <NavItem tab="dashboard" icon={LayoutDashboard} label="Dashboard" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
+            <NavItem tab="manual-attendance" icon={CalendarCheck} label="Manual Entry" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
+            <NavItem tab="single-attendance" icon={UserCheck} label="Quick Check" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
             <div className="my-4 border-t border-bento-line/10 mx-6"></div>
-            <NavItem tab="employee-management" icon={Users} label="Employees" roles={['admin', 'mudeer']} />
-            <NavItem tab="leave-management" icon={Briefcase} label="Leaves" roles={['admin', 'mudeer']} />
-            <NavItem tab="reports" icon={FileText} label="Reports" roles={['admin', 'mudeer', 'user']} />
-            <NavItem tab="backup-restore" icon={Database} label="System Data" roles={['admin']} />
-            <NavItem tab="admin-controls" icon={ShieldCheck} label="Access Control" roles={['admin', 'mudeer']} />
+            <NavItem tab="employee-management" icon={Users} label="Employees" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
+            <NavItem tab="leave-management" icon={Briefcase} label="Leaves" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
+            <NavItem tab="reports" icon={FileText} label="Reports" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
+            <NavItem tab="backup-restore" icon={Database} label="System Data" roles={['admin']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
+            <NavItem tab="admin-controls" icon={ShieldCheck} label="Access Control" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
           </nav>
 
           <div className="p-4 border-t border-bento-line">
@@ -298,7 +297,7 @@ export default function App() {
       )}
 
       {/* Notifications */}
-      <NotificationOverlay />
+      <NotificationOverlay notifications={notifications} dismissNotification={dismissNotification} />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
@@ -372,7 +371,7 @@ export default function App() {
                     </span>
                   )}
                 </button>
-                {isNotificationsOpen && <NotificationDropdown />}
+                {isNotificationsOpen && <NotificationDropdown notifications={notifications} dismissNotification={dismissNotification} setIsNotificationsOpen={setIsNotificationsOpen} />}
               </div>
               
               <button 
