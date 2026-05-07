@@ -27,6 +27,7 @@ import {
   ArcElement,
 } from 'chart.js';
 import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
+import { motion, AnimatePresence } from 'motion/react';
 
 ChartJS.register(
   CategoryScale,
@@ -45,6 +46,85 @@ interface DashboardProps {
   user: User;
   onUpdateEmployees: (employees: Employee[]) => void;
 }
+
+const StatCard = ({ title, value, description, icon: Icon, color, trend }: any) => {
+  return (
+    <div className={cn(
+      "bg-white rounded-[24px] p-6 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border flex flex-col justify-between h-full group hover:border-secondary/30 transition-all duration-300",
+      "hover:shadow-lg hover:-translate-y-1"
+    )}>
+      <div className="flex items-center justify-between mb-4">
+        <div className={cn(
+          "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110",
+          color === 'blue' ? "bg-primary/10 text-primary" :
+          color === 'emerald' ? "bg-emerald-50 text-emerald-600" :
+          color === 'warning' ? "bg-warning/10 text-warning" :
+          "bg-error/5 text-error"
+        )}>
+          <Icon size={24} />
+        </div>
+        {trend && (
+           <div className={cn(
+             "px-2 py-1 rounded-lg text-[10px] font-bold flex items-center space-x-1",
+             trend > 0 ? "bg-emerald-50 text-emerald-600" : "bg-error/5 text-error"
+           )}>
+             <TrendingUp size={12} className={cn(trend < 0 && "rotate-180")} />
+             <span>{Math.abs(trend)}%</span>
+           </div>
+        )}
+      </div>
+      <div>
+        <div className="text-3xl font-extrabold text-primary tracking-tight">{value}</div>
+        <div className="text-xs font-bold text-text-gray uppercase tracking-widest mt-1 group-hover:text-secondary transition-colors">{title}</div>
+        <div className="text-[10px] font-medium text-text-gray/60 mt-2">{description}</div>
+      </div>
+    </div>
+  );
+};
+
+const BentoBox = ({ title, children, className, subTitle }: any) => (
+  <div className={cn("bg-white rounded-[24px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border", className)}>
+    <div className="flex items-center justify-between mb-8">
+      <div>
+        <h3 className="text-lg font-extrabold text-primary tracking-tight uppercase">{title}</h3>
+        {subTitle && <p className="text-xs font-bold text-text-gray uppercase tracking-widest mt-1">{subTitle}</p>}
+      </div>
+      <div className="flex space-x-2">
+        <div className="w-2 h-2 rounded-full bg-secondary" />
+        <div className="w-2 h-2 rounded-full bg-secondary/20" />
+      </div>
+    </div>
+    <div className="relative">
+      {children}
+    </div>
+  </div>
+);
+
+const Building2 = (props: any) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width="24" height="24" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    {...props}
+  >
+    <rect width="16" height="20" x="4" y="2" rx="2" ry="2"/>
+    <path d="M9 22v-4h6v4"/>
+    <path d="M8 6h.01"/>
+    <path d="M16 6h.01"/>
+    <path d="M12 6h.01"/>
+    <path d="M12 10h.01"/>
+    <path d="M12 14h.01"/>
+    <path d="M16 10h.01"/>
+    <path d="M16 14h.01"/>
+    <path d="M8 10h.01"/>
+    <path d="M8 14h.01"/>
+  </svg>
+);
 
 export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUpdateEmployees }) => {
   const [targetDate, setTargetDate] = React.useState(getLocalDate());
@@ -196,159 +276,227 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
   }, [filteredEmployees]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-full overflow-hidden">
-      {/* Stats Grid */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:w-auto">
-          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-bento-ink/40" size={16} />
+          <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary" size={18} />
           <input 
             type="date" 
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
-            className="w-full sm:w-auto pl-10 pr-4 py-2 border border-bento-line text-[10px] font-black uppercase focus:ring-1 focus:ring-bento-ink focus:outline-hidden"
+            className="w-full sm:w-auto pl-12 pr-6 h-12 bg-white border border-border text-xs font-bold uppercase rounded-xl focus:ring-2 focus:ring-secondary/10 focus:border-secondary focus:outline-none transition-all"
           />
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        
         {selfEmployee && (
-          <div className="col-span-2 sm:col-span-2 lg:col-span-1 bento-box border-b-bento-accent bg-bento-accent/5 flex flex-col justify-between p-4">
-            <div>
-              <div className="text-[10px] font-black uppercase text-bento-accent mb-1 tracking-widest flex items-center">
-                <Shield size={12} className="mr-1" /> System Access (MUDEER)
-              </div>
-              <div className="text-[9px] font-bold text-bento-ink opacity-40 uppercase truncate">ID: {selfEmployee.id}</div>
-            </div>
-            
-            <div className="mt-4 flex items-center justify-between">
-              <div>
-                <div className="text-[8px] font-black uppercase opacity-30 leading-none mb-1">Status</div>
-                <div className={cn(
-                  "text-[10px] font-black uppercase",
-                  todayStatus ? "text-emerald-600" : "text-red-500 animate-pulse"
+          <motion.div 
+            whileHover={{ scale: 1.02 }}
+            className="w-full sm:w-auto flex items-center bg-white border border-border p-2 rounded-2xl shadow-sm"
+          >
+             <div className="px-4 border-r border-border mr-2">
+                <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Active Status</p>
+                <p className={cn(
+                  "text-xs font-extrabold",
+                  todayStatus ? "text-emerald-600" : "text-error animate-pulse"
                 )}>
                   {todayStatus ? (todayStatus.timeOut !== '--:--' ? 'COMPLETED' : 'ON-DUTY') : 'INACTIVE'}
-                </div>
-              </div>
-              <button 
+                </p>
+             </div>
+             <button 
                 onClick={handleSelfAttendance}
                 disabled={todayStatus?.timeOut !== '--:--' && todayStatus !== undefined}
                 className={cn(
-                  "px-4 py-2 text-[10px] font-black tracking-widest uppercase transition-all flex items-center space-x-2 h-[36px]",
-                  !todayStatus 
-                    ? "bg-bento-accent text-white hover:bg-bento-ink" 
-                    : todayStatus.timeOut === '--:--' 
-                      ? "bg-bento-ink text-white hover:bg-red-600" 
-                      : "bg-bento-bg text-bento-ink/30 cursor-not-allowed"
+                  "btn-primary h-11 px-6 text-xs whitespace-nowrap",
+                  todayStatus?.timeOut !== '--:--' && todayStatus !== undefined && "opacity-50"
                 )}
               >
-                {!todayStatus ? <Clock size={12} /> : (todayStatus.timeOut === '--:--' ? <LogOut size={12} /> : <Check size={12} />)}
-                <span>{!todayStatus ? 'Clock In' : (todayStatus.timeOut === '--:--' ? 'Clock Out' : 'Done')}</span>
+                {!todayStatus ? <Clock size={16} /> : (todayStatus.timeOut === '--:--' ? <LogOut size={16} /> : <Check size={16} />)}
+                <span>{!todayStatus ? 'Clock In' : (todayStatus.timeOut === '--:--' ? 'Clock Out' : 'Session Done')}</span>
               </button>
-            </div>
-          </div>
+          </motion.div>
         )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          title="Employees" 
+          title="Total Workforce" 
           value={stats.totalEmployees} 
-          description="Global Count"
+          description="Total active employees in system"
+          icon={Users}
+          color="blue"
+          trend={2.4}
         />
         <StatCard 
-          title="Present" 
+          title="Physically Present" 
           value={stats.totalPresent} 
-          description={`${((stats.totalPresent / stats.totalEmployees) * 100 || 0).toFixed(0)}% RATE`}
+          description={`${((stats.totalPresent / stats.totalEmployees) * 100 || 0).toFixed(0)}% attendance rate`}
+          icon={UserCheck}
+          color="emerald"
+          trend={1.8}
         />
         <StatCard 
-          title="Late" 
+          title="Late Admissions" 
           value={stats.totalLate} 
-          description="Delayed"
+          description="Delayed arrivals today"
+          icon={Clock}
+          color="warning"
+          trend={-0.5}
         />
         <StatCard 
-          title="Perf." 
-          value="94.2%" 
-          description="Target 90%"
+          title="Missing Logs" 
+          value={stats.totalEmployees - stats.totalPresent} 
+          description="No activity recorded"
+          icon={UserMinus}
+          color="error"
         />
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <BentoBox title="Attendance by Campus">
-          <div className="h-64 sm:h-64 pt-4">
-            <Doughnut data={attendanceByCampusData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <BentoBox title="Live Operations" subTitle="Distribution by Campus" className="lg:col-span-1">
+          <div className="h-72 mt-4 flex items-center justify-center">
+            <Doughnut 
+              data={attendanceByCampusData} 
+              options={{ 
+                maintainAspectRatio: false, 
+                cutout: '75%',
+                plugins: { 
+                  legend: { 
+                    position: 'bottom', 
+                    labels: { 
+                      usePointStyle: true,
+                      padding: 20,
+                      font: { 
+                        size: 11,
+                        weight: 'bold' as const,
+                        family: 'Plus Jakarta Sans'
+                      } 
+                    } 
+                  } 
+                } 
+              }} 
+            />
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-12">
+               <span className="text-3xl font-extrabold text-primary">{stats.totalPresent}</span>
+               <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Total Active</span>
+            </div>
           </div>
         </BentoBox>
         
-        <BentoBox title="Performance Distribution">
-          <div className="h-64 sm:h-64 pt-4">
-            <Pie data={performancePieData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }} />
-          </div>
-        </BentoBox>
-
-        <div className="lg:col-span-2">
-          <BentoBox title="Monthly Trend" subTitle="Historical">
-            <div className="h-64 sm:h-80 pt-4">
-              <Line data={monthlyTrendData} options={{ maintainAspectRatio: false, plugins: { legend: { labels: { boxWidth: 10, font: { size: 10 } } } }, scales: { x: { ticks: { font: { size: 9 } } }, y: { ticks: { font: { size: 9 } } } } }} />
+        <BentoBox title="Security & Compliance" subTitle="Attendance Reliability" className="lg:col-span-2">
+            <div className="h-72 mt-4">
+              <Bar 
+                data={{
+                  labels: ['Main', 'Johar', 'Masjid', 'Maktab'],
+                  datasets: [
+                    {
+                      label: 'Present',
+                      data: [stats.campusStats['Main Campus'].present, stats.campusStats['Johar Campus'].present, stats.campusStats['Masjid Campus'].present, stats.campusStats['Maktab Campus'].present],
+                      backgroundColor: '#0066FF',
+                      borderRadius: 12,
+                      barThickness: 32
+                    },
+                    {
+                      label: 'Target',
+                      data: [stats.campusStats['Main Campus'].total, stats.campusStats['Johar Campus'].total, stats.campusStats['Masjid Campus'].total, stats.campusStats['Maktab Campus'].total],
+                      backgroundColor: '#002B4910',
+                      borderRadius: 12,
+                      barThickness: 32
+                    }
+                  ]
+                }}
+                options={{
+                  maintainAspectRatio: false,
+                  scales: {
+                    x: { grid: { display: false }, ticks: { font: { weight: 'bold' as const } } },
+                    y: { grid: { color: '#E2E8F0' }, ticks: { font: { weight: 'bold' as const } } }
+                  },
+                  plugins: {
+                    legend: {
+                      display: true,
+                      position: 'top',
+                      align: 'end',
+                      labels: { usePointStyle: true, font: { weight: 'bold' as const } }
+                    }
+                  }
+                }}
+              />
             </div>
-          </BentoBox>
-        </div>
+        </BentoBox>
       </div>
 
-      {/* Campus Breakdown Table */}
-      <BentoBox title="Recent Activity" subTitle={`DATE: ${targetDate.toUpperCase()}`}>
-        <div className="overflow-x-auto -mx-5 sm:mx-0">
-          <div className="min-w-[600px] sm:min-w-0 p-5 sm:p-0">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b-2 border-bento-ink/10">
-                  <th className="py-2 sm:py-4 text-[10px] uppercase font-bold opacity-40">Campus</th>
-                  <th className="py-2 sm:py-4 text-[10px] uppercase font-bold opacity-40">Total</th>
-                  <th className="py-2 sm:py-4 text-[10px] uppercase font-bold opacity-40">Pres.</th>
-                  <th className="py-2 sm:py-4 text-[10px] uppercase font-bold opacity-40">Late</th>
-                  <th className="py-2 sm:py-4 text-[10px] uppercase font-bold opacity-40">Perf %</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-bento-bg">
-                {['Main Campus', 'Johar Campus', 'Masjid Campus', 'Maktab Campus'].map((c: any) => {
-                  const s = stats.campusStats[c as keyof typeof stats.campusStats];
-                  const rate = ((s.present / s.total) * 100 || 0).toFixed(1);
-                  return (
-                    <tr key={c} className="hover:bg-bento-bg/30 transition-colors font-mono text-[11px] sm:text-xs">
-                      <td className="py-3 sm:py-4 font-bold uppercase">{c}</td>
-                      <td className="py-3 sm:py-4">{s.total}</td>
-                      <td className="py-3 sm:py-4 text-bento-accent font-bold">{s.present}</td>
-                      <td className="py-3 sm:py-4 text-orange-600 font-bold">{s.late}</td>
-                      <td className="py-3 sm:py-4">
-                        <div className="flex items-center space-x-2">
-                          <div className="flex-1 h-1.5 bg-bento-bg overflow-hidden hidden sm:block">
-                            <div 
-                              className="h-full bg-bento-accent" 
-                              style={{ width: `${rate}%` }}
-                            ></div>
-                          </div>
-                          <span className="font-bold">{rate}%</span>
+      <BentoBox title="Recent Logs" subTitle={`OPERATIONAL SUMMARY: ${targetDate.toUpperCase()}`}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="pb-6 text-[11px] uppercase font-extrabold text-text-gray tracking-widest">Campus Site</th>
+                <th className="pb-6 text-[11px] uppercase font-extrabold text-text-gray tracking-widest">Global Total</th>
+                <th className="pb-6 text-[11px] uppercase font-extrabold text-text-gray tracking-widest">Present</th>
+                <th className="pb-6 text-[11px] uppercase font-extrabold text-text-gray tracking-widest">Late</th>
+                <th className="pb-6 text-[11px] uppercase font-extrabold text-text-gray tracking-widest text-right">Success Rate</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {['Main Campus', 'Johar Campus', 'Masjid Campus', 'Maktab Campus'].map((c: any) => {
+                const s = stats.campusStats[c as keyof typeof stats.campusStats];
+                const rate = ((s.present / s.total) * 100 || 0).toFixed(1);
+                return (
+                  <tr key={c} className="group hover:bg-bg transition-all duration-300">
+                    <td className="py-6">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-accent/30 rounded-xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                           <Building2 size={18} />
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <span className="font-extrabold text-primary text-sm tracking-tight">{c}</span>
+                      </div>
+                    </td>
+                    <td className="py-6">
+                      <span className="font-bold text-text-dark">{s.total}</span>
+                    </td>
+                    <td className="py-6">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span className="font-bold text-emerald-600">{s.present}</span>
+                      </div>
+                    </td>
+                    <td className="py-6">
+                       <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 rounded-full bg-warning" />
+                        <span className="font-bold text-warning">{s.late}</span>
+                      </div>
+                    </td>
+                    <td className="py-6 text-right">
+                      <div className="flex items-center justify-end space-x-4">
+                        <div className="w-32 h-2 bg-accent/30 rounded-full overflow-hidden">
+                           <motion.div 
+                             initial={{ width: 0 }}
+                             animate={{ width: `${rate}%` }}
+                             className="h-full bg-gradient-to-r from-secondary to-primary rounded-full"
+                           />
+                        </div>
+                        <span className="font-extrabold text-primary text-sm">{rate}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </BentoBox>
 
       {/* Best Employees */}
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <h3 className="font-serif italic text-lg text-bento-ink text-center sm:text-left">Top Performers</h3>
-          <div className="flex bg-bento-bg/50 p-1 border border-bento-line/10 w-full sm:w-auto">
+          <h3 className="text-lg font-extrabold text-primary tracking-tight uppercase">Top Performers</h3>
+          <div className="flex bg-white p-1 border border-border rounded-xl w-full sm:w-auto">
             {['today', 'weekly', 'monthly'].map((p) => (
               <button
                 key={p}
-                onClick={() => {}} // In a real app, update state to filter best employees
+                onClick={() => {}} 
                 className={cn(
-                  "flex-1 sm:flex-none px-6 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all",
-                  p === 'monthly' ? "bg-bento-ink text-white" : "text-bento-ink/40 hover:text-bento-ink"
+                  "flex-1 sm:flex-none px-6 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all rounded-lg",
+                  p === 'monthly' ? "bg-primary text-white" : "text-text-gray hover:text-primary hover:bg-bg"
                 )}
               >
                 {p}
@@ -356,20 +504,20 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {bestEmployees.map((emp, i) => (
-            <div key={emp.id} className="bento-box flex items-center space-x-3 sm:space-x-4 border-l-4 sm:border-l-8 border-l-bento-accent p-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-bento-ink text-white flex items-center justify-center font-mono font-bold text-lg sm:text-xl shrink-0">
+            <div key={emp.id} className="bg-white rounded-[24px] p-6 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border flex items-center space-x-4 hover:shadow-lg transition-all duration-300">
+              <div className="w-16 h-16 bg-primary text-white rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg shadow-primary/20 shrink-0">
                 {emp.name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-black text-xs uppercase tracking-tight truncate">{emp.name}</h4>
-                <p className="text-[9px] sm:text-[10px] font-bold opacity-40 uppercase tracking-widest">{(emp?.campus || 'ALL')} | {emp?.id}</p>
-                <div className="flex items-center mt-1.5">
-                  <div className="flex-1 h-1 bg-bento-bg">
-                    <div className="h-full bg-bento-accent" style={{ width: `${100 - i * 5}%` }}></div>
+                <h4 className="font-extrabold text-primary text-sm tracking-tight truncate">{emp.name}</h4>
+                <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mt-0.5">{(emp?.campus || 'ALL')} | {emp?.id}</p>
+                <div className="flex items-center mt-3">
+                  <div className="flex-1 h-1.5 bg-accent/30 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600" style={{ width: `${100 - i * 5}%` }}></div>
                   </div>
-                  <span className="text-[9px] font-mono font-bold ml-2 text-bento-accent">{(98.5 - i * 1.2).toFixed(1)}%</span>
+                  <span className="text-[10px] font-bold ml-3 text-emerald-600">{(98.5 - i * 1.2).toFixed(1)}%</span>
                 </div>
               </div>
             </div>
@@ -379,29 +527,5 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
     </div>
   );
 };
-
-const StatCard = ({ title, value, description }: any) => {
-  return (
-    <div className="stat-card">
-      <div className="stat-label">{title}</div>
-      <div className="flex flex-col mt-4">
-        <span className="stat-value">{value}</span>
-        <span className="text-[10px] font-bold text-bento-accent mt-2 tracking-widest uppercase">{description}</span>
-      </div>
-    </div>
-  );
-};
-
-const BentoBox = ({ title, children, className, subTitle }: any) => (
-  <div className={cn("bento-box", className)}>
-    <div className="bento-header">
-      <span>{title}</span>
-      {subTitle && <span className="text-[10px] font-bold not-italic opacity-40 uppercase tracking-widest">{subTitle}</span>}
-    </div>
-    <div className="relative">
-      {children}
-    </div>
-  </div>
-);
 
 const ChartCard = BentoBox;

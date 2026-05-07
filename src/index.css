@@ -6,11 +6,19 @@
   --font-mono: "JetBrains Mono", monospace;
   --font-serif: "Playfair Display", serif;
   
-  --color-bento-bg: #E4E3E0;
-  --color-bento-ink: #141414;
-  --color-bento-line: #141414;
-  --color-bento-accent: #2A5C43;
-  --color-bento-card: #FFFFFF;
+  --color-primary: #002B49;
+  --color-primary-light: #00426E;
+  --color-secondary: #0066FF;
+  --color-secondary-dark: #0052CC;
+  --color-accent: #E6F0FF;
+  --color-bg: #F8FAFC;
+  --color-card: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-text-dark: #1E293B;
+  --color-text-gray: #64748B;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
 }
 
 @layer base {
@@ -18,7 +26,7 @@
     font-size: 16px;
   }
   body {
-    @apply font-jakarta text-bento-ink bg-bento-bg antialiased selection:bg-bento-accent selection:text-white;
+    @apply font-jakarta text-text-dark bg-bg antialiased selection:bg-secondary selection:text-white;
   }
   
   /* Touch target improvements */
@@ -28,83 +36,45 @@
 }
 
 @layer components {
-  .bento-box {
-    @apply bg-white border border-bento-line p-5 overflow-hidden transition-all;
+  .card-shadow {
+    box-shadow: 0 10px 40px rgba(0,0,0,0.04);
   }
   
-  .bento-header {
-    @apply font-serif italic text-sm mb-4 border-b border-bento-bg pb-2 flex justify-between items-center;
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
   }
 
-  .stat-card {
-    @apply bg-white border border-bento-line p-4 flex flex-col justify-between;
-  }
-
-  .stat-label {
-    @apply text-[10px] uppercase font-bold opacity-60 tracking-wider;
-  }
-
-  .stat-value {
-    @apply font-mono text-3xl font-extrabold leading-none;
+  .login-input {
+    @apply w-full h-12 px-4 rounded-xl border border-border focus:border-secondary focus:ring-4 focus:ring-secondary/10 outline-none transition-all bg-white text-text-dark font-medium;
   }
 
   .btn-primary {
-    @apply px-6 py-2.5 bg-bento-ink text-white rounded-none font-bold hover:bg-bento-ink/90 transition-all active:scale-95 flex items-center justify-center space-x-2 border border-bento-line;
+    @apply px-6 py-3 bg-secondary text-white rounded-xl font-bold hover:bg-secondary-dark transition-all active:scale-[0.98] flex items-center justify-center space-x-2 shadow-lg shadow-secondary/20;
   }
 
-  .btn-accent {
-    @apply px-6 py-2.5 bg-bento-accent text-white rounded-none font-bold hover:opacity-90 transition-all active:scale-95 flex items-center justify-center space-x-2 border border-bento-line;
+  .btn-outline {
+    @apply px-6 py-3 bg-white text-text-dark rounded-xl font-bold border border-border hover:bg-bg transition-all active:scale-[0.98] flex items-center justify-center space-x-2;
   }
   
-  .card {
-    @apply bg-white rounded-none border border-bento-line overflow-hidden;
+  .sidebar-link {
+    @apply flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 text-sm font-semibold;
   }
 
-  .status-pill {
-    @apply px-1.5 py-0.5 text-[10px] font-bold rounded-none uppercase;
+  .sidebar-link-active {
+    @apply bg-secondary text-white shadow-xl shadow-secondary/30;
   }
 
-  /* Neomorphic UI Components */
-  .neo-button {
-    @apply relative flex items-center justify-center rounded-full bg-[#f0f2f5] transition-all duration-300;
-    box-shadow: 20px 20px 60px #ced1d6, -20px -20px 60px #ffffff;
-  }
-
-  .neo-button:active {
-    box-shadow: inset 8px 8px 16px #ced1d6, inset -8px -8px 16px #ffffff;
-  }
-
-  .neo-stat-card {
-    @apply flex flex-col items-center justify-center p-4 bg-transparent;
-  }
-
-  .ripple {
-    @apply absolute rounded-full border border-bento-accent/10 pointer-events-none;
-    animation: ripple-pulse 4s infinite cubic-bezier(0.4, 0, 0.6, 1);
-  }
-
-  .bottom-nav {
-    @apply fixed bottom-4 left-1/2 -translate-x-1/2 w-[94%] max-w-[450px] h-[75px] bg-white/90 backdrop-blur-md rounded-[28px] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center justify-around px-2 z-[100];
-  }
-
-  .nav-item {
-    @apply relative flex flex-col items-center justify-center transition-all duration-300 w-14 h-14 text-slate-400 gap-1;
-  }
-
-  .nav-item.active {
-    @apply text-bento-accent;
-  }
-
-  .nav-label {
-    @apply text-[9px] font-black uppercase tracking-widest leading-none;
-  }
-
-  .compact-grid {
-    @apply grid gap-2 sm:gap-4;
+  .sidebar-link-inactive {
+    @apply text-white/60 hover:text-white hover:bg-white/10;
   }
 
   .mini-label {
-    @apply text-[9px] font-black uppercase tracking-widest opacity-40;
+    @apply text-[10px] font-extrabold text-text-gray uppercase tracking-[0.15em];
+  }
+
+  /* Ripple pulse for active states */
+  .ripple {
+    @apply absolute w-full h-full rounded-full animate-[ripple-pulse_3s_infinite] pointer-events-none;
   }
 }
 
@@ -114,7 +84,7 @@
     opacity: 0;
   }
   50% {
-    opacity: 1;
+    opacity: 0.15;
   }
   100% {
     transform: scale(2.5);
@@ -122,16 +92,17 @@
   }
 }
 
-/* Custom Scrollbar for Bento Look */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-bento-bg);
+  background: var(--color-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-bento-ink);
+  background: var(--color-secondary);
+  border-radius: 10px;
 }
 
 /* Tablet (768px and below) */

@@ -319,57 +319,54 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     
     return (
       <div className="animate-in fade-in duration-500 overflow-hidden">
-      <div className="bento-box p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="md:col-span-4 space-y-4 border-b md:border-b-0 md:border-r border-bento-line pb-4 md:pb-0 md:pr-6">
+      <div className="bg-white rounded-[24px] p-6 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="md:col-span-4 space-y-4 border-b md:border-b-0 md:border-r border-border pb-4 md:pb-0 md:pr-6">
           <div className="flex items-center space-x-3 mb-4">
-            <div className="p-2 bg-bento-ink text-white border border-bento-accent">
+            <div className="p-2 bg-primary text-white border border-secondary">
               <Clock size={16} />
             </div>
-            <h3 className="text-sm font-black uppercase tracking-tighter">Terminal Access</h3>
+            <h3 className="text-sm font-extrabold uppercase tracking-tight">Terminal Access</h3>
           </div>
 
           {sessionDuration && (
-            <div className="py-10 border-b border-bento-line mb-6 text-center">
-              <div className="inline-flex flex-col items-center justify-center w-40 h-40 rounded-full border-4 border-bento-accent/10 relative shadow-[0_0_30px_rgba(42,92,67,0.05)]">
+            <div className="py-10 border-b border-border mb-6 text-center">
+              <div className="inline-flex flex-col items-center justify-center w-40 h-40 rounded-full border-4 border-secondary/10 relative shadow-2xl shadow-primary/5">
                 <div className="flex flex-col items-center justify-center">
-                  <span className="text-[10px] font-black text-bento-accent uppercase tracking-[0.2em] mb-1">Active</span>
-                  <span className="text-3xl font-black tabular-nums tracking-tight text-bento-ink drop-shadow-sm">{sessionDuration}</span>
+                  <span className="text-[10px] font-extrabold text-secondary uppercase tracking-[0.2em] mb-1">Active</span>
+                  <span className="text-3xl font-extrabold tabular-nums tracking-tight text-primary drop-shadow-sm">{sessionDuration}</span>
                 </div>
               </div>
             </div>
           )}
           
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-bento-bg/30 p-2 border border-bento-line">
+            <div className="bg-accent/30 p-2 border border-border">
               <span className="mini-label">In</span>
-              <p className="text-sm font-black">{todayAttendance?.timeIn || '--:--'}</p>
+              <p className="text-sm font-bold text-primary">{todayAttendance?.timeIn || '--:--'}</p>
             </div>
-            <div className="bg-bento-bg/30 p-2 border border-bento-line">
+            <div className="bg-accent/30 p-2 border border-border">
               <span className="mini-label">Out</span>
-              <p className="text-sm font-black">{todayAttendance?.timeOut || '--:--'}</p>
+              <p className="text-sm font-bold text-primary">{todayAttendance?.timeOut || '--:--'}</p>
             </div>
           </div>
 
           <div className="space-y-2">
             <textarea 
               placeholder="LOG MESSAGE..."
-              className="w-full p-2 bg-bento-bg/30 border border-bento-line text-[9px] font-bold uppercase resize-none h-16"
+              className="w-full p-2 bg-white border border-border text-[9px] font-bold uppercase resize-none h-16 rounded-lg focus:ring-2 focus:ring-secondary/10 outline-none"
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
             />
             {activeSession && (
-              <div className="bg-bento-accent/10 border border-bento-accent/30 p-2 text-center animate-pulse">
-                <p className="text-[7px] font-black text-bento-accent uppercase tracking-widest">SESSION IN PROGRESS</p>
-                <p className="text-[9px] font-mono text-white mt-1">
-                  SESSION START: <span className="font-black text-bento-accent">{activeSession.checkIn}</span>
-                </p>
+              <div className="bg-secondary/5 border border-secondary/20 p-4 rounded-xl text-center">
+                <p className="text-[10px] font-extrabold text-secondary uppercase tracking-widest">SESSION IN PROGRESS</p>
                 <div className="mt-2 flex items-center justify-center space-x-2">
-                   <Clock size={12} className="text-bento-accent" />
-                   <span className="text-lg font-black font-mono text-white tracking-widest">
+                   <Clock size={16} className="text-secondary" />
+                   <span className="text-2xl font-extrabold text-primary tracking-tight">
                      {formatTimeDisplay(calculateAttendanceMs(todayAttendance, nowVisible) / 3600000, true)}
                    </span>
                 </div>
-                <p className="text-[7px] font-medium text-slate-400 mt-1">LOCATION: <span className="font-black text-slate-200 uppercase">{activeSession.campusName || 'DETECTING...'}</span></p>
+                <p className="text-[8px] font-bold text-text-gray mt-2 uppercase">SITE: <span className="text-primary">{activeSession.campusName || 'DETECTING...'}</span></p>
               </div>
             )}
 
@@ -377,60 +374,48 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
               <button 
                 onClick={() => handleMarkAttendance('in')}
                 disabled={!!(todayAttendance?.sessions?.some(s => !s.checkOut))}
-                className="flex-1 bg-bento-accent text-white py-2 shadow-sm text-[9px] font-black uppercase tracking-widest disabled:opacity-20 transition-opacity"
+                className="flex-1 bg-primary text-white py-3 rounded-xl shadow-lg shadow-primary/20 text-[10px] font-extrabold uppercase tracking-widest disabled:opacity-20 transition-all active:scale-95"
               >
                 CLOCK IN
               </button>
               <button 
                 onClick={() => handleMarkAttendance('out')}
                 disabled={!(todayAttendance?.sessions?.some(s => !s.checkOut))}
-                className="flex-1 bg-bento-ink text-white py-2 shadow-sm text-[9px] font-black uppercase tracking-widest disabled:opacity-20 transition-opacity"
+                className="flex-1 bg-secondary text-white py-3 rounded-xl shadow-lg shadow-secondary/20 text-[10px] font-extrabold uppercase tracking-widest disabled:opacity-20 transition-all active:scale-95"
               >
                 CLOCK OUT
               </button>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-bento-line">
+          <div className="pt-4 border-t border-border">
             <h4 className="mini-label mb-2">Session History (Today)</h4>
             <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
               {todayAttendance?.sessions && todayAttendance.sessions.length > 0 ? (
                 todayAttendance.sessions.map((session, idx) => (
-                  <div key={idx} className="bg-bento-bg/20 p-2 border border-bento-line text-[8px] font-mono">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-[7px] font-black text-slate-400">SESSION #{idx + 1}</span>
+                  <div key={idx} className="bg-accent/10 p-3 border border-border rounded-lg text-[9px]">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[8px] font-extrabold text-text-gray">SESSION #{idx + 1}</span>
                       {!session.checkOut && (
-                        <span className="flex items-center gap-1 text-bento-accent animate-pulse">
-                          <div className="w-1 h-1 bg-bento-accent rounded-full" />
+                        <span className="flex items-center gap-1 text-emerald-600 font-bold">
+                          <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                           ACTIVE
                         </span>
                       )}
                     </div>
-                    <div className="flex justify-between"><span>IN:</span><span className="font-black">{session.checkIn}</span></div>
-                    <div className="flex justify-between"><span>OUT:</span><span className="font-black">{session.checkOut || 'PENDING'}</span></div>
-                    {session.location && (
-                      <div className="flex flex-col mt-1 pt-1 border-t border-bento-line/30 text-[7px] text-bento-accent">
-                        <div className="flex justify-between">
-                          <span>LOCATION:</span>
-                          <span className="font-black underline">{session.campusName || 'OFF-CAMPUS'}</span>
-                        </div>
-                        <div className="flex justify-between mt-0.5 opacity-70">
-                          <span>COORDS:</span>
-                          <span>{session.location.lat.toFixed(4)}, {session.location.lng.toFixed(4)}</span>
-                        </div>
-                      </div>
-                    )}
+                    <div className="flex justify-between text-text-dark"><span>IN:</span><span className="font-extrabold">{session.checkIn}</span></div>
+                    <div className="flex justify-between text-text-dark"><span>OUT:</span><span className="font-extrabold">{session.checkOut || 'PENDING'}</span></div>
                   </div>
                 ))
               ) : (
-                <div className="bg-bento-bg/10 p-4 border border-dashed border-bento-line text-center">
-                  <p className="text-[8px] font-bold text-slate-400 italic">NO ACTIVE REQUISITIONS</p>
+                <div className="bg-bg p-4 border border-dashed border-border text-center rounded-lg">
+                  <p className="text-[8px] font-bold text-text-gray italic">NO ACTIVE REQUISITIONS</p>
                 </div>
               )}
               {todayAttendance && (
-                <div className="bg-bento-ink text-white p-2 text-[8px] font-mono flex justify-between">
+                <div className="bg-primary text-white p-3 rounded-lg text-[10px] font-extrabold flex justify-between">
                   <span>TOTAL WORKED</span>
-                  <span className="font-black">{calculateHoursWorked(todayAttendance)} H</span>
+                  <span>{calculateHoursWorked(todayAttendance)} H</span>
                 </div>
               )}
             </div>
@@ -438,20 +423,26 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
         </div>
 
         <div className="md:col-span-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-serif italic text-sm">Temporal Log</h3>
-            <div className="flex items-center space-x-3">
-              <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))} className="p-1 border border-bento-line hover:bg-bento-bg">
-                <ChevronLeft size={14} />
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-lg font-extrabold text-primary tracking-tight uppercase">Temporal Log</h3>
+            <div className="flex items-center space-x-3 bg-white p-1 rounded-xl border border-border shadow-sm">
+              <button 
+                onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))} 
+                className="p-1.5 hover:bg-accent/50 rounded-lg transition-colors text-primary"
+              >
+                <ChevronLeft size={16} />
               </button>
-              <span className="mini-label text-bento-ink font-black">{currentMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}</span>
-              <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))} className="p-1 border border-bento-line hover:bg-bento-bg">
-                <ChevronRight size={14} />
+              <span className="text-xs font-extrabold text-primary w-24 text-center">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+              <button 
+                onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))} 
+                className="p-1.5 hover:bg-accent/50 rounded-lg transition-colors text-primary"
+              >
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-7 gap-1">
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <div key={`${d}-${i}`} className="text-center mini-label">{d}</div>)}
+          <div className="grid grid-cols-7 gap-3">
+            {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((d, i) => <div key={`${d}-${i}`} className="text-center text-[10px] font-extrabold text-text-gray tracking-widest">{d}</div>)}
             {[...Array(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay())].map((_, i) => <div key={`empty-${i}`} />)}
             {[...Array(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate())].map((_, i) => {
               const d = (i + 1).toString().padStart(2, '0');
@@ -462,18 +453,21 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
               const att = latestEmployee.attendance.find(a => a.date === dateStr);
               return (
                 <div key={i} className={cn(
-                  "aspect-square flex items-center justify-center text-[9px] font-black border border-bento-line/10 relative group cursor-pointer transition-colors",
-                  att?.status === 'Present' && "bg-bento-accent/10 text-bento-accent",
-                  att?.status === 'Late' && "bg-orange-50 text-orange-600",
-                  att?.status === 'Absent' && "bg-red-50 text-red-500",
-                  att?.status === 'Leave' && "bg-purple-100/50 text-purple-600",
-                  dateStr === today && "border-bento-accent bg-bento-bg text-bento-accent font-black shadow-[0_0_10px_rgba(42,92,67,0.1)]"
+                  "aspect-square flex flex-col items-center justify-center text-xs font-bold rounded-2xl border border-border relative group cursor-pointer transition-all hover:border-secondary/30 hover:scale-105 shadow-sm",
+                  att?.status === 'Present' && "bg-emerald-50 text-emerald-600 border-emerald-100",
+                  att?.status === 'Late' && "bg-orange-50 text-orange-600 border-orange-100",
+                  att?.status === 'Absent' && "bg-error/5 text-error border-error/10",
+                  att?.status === 'Leave' && "bg-primary/5 text-primary border-primary/10",
+                  dateStr === today && "border-secondary bg-accent/20 text-secondary ring-2 ring-secondary/10"
                 )}>
-                  {i + 1}
-                  {att && <div className={cn("absolute bottom-1 w-1 h-1 rounded-full", 
-                    att.status === 'Present' ? "bg-bento-accent" : 
-                    att.status === 'Late' ? "bg-orange-600" : "bg-red-500"
-                  )}></div>}
+                  <span>{i + 1}</span>
+                  {att && (
+                    <div className={cn(
+                      "w-1.5 h-1.5 rounded-full mt-1", 
+                      att.status === 'Present' ? "bg-emerald-500" : 
+                      att.status === 'Late' ? "bg-orange-500" : "bg-error"
+                    )} />
+                  )}
                 </div>
               );
             })}
@@ -492,23 +486,23 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   );
 
   const renderLeavesTab = () => (
-    <div className="animate-in fade-in duration-500 overflow-hidden">
-      <div className="bento-box p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="md:col-span-4 space-y-4 md:border-r border-bento-line md:pr-6">
-          <h3 className="text-sm font-black uppercase tracking-tighter">Balance Details</h3>
-          <div className="grid grid-cols-1 gap-2">
+    <div className="animate-in fade-in duration-700">
+      <div className="bg-white rounded-[24px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-10">
+        <div className="md:col-span-4 space-y-6 md:border-r border-border md:pr-10">
+          <h3 className="text-sm font-extrabold uppercase tracking-tight text-primary">Balance Details</h3>
+          <div className="grid grid-cols-1 gap-4">
             <BalanceCard label="Annual" total={employee.leaves.annual.total} used={employee.leaves.annual.used} accent />
             <BalanceCard label="Casual" total={employee.leaves.casual.total} used={employee.leaves.casual.used} />
             <BalanceCard label="Medical" total={employee.leaves.medical.total} used={employee.leaves.medical.used} />
           </div>
         </div>
 
-        <div className="md:col-span-8 flex flex-col md:flex-row gap-6">
-          <div className="flex-1 space-y-3">
+        <div className="md:col-span-8 flex flex-col md:flex-row gap-10">
+          <div className="flex-1 space-y-4">
             <h3 className="mini-label">Quick Register</h3>
-            <form onSubmit={handleApplyLeave} className="space-y-2">
+            <form onSubmit={handleApplyLeave} className="space-y-4">
               <select 
-                className="w-full p-2 bg-bento-bg/30 border border-bento-line text-[9px] font-black uppercase"
+                className="w-full h-12 px-4 bg-accent/20 border border-border text-xs font-bold uppercase rounded-xl outline-none focus:ring-4 focus:ring-secondary/10 transition-all"
                 value={leaveForm.type}
                 onChange={(e) => setLeaveForm({...leaveForm, type: e.target.value as any})}
               >
@@ -516,36 +510,36 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
                 <option value="Casual">Casual Allowance</option>
                 <option value="Medical">Medical Hardship</option>
               </select>
-              <div className="grid grid-cols-2 gap-2">
-                <input type="date" className="p-2 border border-bento-line text-[9px] font-mono" value={leaveForm.from} onChange={e => setLeaveForm({...leaveForm, from: e.target.value})} />
-                <input type="date" className="p-2 border border-bento-line text-[9px] font-mono" value={leaveForm.to} onChange={e => setLeaveForm({...leaveForm, to: e.target.value})} />
+              <div className="grid grid-cols-2 gap-4">
+                <input type="date" className="h-12 px-4 border border-border text-xs font-bold uppercase rounded-xl" value={leaveForm.from} onChange={e => setLeaveForm({...leaveForm, from: e.target.value})} />
+                <input type="date" className="h-12 px-4 border border-border text-xs font-bold uppercase rounded-xl" value={leaveForm.to} onChange={e => setLeaveForm({...leaveForm, to: e.target.value})} />
               </div>
               <textarea 
-                placeholder="REASON..."
-                className="w-full p-2 border border-bento-line text-[9px] font-bold uppercase resize-none h-16"
+                placeholder="REASON FOR LEAVE..."
+                className="w-full p-4 border border-border text-xs font-bold uppercase resize-none h-32 rounded-xl outline-none focus:ring-4 focus:ring-secondary/10"
                 value={leaveForm.reason}
                 onChange={e => setLeaveForm({...leaveForm, reason: e.target.value})}
               />
-              <button type="submit" className="w-full bg-bento-accent text-white py-2 text-[9px] font-black uppercase tracking-widest shadow-sm">
+              <button type="submit" className="btn-primary w-full">
                 SUBMIT PROTOCOL
               </button>
             </form>
           </div>
 
-          <div className="flex-1 border-t md:border-t-0 md:border-l border-bento-line/10 pt-4 md:pt-0 md:pl-6">
-            <h3 className="mini-label mb-3">Audit Registry</h3>
-            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-2">
+          <div className="flex-1 border-t md:border-t-0 md:border-l border-border pt-6 md:pt-0 md:pl-10">
+            <h3 className="mini-label mb-6">Audit Registry</h3>
+            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
               {employee.leaveRequests.length === 0 ? (
-                <div className="py-10 text-center opacity-10"><p className="text-[7px] font-black italic">NO ENTRIES FOUND</p></div>
+                <div className="py-20 text-center opacity-20"><p className="text-[10px] font-extrabold italic uppercase">NO ENTRIES FOUND</p></div>
               ) : (
                 employee.leaveRequests.map((req, i) => (
-                  <div key={i} className="p-2 border border-bento-line/50 flex justify-between items-center bg-bento-bg/10 hover:bg-bento-bg/20 transition-colors">
+                  <div key={i} className="p-4 rounded-2xl border border-border flex justify-between items-center bg-accent/10 hover:bg-accent/20 transition-all shadow-sm">
                     <div>
-                      <p className="text-[9px] font-black uppercase tracking-tighter">{req.type}</p>
-                      <p className="text-[7px] opacity-40 font-mono">{req.from} - {req.to}</p>
+                      <p className="text-xs font-extrabold uppercase text-primary tracking-tight">{req.type}</p>
+                      <p className="text-[10px] text-text-gray font-bold mt-1 uppercase">{req.from} - {req.to}</p>
                     </div>
                     <span className={cn(
-                      "text-[7px] font-black px-1.5 py-0.5 rounded-sm border",
+                      "text-[10px] font-extrabold px-3 py-1 rounded-full border",
                       req.status === 'Pending' ? "bg-orange-50 text-orange-600 border-orange-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
                     )}>{req.status.toUpperCase()}</span>
                   </div>
@@ -560,48 +554,56 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
 
   const BalanceCard = ({ label, total, used, accent }: any) => {
     const available = total - used;
+    const percentage = (used / total) * 100;
     return (
-      <div className={cn("bg-white border-2 border-bento-line/10 p-3 flex flex-col justify-between", accent && "border-bento-accent/30 bg-bento-accent/[0.02]")}>
-        <div className="flex justify-between items-start">
-          <span className="mini-label">{label}</span>
-          <span className="text-[9px] font-black opacity-30">{used}/{total}</span>
+      <div className={cn(
+        "bg-white border border-border p-5 rounded-2xl flex flex-col justify-between shadow-sm transition-all hover:bg-accent/5 hover:border-secondary/30", 
+        accent && "bg-secondary/[0.02] border-secondary/20"
+      )}>
+        <div className="flex justify-between items-start mb-3">
+          <span className="text-[10px] font-extrabold text-primary uppercase tracking-widest">{label}</span>
+          <span className="text-[10px] font-bold text-text-gray">{used} / {total}</span>
         </div>
-        <div className="flex items-baseline space-x-1 mt-2">
-          <span className="text-xl font-black tracking-tighter">{available}</span>
-          <span className="text-[8px] font-bold opacity-30 uppercase">Left</span>
+        <div className="flex items-baseline space-x-2">
+          <span className="text-2xl font-extrabold text-primary tracking-tight">{available}</span>
+          <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Available</span>
         </div>
-        <div className="mt-2 h-1 w-full bg-bento-bg rounded-full overflow-hidden">
-          <div className={cn("h-full", accent ? 'bg-bento-accent' : 'bg-bento-ink')} style={{ width: `${(used / total) * 100}%` }}></div>
+        <div className="mt-4 h-2 w-full bg-bg rounded-full overflow-hidden">
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: `${percentage}%` }}
+            className={cn("h-full rounded-full", accent ? 'bg-secondary' : 'bg-primary')} 
+          />
         </div>
       </div>
     );
   };
 
   const renderProfileTab = () => (
-    <div className="animate-in slide-in-from-bottom-4 duration-500 overflow-hidden">
-      <div className="bento-box p-4 md:p-6 flex flex-col md:flex-row gap-6">
-        <div className="md:w-56 space-y-3">
-          <div className="aspect-square bg-bento-ink text-white flex items-center justify-center text-5xl font-black border-2 border-bento-accent">
+    <div className="animate-in slide-in-from-bottom-6 duration-700">
+      <div className="bg-white rounded-[24px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border flex flex-col md:flex-row gap-10">
+        <div className="md:w-64 space-y-4">
+          <div className="aspect-square bg-primary text-white flex items-center justify-center text-5xl font-extrabold rounded-3xl border-4 border-secondary/20 shadow-xl shadow-primary/10">
             {employee.name.charAt(0)}
           </div>
-          <div className="bg-bento-bg/30 p-2 border border-bento-line text-center">
-            <h3 className="text-sm font-black text-bento-ink uppercase tracking-tighter">{employee.name}</h3>
+          <div className="bg-accent/20 p-4 rounded-2xl border border-border text-center">
+            <h3 className="text-lg font-extrabold text-primary tracking-tight">{employee.name}</h3>
             <span className="mini-label">{employee.id}</span>
           </div>
         </div>
         <div className="flex-1">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
             <ProfileInfo label="Role" value={(employee?.designation || 'N/A').toUpperCase()} />
             <ProfileInfo label="Dept" value={(employee?.department || 'N/A').toUpperCase()} />
             <ProfileInfo label="Campus" value={(employee?.campus || 'N/A').toUpperCase()} />
-            <ProfileInfo label="Shift" value={`${employee.shiftStart}-${employee.shiftEnd}`} />
+            <ProfileInfo label="Shift" value={`${employee.shiftStart} - ${employee.shiftEnd}`} />
             <ProfileInfo label="User ID" value={employee.username} />
-            <ProfileInfo label="Security" value="SECURE" />
+            <ProfileInfo label="Security" value="SECURE ACCESS" />
           </div>
-          <div className="bg-yellow-50 p-2 border border-yellow-100 flex items-start space-x-2">
-            <Lock size={12} className="text-yellow-600 mt-0.5 shrink-0" />
-            <p className="text-[8px] font-bold text-yellow-800 uppercase tracking-widest leading-normal">
-              Profile locked by Central Registry. Contact Mudeer for credential updates.
+          <div className="bg-warning/5 p-4 rounded-2xl border border-warning/10 flex items-start space-x-3">
+            <Lock size={18} className="text-warning mt-0.5 shrink-0" />
+            <p className="text-[10px] font-bold text-warning uppercase tracking-widest leading-relaxed">
+              Profile locked by Central Registry. Contact administrative headquarters for any credential modifications or security overrides.
             </p>
           </div>
         </div>
@@ -610,56 +612,58 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   );
 
   const ProfileInfo = ({ label, value }: any) => (
-    <div className="bg-bento-bg/20 p-2 sm:p-3 border border-bento-line/50 flex flex-col justify-center min-h-[50px]">
-      <span className="mini-label block">{label}</span>
-      <p className="font-black text-bento-ink tracking-tighter text-[10px] sm:text-xs truncate">{value}</p>
+    <div className="bg-white p-5 border border-border rounded-2xl flex flex-col justify-center shadow-sm hover:border-secondary/20 transition-all">
+      <span className="mini-label mb-1">{label}</span>
+      <p className="font-extrabold text-primary tracking-tight text-sm truncate">{value}</p>
     </div>
   );
 
   const renderPerformanceTab = () => {
     const records = employee.attendance.filter(r => r.date.startsWith(currentMonth.toISOString().slice(0, 7)));
     return (
-      <div className="animate-in fade-in duration-500 h-full">
-        <div className="bento-box p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-4">
-          <div className="md:col-span-8 space-y-4">
-            <div className="bg-bento-ink p-4 rounded-sm text-white flex justify-between items-center h-24">
+      <div className="animate-in fade-in duration-700 h-full">
+        <div className="bg-white rounded-[24px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-8">
+          <div className="md:col-span-8 space-y-6">
+            <div className="bg-primary p-6 rounded-3xl text-white flex justify-between items-center shadow-xl shadow-primary/20">
               <div>
-                <h3 className="text-xl font-black italic tracking-tighter">ELITE PERFORMANCE</h3>
-                <p className="mini-label text-white/40 mt-1">Global Ranking: Top 5%</p>
+                <h3 className="text-2xl font-extrabold italic tracking-tight">OPERATIONAL ELITE</h3>
+                <p className="mini-label text-white/50 mt-1">Global Performance Ranking: Top 5%</p>
               </div>
               <div className="text-right">
-                <p className="text-4xl font-black text-bento-accent leading-none">{attendanceStats.score}%</p>
-                <p className="mini-label text-white/40 mt-1">Index Score</p>
+                <p className="text-5xl font-extrabold text-secondary leading-none">{attendanceStats.score}%</p>
+                <p className="mini-label text-white/50 mt-2">Compliance Score</p>
               </div>
             </div>
             
-            <div className="grid grid-cols-3 gap-2">
-              <div className="border border-bento-line p-3">
-                <div className="flex items-center space-x-2 mb-2 text-bento-accent"><Zap size={10} /><span className="mini-label">AGILITY</span></div>
-                <p className="text-base font-black">HIGH</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-white border border-border p-5 rounded-2xl shadow-sm group hover:border-secondary/30 transition-all">
+                <div className="flex items-center space-x-2 mb-3 text-secondary"><Zap size={14} /><span className="mini-label">AGILITY</span></div>
+                <p className="text-xl font-extrabold text-primary">OPTIMIZED</p>
               </div>
-              <div className="border border-bento-line p-3">
-                <div className="flex items-center space-x-2 mb-2 text-blue-500"><Target size={10} /><span className="mini-label">KPI ACCURACY</span></div>
-                <p className="text-base font-black">94%</p>
+              <div className="bg-white border border-border p-5 rounded-2xl shadow-sm group hover:border-secondary/30 transition-all">
+                <div className="flex items-center space-x-2 mb-3 text-primary"><Target size={14} /><span className="mini-label">ACCURACY</span></div>
+                <p className="text-xl font-extrabold text-primary">94.8%</p>
               </div>
-              <div className="border border-bento-line p-3">
-                <div className="flex items-center space-x-2 mb-2 text-orange-400"><TrendingUp size={10} /><span className="mini-label">MOMENTUM</span></div>
-                <p className="text-base font-black">+12%</p>
+              <div className="bg-white border border-border p-5 rounded-2xl shadow-sm group hover:border-secondary/30 transition-all">
+                <div className="flex items-center space-x-2 mb-3 text-warning"><TrendingUp size={14} /><span className="mini-label">MOMENTUM</span></div>
+                <p className="text-xl font-extrabold text-primary">+12.4%</p>
               </div>
             </div>
 
-            <div className="border border-bento-line p-4 h-[240px]">
-               <h4 className="mini-label mb-3">ACHIEVEMENTS GALLERY</h4>
-               <div className="space-y-2 overflow-y-auto max-h-[180px] pr-2">
+            <div className="bg-white border border-border p-6 rounded-3xl shadow-sm h-[280px]">
+               <h4 className="mini-label mb-4">ACHIEVEMENTS GALLERY</h4>
+               <div className="space-y-3 overflow-y-auto max-h-[200px] pr-2">
                  {[
-                   { title: 'Early Bird', date: 'Oct 2025', desc: 'Punctual for 20 days' },
-                   { title: 'Review Star', date: 'Sep 2025', desc: 'Positive Mudeer Feedback' }
+                   { title: 'EARLY BIRD PROTOCOL', date: 'Oct 2025', desc: '100% Punctuality for 30 consecutive cycles' },
+                   { title: 'SECURITY STAR', date: 'Sep 2025', desc: 'Verified GPS compliance certificate' }
                  ].map((ach, i) => (
-                   <div key={i} className="bg-bento-bg/30 p-2 border border-bento-line flex items-center space-x-3">
-                     <Star size={14} className="text-bento-accent" />
+                   <div key={i} className="bg-accent/10 p-4 rounded-2xl border border-border flex items-center space-x-4">
+                     <div className="p-2 bg-white rounded-lg shadow-sm text-secondary">
+                        <Star size={18} fill="currentColor" />
+                     </div>
                      <div className="flex-1">
-                       <p className="text-[10px] font-black uppercase leading-tight">{ach.title}</p>
-                       <p className="text-[8px] opacity-40">{ach.desc}</p>
+                       <p className="text-xs font-extrabold text-primary uppercase tracking-tight leading-tight">{ach.title}</p>
+                       <p className="text-[10px] font-bold text-text-gray mt-1">{ach.desc}</p>
                      </div>
                    </div>
                  ))}
@@ -667,21 +671,24 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
             </div>
           </div>
 
-          <div className="md:col-span-4 border-t md:border-t-0 md:border-l border-bento-line pt-4 md:pt-0 md:pl-4">
-            <h4 className="mini-label mb-4">ASSESSMENT LOG</h4>
-            <div className="space-y-3 overflow-y-auto max-h-[440px] pr-2">
+          <div className="md:col-span-4 border-t md:border-t-0 md:border-l border-border pt-6 md:pt-0 md:pl-8">
+            <h4 className="mini-label mb-6">ASSESSMENT LOG</h4>
+            <div className="space-y-4 overflow-y-auto max-h-[480px] pr-2">
               {employee.performanceReviews.length === 0 ? (
-                <div className="p-8 text-center opacity-10"><AlertCircle size={24} className="mx-auto mb-2"/><p className="text-[8px] font-black">NO ENTRIES</p></div>
+                <div className="p-12 text-center opacity-20 flex flex-col items-center">
+                  <AlertCircle size={32} className="text-primary mb-3"/>
+                  <p className="text-[10px] font-extrabold uppercase">NO ASSESSMENT RECORDS</p>
+                </div>
               ) : (
                 employee.performanceReviews.map((rev, i) => (
-                  <div key={i} className="p-3 border border-bento-line hover:border-bento-accent transition-colors">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-[8px] font-black opacity-30">{rev.date}</span>
+                  <div key={i} className="p-5 rounded-2xl border border-border bg-white hover:border-secondary/30 transition-all shadow-sm">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-[10px] font-extrabold text-text-gray">{rev.date}</span>
                       <div className="flex space-x-0.5">
-                        {[...Array(5)].map((_, j) => <Star key={j} size={6} className={j < rev.rating ? "text-bento-accent fill-bento-accent" : "text-slate-100"} />)}
+                        {[...Array(5)].map((_, j) => <Star key={j} size={8} className={j < rev.rating ? "text-secondary fill-secondary" : "text-bg"} />)}
                       </div>
                     </div>
-                    <p className="text-[9px] italic opacity-60 leading-tight">{rev.feedback}</p>
+                    <p className="text-xs font-bold text-primary italic leading-relaxed">"{rev.feedback}"</p>
                   </div>
                 ))
               )}
@@ -693,113 +700,113 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   };
 
   const renderMobileCheckIn = () => (
-    <div className="flex flex-col items-center min-h-[calc(100vh-140px)] pt-6 sm:hidden bg-slate-50/50">
-      <div className="w-full flex items-center justify-between px-6 mb-8">
-        <div>
-          <h2 className="text-2xl font-black text-[#141414] tracking-tighter">Hey {employee.name.split(' ')[0]}</h2>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1 opacity-70">Good Morning! Mark your attendance</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button 
-            onClick={onLogout}
-            className="w-10 h-10 flex items-center justify-center text-red-500 bg-white shadow-sm border border-slate-100 rounded-xl active:scale-95 transition-transform"
-          >
-            <LogOut size={18} />
-          </button>
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-xl">
-            <div className="w-full h-full bg-bento-ink text-white flex items-center justify-center font-bold text-lg">
-              {employee.name.charAt(0)}
-            </div>
+    <div className="flex flex-col min-h-[calc(100vh-160px)] px-5 pt-8 sm:hidden">
+      {/* Header Profile Section */}
+      <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center space-x-4">
+          <div className="w-14 h-14 bg-primary text-white rounded-3xl flex items-center justify-center font-bold text-xl shadow-xl shadow-primary/20 rotate-3">
+            {employee.name.charAt(0)}
+          </div>
+          <div>
+            <h2 className="text-xl font-extrabold text-primary tracking-tight">Hey, {employee.name.split(' ')[0]}</h2>
+            <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mt-0.5">Good Morning! Ready for duty?</p>
           </div>
         </div>
-      </div>
-
-      <div className="flex flex-col items-center mt-4 h-32 justify-center">
-        <AnimatePresence mode="wait">
-          {sessionDuration ? (
-            <motion.div 
-              key="active-session"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              className="text-center"
-            >
-               <div className="text-[11px] font-black text-bento-accent uppercase tracking-[0.4em] mb-3 animate-pulse">Session Active</div>
-               <div className="relative inline-block">
-                  <div className="absolute -inset-8 bg-bento-accent/10 blur-3xl rounded-full animate-pulse"></div>
-                  <h1 className="text-7xl sm:text-8xl font-black text-slate-900 tracking-tighter tabular-nums relative drop-shadow-2xl">{sessionDuration}</h1>
-               </div>
-            </motion.div>
-          ) : (
-            <motion.div 
-              key="clock"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-center"
-            >
-              <h1 className="text-6xl font-black text-slate-800 tracking-tighter opacity-90 drop-shadow-sm">{currentTime}</h1>
-              <p className="text-slate-400 text-[11px] font-bold uppercase tracking-[0.3em] mt-4">{dateDisplay}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div className="mt-12 relative flex items-center justify-center w-[280px] h-[280px]">
-        {/* Animated Ripples */}
-        {todayAttendance?.sessions?.some(s => !s.checkOut) && (
-          <>
-            <div className="ripple bg-bento-accent/5" style={{ animationDelay: '0s' }}></div>
-            <div className="ripple bg-bento-accent/5" style={{ animationDelay: '1.2s' }}></div>
-            <div className="ripple bg-bento-accent/5" style={{ animationDelay: '2.4s' }}></div>
-          </>
-        )}
-        
         <button 
-          onClick={() => handleMarkAttendance(todayAttendance?.sessions?.some(s => !s.checkOut) ? 'out' : 'in')}
-          className={cn(
-            "neo-button w-40 h-40 flex flex-col items-center justify-center z-10 group",
-            todayAttendance?.sessions?.some(s => !s.checkOut) ? "text-bento-accent border-bento-accent/50" : "text-slate-400"
-          )}
+          onClick={onLogout}
+          className="w-11 h-11 flex items-center justify-center text-error bg-white shadow-lg border border-border rounded-2xl active:scale-95 transition-all"
         >
-          <div className="mb-3 transition-transform group-active:scale-90">
-            {todayAttendance?.sessions?.some(s => !s.checkOut) ? (
-              <LogOut size={32} />
-            ) : (
-              <div className="relative">
-                <div className="absolute inset-0 bg-bento-accent/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <Clock size={32} className="relative" />
-              </div>
-            )}
-          </div>
-          <span className="font-black text-[11px] uppercase tracking-widest">
-            {todayAttendance?.sessions?.some(s => !s.checkOut) ? 'Check out' : 'Check in'}
-          </span>
+          <LogOut size={20} />
         </button>
       </div>
 
-      <div className="grid grid-cols-3 w-full mt-auto px-4 pb-28 gap-3">
-        <div className="neo-stat-card border border-transparent hover:border-slate-100 transition-colors">
-          <div className="p-2.5 bg-white shadow-sm rounded-2xl mb-2 text-bento-accent border border-slate-50">
-            <Clock size={18} />
+      {/* Main Status & Clock Card */}
+      <div className="bg-white rounded-[32px] p-8 shadow-[0_20px_50px_rgba(0,102,255,0.06)] border border-border relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700"></div>
+        
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-2 px-3 py-1 bg-primary/10 rounded-full">
+              <div className={cn("w-2 h-2 rounded-full", todayAttendance?.sessions?.some(s => !s.checkOut) ? "bg-emerald-500 animate-pulse" : "bg-text-gray/30")} />
+              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
+                {todayAttendance?.sessions?.some(s => !s.checkOut) ? 'Active Duty' : 'Off-Duty'}
+              </span>
+            </div>
+            <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">{dateDisplay}</span>
           </div>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Day Entry</span>
-          <span className="text-xs font-black mt-1 text-slate-700">{todayAttendance?.timeIn || '--:--'}</span>
-        </div>
-        <div className="neo-stat-card border border-transparent hover:border-slate-100 transition-colors">
-          <div className="p-2.5 bg-white shadow-sm rounded-2xl mb-2 text-bento-accent border border-slate-50">
-             <LogOut size={18} />
+
+          <div className="flex flex-col items-center py-6">
+            <AnimatePresence mode="wait">
+              {sessionDuration ? (
+                <motion.div 
+                  key="duration"
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="text-center"
+                >
+                  <h1 className="text-6xl font-extrabold text-primary tracking-tighter tabular-nums mb-2">{sessionDuration}</h1>
+                  <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Ongoing Session Time</p>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="current-time"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center"
+                >
+                  <h1 className="text-5xl font-extrabold text-primary tracking-tighter tabular-nums mb-2 opacity-40">{currentTime.split(' ')[0]}</h1>
+                  <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest">System Clock - Wait for Entry</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Last Exit</span>
-          <span className="text-xs font-black mt-1 text-slate-700">{todayAttendance?.timeOut || '--:--'}</span>
-        </div>
-        <div className="neo-stat-card border border-transparent hover:border-slate-100 transition-colors">
-          <div className="p-2.5 bg-white shadow-sm rounded-2xl mb-2 text-bento-accent border border-slate-50">
-            <CheckCircle2 size={18} />
+
+          <div className="mt-8">
+            <button 
+              onClick={() => handleMarkAttendance(todayAttendance?.sessions?.some(s => !s.checkOut) ? 'out' : 'in')}
+              className={cn(
+                "w-full h-16 rounded-[20px] flex items-center justify-center space-x-3 text-sm font-extrabold uppercase tracking-widest transition-all duration-300 shadow-xl",
+                todayAttendance?.sessions?.some(s => !s.checkOut) 
+                  ? "bg-secondary text-white shadow-secondary/20 active:scale-95" 
+                  : "bg-primary text-white shadow-primary/20 active:scale-95"
+              )}
+            >
+              {todayAttendance?.sessions?.some(s => !s.checkOut) ? (
+                <>
+                  <LogOut size={20} />
+                  <span>Check Out Now</span>
+                </>
+              ) : (
+                <>
+                  <Clock size={20} />
+                  <span>Mark Attendance</span>
+                </>
+              )}
+            </button>
           </div>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Work H</span>
-          <span className="text-xs font-black mt-1 text-slate-700">{calculateHoursWorked(todayAttendance)}</span>
         </div>
+      </div>
+
+      {/* Mini Stats Group */}
+      <div className="grid grid-cols-2 gap-4 mt-8">
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-border">
+          <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mb-3">Check-In</p>
+          <div className="text-xl font-extrabold text-primary tabular-nums">{todayAttendance?.timeIn || '--:--'}</div>
+          {todayAttendance?.timeIn && <p className="text-[9px] font-bold text-emerald-600 mt-1 uppercase">Punctual Entry</p>}
+        </div>
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-border">
+          <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mb-3">Work Hours</p>
+          <div className="text-xl font-extrabold text-primary tabular-nums">{calculateHoursWorked(todayAttendance)}h</div>
+          <p className="text-[9px] font-bold text-text-gray mt-1 uppercase tracking-tighter">Day Total Efficiency</p>
+        </div>
+      </div>
+
+      {/* Location Badge */}
+      <div className="mt-8 flex items-center justify-center space-x-2 bg-accent/20 py-3 rounded-2xl border border-primary/5">
+        <Target size={14} className="text-primary" />
+        <span className="text-[10px] font-extrabold text-primary uppercase tracking-widest">
+          Verified Site: {employee.campus.toUpperCase()}
+        </span>
       </div>
     </div>
   );
@@ -824,23 +831,22 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
       </AnimatePresence>
       {/* Desktop View */}
       <div className="hidden sm:block space-y-10">
-        <div className="tabs-container sticky top-4 z-[30] mx-auto w-full sm:w-fit bg-bento-ink border border-bento-line shadow-lg">
-          <nav className="flex items-center">
-            <TabButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={Clock} label="Terminal" />
-            <TabButton active={activeTab === 'leaves'} onClick={() => setActiveTab('leaves')} icon={Briefcase} label="Leaves" />
-            <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Profile" />
-            <TabButton active={activeTab === 'performance'} onClick={() => setActiveTab('performance')} icon={FileText} label="Reviews" />
-            <button 
-              onClick={onLogout}
-              className="tab-item flex items-center space-x-2 text-red-400 hover:text-red-500 hover:bg-white/5 transition-all duration-200 px-4 flex-shrink-0"
-            >
-              <LogOut size={14} className="shrink-0" />
-              <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Logout</span>
-            </button>
-          </nav>
+        <div className="tabs-container sticky top-4 z-[30] mx-auto w-full sm:w-fit bg-secondary border border-border shadow-2xl rounded-2xl overflow-hidden p-1.5 flex items-center space-x-1">
+          <TabButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={Clock} label="Terminal" />
+          <TabButton active={activeTab === 'leaves'} onClick={() => setActiveTab('leaves')} icon={Briefcase} label="Leaves" />
+          <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Profile" />
+          <TabButton active={activeTab === 'performance'} onClick={() => setActiveTab('performance')} icon={FileText} label="Reviews" />
+          <div className="w-[1px] h-4 bg-white/20 mx-2" />
+          <button 
+            onClick={onLogout}
+            className="flex items-center space-x-2 text-error hover:bg-error/10 transition-all rounded-xl px-4 py-2 flex-shrink-0"
+          >
+            <LogOut size={16} className="shrink-0" />
+            <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Logout</span>
+          </button>
         </div>
 
-        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
           {activeTab === 'attendance' && renderAttendanceTab()}
           {activeTab === 'leaves' && renderLeavesTab()}
           {activeTab === 'profile' && renderProfileTab()}
@@ -850,25 +856,25 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
 
       {/* Mobile View */}
       <div className="sm:hidden flex flex-col min-h-[calc(100vh-80px)]">
-        <div className="flex-1 pb-24">
+        <div className="flex-1 pb-32">
           <AnimatePresence mode="wait">
             <motion.div
               key={mobileTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              transition={{ duration: 0.3 }}
             >
               {mobileTab === 'checkin' && renderMobileCheckIn()}
-              {mobileTab === 'calendar' && <div className="p-4 pt-6">{renderAttendanceTab()}</div>}
-              {mobileTab === 'summary' && <div className="p-4 pt-6">{renderPerformanceTab()}</div>}
-              {mobileTab === 'leaves' && <div className="p-4 pt-6">{renderLeavesTab()}</div>}
-              {mobileTab === 'profile' && <div className="p-4 pt-6">{renderProfileTab()}</div>}
+              {mobileTab === 'calendar' && <div className="p-5">{renderAttendanceTab()}</div>}
+              {mobileTab === 'summary' && <div className="p-5">{renderPerformanceTab()}</div>}
+              {mobileTab === 'leaves' && <div className="p-5">{renderLeavesTab()}</div>}
+              {mobileTab === 'profile' && <div className="p-5">{renderProfileTab()}</div>}
             </motion.div>
           </AnimatePresence>
         </div>
 
-        <div className="bottom-nav">
+        <div className="fixed bottom-6 left-6 right-6 h-20 bg-secondary rounded-[24px] shadow-2xl border border-white/5 flex items-center justify-around px-4 z-50">
           {[
             { id: 'checkin', icon: Clock, label: 'Entry' },
             { id: 'calendar', icon: Calendar, label: 'Logs' },
@@ -880,19 +886,19 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
               key={item.id}
               onClick={() => setMobileTab(item.id as any)} 
               className={cn(
-                "nav-item", 
-                mobileTab === item.id && "active"
+                "relative flex flex-col items-center justify-center w-14 h-14 transition-all duration-300 rounded-xl", 
+                mobileTab === item.id ? "text-white" : "text-white/40 hover:text-white/60"
               )}
             >
               {mobileTab === item.id && (
                 <motion.div
-                  layoutId="nav-bg"
-                  className="absolute inset-0 bg-bento-accent/10 rounded-2xl -z-10"
+                  layoutId="active-indicator"
+                  className="absolute inset-0 bg-primary/20 border border-primary/30 rounded-xl"
                   transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                 />
               )}
-              <item.icon size={20} />
-              <span className="nav-label">{item.label}</span>
+              <item.icon size={20} className={cn("relative z-10 transition-transform", mobileTab === item.id && "scale-110")} />
+              <span className="text-[8px] font-bold uppercase tracking-widest mt-1 relative z-10">{item.label}</span>
             </button>
           ))}
         </div>
@@ -905,8 +911,8 @@ const TabButton = ({ active, onClick, icon: Icon, label }: any) => (
   <button 
     onClick={onClick}
     className={cn(
-      "tab-item flex items-center space-x-2 transition-all duration-200 flex-shrink-0 px-4",
-      active ? "bg-white text-bento-ink font-black" : "text-white/40 hover:text-white"
+      "flex items-center space-x-2 transition-all duration-300 flex-shrink-0 px-6 py-2.5 rounded-xl",
+      active ? "bg-primary text-white shadow-lg shadow-primary/20 font-extrabold" : "text-white/50 hover:text-white/80 hover:bg-white/5"
     )}
   >
     <Icon size={14} className="shrink-0" />

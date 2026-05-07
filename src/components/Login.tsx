@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Building2, User as UserIcon, Lock, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, Building2, User as UserIcon, Lock, ShieldCheck, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -22,226 +22,280 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setIsSubmitting(true);
     setError('');
     
-    // Slight delay for animation feel
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     const result = onLogin(username, password, portal, campus, rememberMe);
     if (!result.success) {
-      if (result.locked) {
-        setError('Account Locked. Contact Admin.');
-      } else {
-        setError('Invalid credentials.');
-      }
+      setError(result.locked ? 'Account Locked. Contact Admin.' : 'Invalid credentials.');
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden font-sans">
-      {/* Dynamic Background Elements */}
-      <motion.div 
-        animate={{ scale: [1, 1.1, 1], opacity: [0.03, 0.05, 0.03] }}
-        transition={{ duration: 8, repeat: Infinity }}
-        className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-bento-accent rounded-full blur-[120px] pointer-events-none"
-      />
-      <motion.div 
-        animate={{ scale: [1, 1.2, 1], opacity: [0.02, 0.04, 0.02] }}
-        transition={{ duration: 10, repeat: Infinity, delay: 1 }}
-        className="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] bg-bento-ink rounded-full blur-[100px] pointer-events-none"
-      />
+    <div className="min-h-screen bg-[#F0F4F8] flex flex-col relative overflow-hidden font-jakarta">
+      {/* Background Illustrations Placeholder */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
+        <svg className="w-full h-full" viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="200" cy="200" r="300" fill="url(#grad1)" fillOpacity="0.3" />
+          <circle cx="1200" cy="700" r="400" fill="url(#grad2)" fillOpacity="0.2" />
+          {/* Schematic Map Lines */}
+          <path d="M100 100 Q 400 150 700 100 T 1300 200" stroke="#0066FF" strokeWidth="2" strokeDasharray="10 10" opacity="0.2" />
+          <path d="M200 800 Q 600 700 900 850 T 1400 750" stroke="#0066FF" strokeWidth="2" strokeDasharray="10 10" opacity="0.2" />
+          <defs>
+            <radialGradient id="grad1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(200 200) rotate(90) scale(300)">
+              <stop stopColor="#0066FF" />
+              <stop offset="1" stopColor="#0066FF" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="grad2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1200 700) rotate(90) scale(400)">
+              <stop stopColor="#002B49" />
+              <stop offset="1" stopColor="#002B49" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+        </svg>
+      </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[380px] z-10"
-      >
-        <div className="bg-white rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] border border-slate-100 overflow-hidden">
-          {/* Header */}
-          <div className="pt-8 pb-4 px-8 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-bento-ink text-white rounded-2xl shadow-xl shadow-bento-ink/20 mb-4 transform -rotate-3 hover:rotate-0 transition-transform duration-300">
-              <span className="text-xl font-black tracking-tighter">FA</span>
+      <main className="flex-1 flex items-center justify-center p-4 relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12">
+        {/* Left Side: Logo and Intro */}
+        <motion.div 
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="hidden lg:flex flex-col items-center lg:items-start text-center lg:text-left space-y-8"
+        >
+          <div className="flex flex-col items-center lg:items-start space-y-4">
+            <div className="relative w-32 h-32 bg-primary rounded-full flex items-center justify-center shadow-2xl overflow-hidden">
+               <div className="absolute inset-0 bg-gradient-to-tr from-primary to-primary-light opacity-50" />
+               <ShieldCheck className="text-white w-16 h-16 relative z-10" />
             </div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">
-              FIQH ACADEMY
-            </h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Logistics Portal</p>
+            <div className="space-y-1">
+              <h1 className="text-5xl font-extrabold text-primary tracking-tight uppercase">
+                FIQH ACADEMY
+              </h1>
+              <div className="flex items-center space-x-4">
+                <div className="h-[2px] w-12 bg-warning/50 rounded-full" />
+                <p className="text-2xl font-bold text-secondary">Logistics Portal</p>
+                <div className="h-[2px] w-12 bg-warning/50 rounded-full" />
+              </div>
+            </div>
           </div>
 
-          {/* Portal Switcher */}
-          <div className="px-8 mt-4">
-            <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100">
+          <div className="space-y-4 max-w-lg">
+            <p className="text-xl font-bold text-text-dark">Smart. Secure. Seamless.</p>
+            <p className="text-text-gray leading-relaxed">
+              Access real-time logistics operations, manage deliveries, assets, and reports with efficiency and accuracy.
+            </p>
+          </div>
+
+          {/* Truck and Warehouse Illustration Placeholder */}
+          <div className="relative w-full max-w-md h-64 bg-accent/20 rounded-3xl border border-secondary/10 overflow-hidden flex items-end justify-center p-8">
+             <motion.div 
+               animate={{ x: [0, 20, 0] }}
+               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+               className="w-48 h-24 bg-white rounded-xl shadow-lg border border-border flex items-center justify-center p-4"
+             >
+                <div className="w-full h-full bg-secondary/10 rounded-lg flex items-center justify-center text-secondary">
+                   <ShieldCheck size={40} />
+                </div>
+             </motion.div>
+             {/* Map dots */}
+             <div className="absolute inset-0 grid grid-cols-6 gap-4 p-8 opacity-20 pointer-events-none">
+                {[...Array(24)].map((_, i) => (
+                  <div key={i} className="w-1.5 h-1.5 bg-secondary rounded-full" />
+                ))}
+             </div>
+          </div>
+        </motion.div>
+
+        {/* Right Side: Login Form */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-[500px] mx-auto lg:mx-0"
+        >
+          <div className="bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.06)] border border-border overflow-hidden">
+            {/* Logo for mobile */}
+            <div className="lg:hidden p-8 text-center border-b border-border">
+              <h1 className="text-2xl font-bold text-primary">FIQH ACADEMY</h1>
+              <p className="text-sm font-bold text-secondary">Logistics Portal</p>
+            </div>
+
+            {/* Portal Tabs */}
+            <div className="flex">
               <button
-                type="button"
                 onClick={() => setPortal('admin')}
                 className={cn(
-                  "flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg relative",
-                  portal === 'admin' ? "bg-white text-bento-ink shadow-sm ring-1 ring-black/5" : "text-slate-400 hover:text-slate-600"
+                  "flex-1 flex items-center justify-center space-x-3 py-6 transition-all relative overflow-hidden",
+                  portal === 'admin' 
+                    ? "bg-primary text-white" 
+                    : "bg-white text-text-gray hover:bg-bg"
                 )}
               >
-                ADMIN
+                <UserIcon size={20} />
+                <span className="font-bold uppercase tracking-widest text-sm">ADMIN</span>
+                {portal === 'admin' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-secondary" />}
               </button>
               <button
-                type="button"
                 onClick={() => setPortal('employee')}
                 className={cn(
-                  "flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg",
-                  portal === 'employee' ? "bg-white text-bento-ink shadow-sm ring-1 ring-black/5" : "text-slate-400 hover:text-slate-600"
+                  "flex-1 flex items-center justify-center space-x-3 py-6 transition-all relative overflow-hidden",
+                  portal === 'employee' 
+                    ? "bg-primary text-white" 
+                    : "bg-white text-text-gray hover:bg-bg"
                 )}
               >
-                STAFF
+                <Building2 size={20} />
+                <span className="font-bold uppercase tracking-widest text-sm">STAFF</span>
+                {portal === 'employee' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-secondary" />}
               </button>
             </div>
-          </div>
 
-          <form onSubmit={handleSubmit} className="p-8 space-y-5">
-            <AnimatePresence mode="wait">
-              {error && (
-                <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="bg-red-50 text-red-600 p-3 rounded-xl border border-red-100 text-[10px] font-black uppercase tracking-widest text-center"
-                >
-                  {error}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="space-y-4">
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 transition-colors group-focus-within:text-bento-ink">Identifier</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-bento-ink transition-colors">
-                    <UserIcon size={16} />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-bento-ink/5 focus:bg-white focus:border-slate-300 transition-all text-sm font-bold placeholder:font-normal placeholder:text-slate-300"
-                    placeholder="Username or ID"
-                  />
-                </div>
-              </div>
-
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 group-focus-within:text-bento-ink">Access Key</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-bento-ink">
-                    <Lock size={16} />
-                  </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-11 pr-11 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-bento-ink/5 focus:bg-white focus:border-slate-300 transition-all text-sm font-bold placeholder:font-normal placeholder:text-slate-300"
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-300 hover:text-slate-600 transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              <AnimatePresence>
-                {portal === 'admin' && (
+            <form onSubmit={handleSubmit} className="p-8 lg:p-10 space-y-6">
+              <AnimatePresence mode="wait">
+                {error && (
                   <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="bg-error/5 text-error p-4 rounded-xl border border-error/10 text-xs font-bold text-center"
                   >
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Terminal</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                        <Building2 size={16} />
-                      </div>
-                      <select
-                        value={campus}
-                        onChange={(e) => setCampus(e.target.value)}
-                        className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-bento-ink/5 focus:bg-white focus:border-slate-300 transition-all text-[10px] font-black uppercase tracking-wider appearance-none"
-                      >
-                        <option value="Main Campus">Main Campus</option>
-                        <option value="Johar Campus">Johar Campus</option>
-                        <option value="Masjid Campus">Masjid Campus</option>
-                        <option value="Maktab Campus">Maktab Campus</option>
-                      </select>
-                    </div>
+                    {error}
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center cursor-pointer group">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="sr-only"
-                  />
-                  <div className={cn(
-                    "w-8 h-4 bg-slate-200 rounded-full transition-colors",
-                    rememberMe ? "bg-bento-accent" : ""
-                  )}></div>
-                  <div className={cn(
-                    "absolute left-0.5 top-0.5 bg-white w-3 h-3 rounded-full transition-transform shadow-sm",
-                    rememberMe ? "translate-x-4" : ""
-                  )}></div>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-text-dark ml-1">Identifier</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-secondary">
+                      <UserIcon size={18} />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="login-input pl-12"
+                      placeholder="Username or ID"
+                    />
+                  </div>
                 </div>
-                <span className="ml-2 text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 transition-colors">Remain Active</span>
-              </label>
-              
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-text-dark ml-1">Access Key</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-secondary">
+                      <Lock size={18} />
+                    </div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="login-input pl-12 pr-12"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-text-gray/50 hover:text-secondary transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-text-dark ml-1">Terminal</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-secondary">
+                      <Building2 size={18} />
+                    </div>
+                    <select
+                      value={campus}
+                      onChange={(e) => setCampus(e.target.value)}
+                      className="login-input pl-12 appearance-none font-medium"
+                    >
+                      <option value="Main Campus">Main Campus</option>
+                      <option value="Johar Campus">Johar Campus</option>
+                      <option value="Masjid Campus">Masjid Campus</option>
+                      <option value="Maktab Campus">Maktab Campus</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-text-gray/50">
+                       <ChevronDown size={18} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label className="flex items-center cursor-pointer group">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div className={cn(
+                      "w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center",
+                      rememberMe ? "bg-secondary border-secondary" : "bg-white border-border group-hover:border-secondary/50"
+                    )}>
+                      {rememberMe && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                    </div>
+                  </div>
+                  <span className="ml-3 text-sm font-medium text-text-gray group-hover:text-text-dark transition-colors">Remain Active</span>
+                </label>
+                
+                <button
+                  type="button"
+                  className="flex items-center space-x-1.5 text-sm font-medium text-secondary hover:text-secondary-dark transition-colors"
+                >
+                  <HelpCircle size={16} />
+                  <span>Help</span>
+                </button>
+              </div>
+
               <button
-                type="button"
-                onClick={() => alert('Contact Admin')}
-                className="text-[9px] font-black text-slate-300 hover:text-bento-ink uppercase tracking-widest transition-colors"
+                type="submit"
+                disabled={isSubmitting}
+                className={cn(
+                  "btn-primary w-full h-14 text-base",
+                  isSubmitting && "opacity-80"
+                )}
               >
-                Help
+                {isSubmitting ? (
+                   <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <ShieldCheck size={20} />
+                    <span>Authorize Access</span>
+                  </>
+                )}
               </button>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={cn(
-                "w-full flex items-center justify-center py-4 bg-bento-ink text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] shadow-xl shadow-bento-ink/20 hover:bg-black transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed group",
-                isSubmitting && "animate-pulse"
-              )}
-            >
-              <span className="mr-2">{isSubmitting ? 'Verifying...' : 'Authorize Access'}</span>
-              {!isSubmitting && <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />}
-            </button>
-          </form>
-          
-          <div className="px-8 pb-8 flex flex-col gap-2">
-             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest text-center mb-1">Quick Access Demo</p>
-             <div className="grid grid-cols-2 gap-2 text-[8px] font-black text-slate-400">
-                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 text-center">
-                  <span className="opacity-50">ADMIN:</span> shuja
-                </div>
-                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 text-center">
-                  <span className="opacity-50">STAFF:</span> FAMC1001
-                </div>
-             </div>
+            </form>
+          </div>
+        </motion.div>
+      </main>
+      
+      {/* Footer */}
+      <footer className="w-full bg-primary py-8 px-4 z-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:row items-center justify-between space-y-4 md:space-y-0 text-[11px] font-medium text-white/60 tracking-wider">
+          <p>© 2025 FIQH ACADEMY. All rights reserved.</p>
+          <div className="flex items-center space-x-6">
+            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+            <span className="hidden md:block opacity-30">|</span>
+            <a href="#" className="hover:text-white transition-colors">Terms of Use</a>
+            <span className="hidden md:block opacity-30">|</span>
+            <a href="#" className="hover:text-white transition-colors">Support</a>
           </div>
         </div>
-      </motion.div>
-      
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="mt-8 text-[8px] font-black text-slate-300 uppercase tracking-[0.5em]"
-      >
-        FA LOGISTICS v2.4.0
-      </motion.div>
+      </footer>
     </div>
   );
 };
+
+const ChevronDown = ({ size }: { size: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m6 9 6 6 6-6"/>
+  </svg>
+);

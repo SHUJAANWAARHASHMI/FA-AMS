@@ -23,7 +23,8 @@ import {
   CloudOff,
   CheckCircle,
   AlertCircle,
-  Info
+  Info,
+  ChevronDown
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -48,13 +49,13 @@ const NavItem = ({ tab, icon: Icon, label, roles, userRole, activeTab, setActive
     <button
       onClick={() => setActiveTab(tab)}
       className={cn(
-        "flex items-center space-x-3 w-full px-6 py-3 transition-all duration-200 text-sm font-bold uppercase tracking-tight",
+        "flex items-center space-x-3 w-full px-4 py-3 transition-all duration-200 text-sm font-medium rounded-xl",
         activeTab === tab 
-          ? "bg-bento-ink text-white border-r-4 border-bento-accent" 
-          : "text-bento-ink opacity-60 hover:opacity-100 hover:bg-black/5"
+          ? "bg-secondary text-white shadow-lg shadow-secondary/20" 
+          : "text-white/70 hover:text-white hover:bg-white/10"
       )}
     >
-      <Icon size={18} />
+      <Icon size={20} />
       {isSidebarOpen && <span>{label}</span>}
     </button>
   );
@@ -252,31 +253,34 @@ export default function App() {
       {!isEmployeePortal && (
         <aside 
           className={cn(
-            "bg-white text-bento-ink transition-all duration-300 flex flex-col z-[60] border-r border-bento-line absolute sm:relative h-full",
-            isSidebarOpen ? "w-64 translate-x-0" : "w-0 sm:w-20 -translate-x-full sm:translate-x-0",
+            "bg-primary text-white transition-all duration-300 flex flex-col z-[60] border-r border-border absolute sm:relative h-full",
+            isSidebarOpen ? "w-72 translate-x-0" : "w-0 sm:w-24 -translate-x-full sm:translate-x-0",
             "sm:translate-x-0"
           )}
         >
-          <div className="p-4 hidden sm:flex items-center justify-between border-b-2 border-bento-line h-20">
-            {isSidebarOpen && (
+          <div className="p-6 h-24 flex items-center">
+            {isSidebarOpen ? (
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-bento-accent text-white flex items-center justify-center font-mono font-bold">FA</div>
-                <span className="font-black text-lg tracking-tighter uppercase">FIQH <span className="font-light opacity-60">ACADEMY</span></span>
+                <div className="w-10 h-10 bg-white text-primary rounded-xl flex items-center justify-center font-bold text-xl shadow-lg">
+                  <ShieldCheck size={24} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-extrabold text-lg leading-none tracking-tight leading-none">FA</span>
+                  <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">FIQH ACADEMY</span>
+                </div>
+              </div>
+            ) : (
+              <div className="w-10 h-10 bg-white text-primary rounded-xl flex items-center justify-center font-bold shadow-lg mx-auto">
+                 <ShieldCheck size={20} />
               </div>
             )}
-            <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 hover:bg-black/5 transition-colors ml-auto"
-            >
-              {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
           </div>
 
-          <nav className="flex-1 overflow-y-auto pt-6 space-y-1 custom-scrollbar">
+          <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2 custom-scrollbar">
             <NavItem tab="dashboard" icon={LayoutDashboard} label="Dashboard" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
             <NavItem tab="manual-attendance" icon={CalendarCheck} label="Manual Entry" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
             <NavItem tab="single-attendance" icon={UserCheck} label="Quick Check" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
-            <div className="my-4 border-t border-bento-line/10 mx-6"></div>
+            <div className="my-6 border-t border-white/10 mx-2"></div>
             <NavItem tab="employee-management" icon={Users} label="Employees" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
             <NavItem tab="leave-management" icon={Briefcase} label="Leaves" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
             <NavItem tab="reports" icon={FileText} label="Reports" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
@@ -284,10 +288,10 @@ export default function App() {
             <NavItem tab="admin-controls" icon={ShieldCheck} label="Access Control" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
           </nav>
 
-          <div className="p-4 border-t border-bento-line">
+          <div className="p-4 border-t border-white/10">
             <button 
               onClick={logout}
-              className="flex items-center space-x-3 w-full px-6 py-3 text-red-600 hover:bg-red-50 transition-all font-bold uppercase text-xs tracking-widest"
+              className="flex items-center space-x-3 w-full px-4 py-3 text-red-400 hover:text-red-300 hover:bg-white/5 transition-all font-bold uppercase text-xs tracking-widest rounded-xl"
             >
               <LogOut size={18} />
               {isSidebarOpen && <span>Logout System</span>}
@@ -302,99 +306,104 @@ export default function App() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Header */}
-        <header className="bg-white px-4 sm:px-10 py-4 sm:h-20 border-b-2 border-bento-line flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-0 sticky top-0 z-40">
-          <div className="flex flex-col sm:flex-row items-center sm:space-x-8 w-full sm:w-auto">
-            <div className="text-center sm:text-left w-full sm:w-auto">
-              <h2 className="text-lg sm:text-xl font-black text-bento-ink uppercase tracking-tighter">
-                {isEmployeePortal ? 'Employee Portal' : activeTab.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-              </h2>
-              <div className="flex items-center justify-center sm:justify-start space-x-2 sm:space-x-3 text-[9px] sm:text-[10px] text-bento-ink/50 font-mono font-bold uppercase tracking-wider mt-1 sm:mt-0">
-                <Clock size={10} className="sm:w-3 sm:h-3" />
-                <span className="real-time-clock">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                <span className="mx-0.5 opacity-20">|</span>
-                <span className="hidden sm:inline">{currentTime.toLocaleDateString([], { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                <span className="sm:hidden">{currentTime.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+        <header className="bg-white px-8 h-24 border-b border-border flex items-center justify-between sticky top-0 z-40">
+          <div className="flex items-center space-x-8">
+             <button 
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-2 hover:bg-bg rounded-lg transition-colors text-text-gray"
+              >
+                {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+              
+              <div>
+                <h2 className="text-2xl font-extrabold text-primary tracking-tight">
+                  {isEmployeePortal ? 'Employee Portal' : activeTab.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                </h2>
+                <div className="flex items-center space-x-4 text-xs text-text-gray font-medium mt-0.5">
+                  <div className="flex items-center space-x-1.5 border-r border-border pr-4 h-4">
+                    <Clock size={14} className="text-secondary" />
+                    <span>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  <span>{currentTime.toLocaleDateString([], { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                </div>
               </div>
-            </div>
           </div>
 
-          <div className="flex items-center justify-between sm:justify-end space-x-4 sm:space-x-10 w-full sm:w-auto mt-2 sm:mt-0">
+          <div className="flex items-center space-x-6">
             {!isEmployeePortal && (
-              <div className="relative hidden xl:block">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-bento-ink/40">
-                  <Search size={16} />
+              <div className="relative hidden xl:block group">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-text-gray/40 group-focus-within:text-secondary transition-colors">
+                  <Search size={18} />
                 </span>
                 <input 
                   type="text" 
                   placeholder="COMMAND + K TO SEARCH" 
-                  className="pl-10 pr-4 py-2 bg-bento-bg/50 border border-bento-line rounded-none w-64 focus:ring-1 focus:ring-bento-ink focus:outline-hidden transition-all text-[10px] font-bold tracking-widest uppercase"
+                  className="pl-12 pr-4 h-12 bg-bg border border-border rounded-xl w-72 focus:ring-2 focus:ring-secondary/10 focus:border-secondary focus:outline-none transition-all text-xs font-bold tracking-widest"
                 />
               </div>
             )}
             
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center space-x-3">
               {/* Cloud Sync Status */}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={triggerManualSync}
-                  disabled={isSyncing}
-                  className={cn(
-                    "flex items-center space-x-2 px-3 py-1.5 border transition-all text-[8px] font-black uppercase tracking-widest outline-hidden",
-                    !isOnline 
-                      ? "bg-red-50 border-red-200 text-red-600" 
-                      : isSyncing 
-                        ? "bg-bento-accent/10 border-bento-accent/30 text-bento-accent animate-pulse" 
-                        : "bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100"
-                  )}
-                  title="Force Instant Cloud Sync"
-                >
-                  {!isOnline ? <CloudOff size={12} /> : <Cloud size={12} className={cn(isSyncing && "animate-bounce")} />}
-                  <span className="hidden sm:inline">
-                    {!isOnline ? 'Cloud Offline' : isSyncing ? 'Syncing...' : 'Cloud Active'}
-                  </span>
-                  {isOnline && !isSyncing && <Search size={8} className="opacity-40" />}
-                </button>
-              </div>
+              <button
+                onClick={triggerManualSync}
+                disabled={isSyncing}
+                className={cn(
+                  "flex items-center space-x-2 px-4 h-11 border transition-all text-xs font-bold rounded-xl",
+                  !isOnline 
+                    ? "bg-error/5 border-error/20 text-error" 
+                    : isSyncing 
+                      ? "bg-secondary/5 border-secondary/20 text-secondary animate-pulse" 
+                      : "bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                )}
+              >
+                {!isOnline ? <CloudOff size={16} /> : <Cloud size={16} className={cn(isSyncing && "animate-bounce")} />}
+                <span className="hidden xl:inline">
+                  {!isOnline ? 'Cloud Offline' : isSyncing ? 'Syncing...' : 'Cloud Active'}
+                </span>
+                <div className={cn("w-1.5 h-1.5 rounded-full ml-1", isOnline ? "bg-emerald-500" : "bg-error")} />
+              </button>
 
               <div className="relative">
                 <button 
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                   className={cn(
-                    "relative p-2 transition-colors",
-                    isNotificationsOpen ? "text-bento-accent bg-bento-accent/5" : "text-bento-ink/60 hover:text-bento-ink"
+                    "relative w-11 h-11 flex items-center justify-center rounded-xl transition-all border",
+                    isNotificationsOpen ? "bg-secondary/5 border-secondary/20 text-secondary" : "bg-white border-border text-text-gray hover:bg-bg"
                   )}
                 >
-                  <Bell size={20} className="sm:w-6 sm:h-6" />
+                  <Bell size={20} />
                   {notifications.length > 0 && (
-                    <span className="absolute top-1 right-1 w-4 h-4 bg-bento-accent text-white text-[8px] font-black flex items-center justify-center border-2 border-white leading-none">
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-error text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
                       {notifications.length}
                     </span>
                   )}
                 </button>
                 {isNotificationsOpen && <NotificationDropdown notifications={notifications} dismissNotification={dismissNotification} setIsNotificationsOpen={setIsNotificationsOpen} />}
               </div>
-              
-              <button 
-                onClick={logout}
-                className="p-2 text-red-600 hover:bg-red-50 transition-all border border-transparent hover:border-red-100 flex items-center justify-center shrink-0"
-                title="LOGOUT SYSTEM"
-              >
-                <LogOut size={18} className="sm:w-5 sm:h-5" />
-              </button>
-            </div>
-            
-            <div className="flex items-center space-x-2 sm:space-x-4 pl-3 sm:pl-8 border-l border-bento-line">
-              <div className="text-right hidden sm:block">
-                <p className="text-xs sm:text-sm font-black text-bento-ink uppercase tracking-tighter truncate max-w-[100px]">{currentUser?.name || 'User'}</p>
-                <div className="flex items-center justify-end space-x-1 sm:space-x-2">
-                  <span className="text-[8px] sm:text-[9px] font-bold text-white bg-bento-accent px-1 sm:px-1.5 py-0.5 uppercase tracking-widest leading-none">
-                    {isEmployeePortal ? 'STAFF' : (currentUser as User)?.role?.toUpperCase() || 'USER'}
-                  </span>
-                  <span className="text-[8px] sm:text-[9px] font-bold text-bento-ink opacity-40 uppercase tracking-widest truncate max-w-[50px]">{currentUser?.campus || 'ALL'}</span>
+
+              {/* User Profile */}
+              <div className="flex items-center pl-6 border-l border-border ml-2">
+                <div className="flex items-center space-x-3 mr-4">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-extrabold text-primary tracking-tight leading-none">{currentUser?.name || 'User'}</p>
+                    <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mt-1">
+                      {isEmployeePortal ? 'STAFF' : (currentUser as User)?.role?.toUpperCase() || 'USER'}
+                    </p>
+                  </div>
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-secondary text-white rounded-xl flex items-center justify-center font-bold text-lg shadow-lg shadow-secondary/20 overflow-hidden">
+                       <span className="relative z-10">{currentUser?.name?.charAt(0) || '?'}</span>
+                       <div className="absolute inset-0 bg-gradient-to-tr from-secondary to-secondary-dark opacity-50" />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="w-8 h-8 sm:w-12 sm:h-12 bg-bento-ink text-white flex items-center justify-center font-mono font-bold text-base sm:text-xl border border-bento-line shadow-[2px_2px_0px_#2A5C43] sm:shadow-[4px_4px_0px_#2A5C43] shrink-0">
-                {currentUser?.name?.charAt(0) || '?'}
+                
+                <div className="h-11 px-4 bg-accent/50 border border-secondary/10 rounded-xl flex gap-2 items-center text-primary">
+                    <Building2 size={16} />
+                    <span className="text-xs font-bold uppercase tracking-widest">{currentUser?.campus || 'Main Campus'}</span>
+                    <ChevronDown size={14} className="text-text-gray" />
+                </div>
               </div>
             </div>
           </div>
