@@ -154,9 +154,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
         accountLocked: false,
         attendance: [],
         leaves: {
-          annual: { total: 20, used: 0 },
-          casual: { total: 10, used: 0 },
-          medical: { total: 15, used: 0 }
+          annual: { total: 14, used: 0 },
+          casual: { total: 7, used: 0 },
+          medical: { total: 7, used: 0 }
         },
         leaveRequests: [],
         performanceReviews: []

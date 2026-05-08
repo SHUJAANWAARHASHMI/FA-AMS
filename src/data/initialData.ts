@@ -10,9 +10,9 @@ export const INITIAL_USERS: User[] = [
 ];
 
 const createDefaultLeaves = () => ({
-  annual: { total: 20, used: 0 },
-  casual: { total: 10, used: 0 },
-  medical: { total: 15, used: 0 }
+  annual: { total: 14, used: 0 },
+  casual: { total: 7, used: 0 },
+  medical: { total: 7, used: 0 }
 });
 
 const DEFAULT_SHIFT = { start: "08:00", end: "17:00" };

@@ -11,7 +11,9 @@ import {
   AlertCircle,
   FileText,
   User as UserIcon,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCw,
+  Zap
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -24,6 +26,21 @@ interface LeaveManagementProps {
 export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, user, onUpdateEmployees }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [campusFilter, setCampusFilter] = useState(user?.campus === 'all' ? 'all' : (user?.campus || 'all'));
+
+  const handleSyncPolicy = () => {
+    if (confirm('Strategic Action: This will synchronize ALL employees to the new Leave Policy (14 Annual, 7 Casual, 7 Medical). This preserves their "Used" balance but resets их "Total" limits. Proceed?')) {
+      const updated = employees.map(emp => ({
+        ...emp,
+        leaves: {
+          annual: { ...emp.leaves.annual, total: 14 },
+          casual: { ...emp.leaves.casual, total: 7 },
+          medical: { ...emp.leaves.medical, total: 7 }
+        }
+      }));
+      onUpdateEmployees(updated);
+      alert('Policy Synchronized Successfully.');
+    }
+  };
 
   const pendingRequests = employees.flatMap(emp => 
     emp.leaveRequests
@@ -186,15 +203,24 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
             <FileText className="mr-3 text-bento-accent shrink-0" size={24} />
             Resource Availability Log
           </h3>
-          <div className="flex items-center w-full sm:w-auto">
-            <div className="relative w-full">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+            {user.role === 'admin' && (
+              <button 
+                onClick={handleSyncPolicy}
+                className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2.5 bg-bento-ink text-white border border-bento-accent text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+              >
+                <Zap size={14} className="text-bento-accent" />
+                <span>Sync NEW POLICY (14/7/7)</span>
+              </button>
+            )}
+            <div className="relative w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-bento-ink/40" size={16} />
               <input 
                 type="text" 
                 placeholder="Lookup subject..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-auto pl-10 pr-4 py-2.5 border border-bento-line text-[10px] font-black uppercase focus:ring-1 focus:ring-bento-ink focus:outline-hidden"
+                className="w-full sm:w-64 pl-10 pr-4 py-2.5 border border-bento-line text-[10px] font-black uppercase focus:ring-1 focus:ring-bento-ink focus:outline-hidden"
               />
             </div>
           </div>
@@ -205,34 +231,44 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
               <thead className="border-b-2 border-bento-ink/10 opacity-40 uppercase font-bold">
                 <tr>
                   <th className="px-4 sm:px-8 py-4">Identity</th>
-                  <th className="px-4 sm:px-8 py-4">Annual (T/U/B)</th>
-                  <th className="px-4 sm:px-8 py-4">Casual (T/U/B)</th>
-                  <th className="px-4 sm:px-8 py-4">Medical (T/U/B)</th>
+                  <th className="px-4 sm:px-8 py-4">Annual (14)</th>
+                  <th className="px-4 sm:px-8 py-4">Casual (07)</th>
+                  <th className="px-4 sm:px-8 py-4">Medical (07)</th>
                   <th className="px-4 sm:px-8 py-4 text-center">Net</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-bento-bg">
                 {filteredEmployeesForBalances.map((emp, idx) => {
+                  const isOutOfSync = emp.leaves.annual.total !== 14 || emp.leaves.casual.total !== 7 || emp.leaves.medical.total !== 7;
                   const totalBal = (emp.leaves.annual.total - emp.leaves.annual.used) +
                                   (emp.leaves.casual.total - emp.leaves.casual.used) +
                                   (emp.leaves.medical.total - emp.leaves.medical.used);
                   return (
-                    <tr key={`${emp.id}-${idx}`} className="hover:bg-bento-bg/10 transition-colors">
+                    <tr key={`${emp.id}-${idx}`} className={cn(
+                      "transition-colors",
+                      isOutOfSync ? "bg-red-50/30 hover:bg-red-50/50" : "hover:bg-bento-bg/10"
+                    )}>
                       <td className="px-4 sm:px-8 py-6">
-                        <div className="font-black text-bento-ink uppercase text-[11px] truncate">{emp.name}</div>
+                        <div className="font-black text-bento-ink uppercase text-[11px] truncate flex items-center">
+                          {emp.name}
+                          {isOutOfSync && <AlertCircle size={12} className="ml-2 text-red-500 animate-pulse" title="Legacy Policy Detected" />}
+                        </div>
                         <div className="text-[8px] opacity-40 font-bold uppercase tracking-widest">{emp.id}</div>
                       </td>
                       <td className="px-4 sm:px-8 py-6">
-                        <BalancePill label="A" total={emp.leaves.annual.total} used={emp.leaves.annual.used} color="emerald" shrink />
+                        <BalancePill label="A" total={emp.leaves.annual.total} used={emp.leaves.annual.used} color={emp.leaves.annual.total === 14 ? "emerald" : "red"} shrink />
                       </td>
                       <td className="px-4 sm:px-8 py-6">
-                        <BalancePill label="C" total={emp.leaves.casual.total} used={emp.leaves.casual.used} color="blue" shrink />
+                        <BalancePill label="C" total={emp.leaves.casual.total} used={emp.leaves.casual.used} color={emp.leaves.casual.total === 7 ? "blue" : "red"} shrink />
                       </td>
                       <td className="px-4 sm:px-8 py-6">
-                        <BalancePill label="M" total={emp.leaves.medical.total} used={emp.leaves.medical.used} color="amber" shrink />
+                        <BalancePill label="M" total={emp.leaves.medical.total} used={emp.leaves.medical.used} color={emp.leaves.medical.total === 7 ? "amber" : "red"} shrink />
                       </td>
                       <td className="px-4 sm:px-8 py-6 text-center">
-                        <span className="text-lg sm:text-xl font-black text-bento-ink tracking-tighter">{totalBal}</span>
+                        <span className={cn(
+                          "text-lg sm:text-xl font-black tracking-tighter",
+                          isOutOfSync ? "text-red-600" : "text-bento-ink"
+                        )}>{totalBal}</span>
                         <p className="text-[7px] sm:text-[8px] font-black opacity-30 uppercase tracking-[0.1em] mt-1">Days</p>
                       </td>
                     </tr>
@@ -252,6 +288,7 @@ const BalancePill = ({ label, total, used, color, shrink }: any) => {
     emerald: "text-emerald-700 bg-emerald-50 hover:bg-emerald-100",
     blue: "text-blue-700 bg-blue-50 hover:bg-blue-100",
     amber: "text-amber-700 bg-amber-50 hover:bg-amber-100",
+    red: "text-red-700 bg-red-50 hover:bg-red-100 border-red-200",
   };
   return (
     <div className={cn(

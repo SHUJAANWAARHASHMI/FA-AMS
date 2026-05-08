@@ -745,7 +745,9 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
                     </div>
                     <span className={cn(
                       "text-[10px] font-extrabold px-3 py-1 rounded-full border",
-                      req.status === 'Pending' ? "bg-orange-50 text-orange-600 border-orange-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                      req.status === 'Pending' ? "bg-orange-50 text-orange-600 border-orange-100" : 
+                      req.status === 'Rejected' ? "bg-red-50 text-red-600 border-red-100" :
+                      "bg-emerald-50 text-emerald-600 border-emerald-100"
                     )}>{req.status.toUpperCase()}</span>
                   </div>
                 ))

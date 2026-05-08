@@ -13,11 +13,11 @@ CREATE TABLE IF NOT EXISTS employees (
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     account_locked BOOLEAN DEFAULT false,
-    leaves_annual_total INTEGER DEFAULT 20,
+    leaves_annual_total INTEGER DEFAULT 14,
     leaves_annual_used INTEGER DEFAULT 0,
-    leaves_casual_total INTEGER DEFAULT 10,
+    leaves_casual_total INTEGER DEFAULT 7,
     leaves_casual_used INTEGER DEFAULT 0,
-    leaves_medical_total INTEGER DEFAULT 8,
+    leaves_medical_total INTEGER DEFAULT 7,
     leaves_medical_used INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
