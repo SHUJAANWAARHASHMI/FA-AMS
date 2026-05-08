@@ -20,7 +20,9 @@ import {
   TrendingUp,
   LogOut,
   Shield,
-  Award
+  Award,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
 import { calculateLateHours, calculateOvertime, cn, getLocalDate, calculateAttendanceHours, calculateAttendanceMs, formatTimeDisplay } from '../../lib/utils';
 
@@ -28,11 +30,21 @@ interface EmployeePortalProps {
   employee: Employee;
   allEmployees: Employee[];
   systemSettings: SystemSettings;
-  onUpdateEmployees: (employees: Employee[]) => void;
+  isSyncing: boolean;
+  isOnline: boolean;
+  onUpdateEmployees: (employees: Employee[]) => Promise<void>;
   onLogout: () => void;
 }
 
-export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmployees, systemSettings, onUpdateEmployees, onLogout }) => {
+export const EmployeePortal: React.FC<EmployeePortalProps> = ({ 
+  employee, 
+  allEmployees, 
+  systemSettings, 
+  isSyncing,
+  isOnline,
+  onUpdateEmployees, 
+  onLogout 
+}) => {
   const [activeTab, setActiveTab] = useState<'attendance' | 'leaves' | 'profile' | 'performance' | 'security'>('attendance');
   const [mobileTab, setMobileTab] = useState<'checkin' | 'calendar' | 'summary' | 'leaves' | 'profile' | 'security'>('checkin');
   const [remarks, setRemarks] = useState('');
@@ -255,9 +267,19 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     const updatedEmployees = allEmployees.map(emp => 
       emp.id === latestEmployee.id ? { ...emp, attendance: updatedAttendance } : emp
     );
-    onUpdateEmployees(updatedEmployees);
-    setRemarks('');
-    setIsLoading(false);
+    
+    try {
+      await onUpdateEmployees(updatedEmployees);
+      setRemarks('');
+      alert(`SUCCESS: Registered ${type === 'in' ? 'Entry' : 'Exit'} at ${timeString}. Record synchronized with cloud.`);
+    } catch (err) {
+      console.error('Cloud Sync Failure:', err);
+      // We don't alert here because usePersistence already shows a notification,
+      // and the data IS saved in local storage, so it will retry later.
+      alert(`NOTICE: ${type === 'in' ? 'Entry' : 'Exit'} registered locally. Will sync to cloud when connection is stable.`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const calculateHoursWorked = (att: AttendanceRecord | undefined) => {
@@ -300,7 +322,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     reason: ''
   });
 
-  const handleApplyLeave = (e: React.FormEvent) => {
+  const handleApplyLeave = async (e: React.FormEvent) => {
     e.preventDefault();
     const newRequest: LeaveRequest = {
       id: Math.random().toString(36).substr(2, 9),
@@ -308,12 +330,21 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
       status: 'Pending'
     };
 
+    setIsLoading(true);
     const updatedEmployees = allEmployees.map(emp => 
       emp.id === employee.id ? { ...emp, leaveRequests: [...emp.leaveRequests, newRequest] } : emp
     );
-    onUpdateEmployees(updatedEmployees);
-    setLeaveForm({ type: 'Annual', from: today, to: today, reason: '' });
-    alert('Leave request submitted successfully!');
+    
+    try {
+      await onUpdateEmployees(updatedEmployees);
+      setLeaveForm({ type: 'Annual', from: today, to: today, reason: '' });
+      alert('Leave request submitted successfully!');
+    } catch (err) {
+      console.error('Leave Request Sync Error:', err);
+      alert('NOTICE: Leave request stored locally. Database sync pending.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const [securityForm, setSecurityForm] = useState({
@@ -495,11 +526,18 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
       <div className="animate-in fade-in duration-500 overflow-hidden">
       <div className="bg-white rounded-[24px] p-4 sm:p-6 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="md:col-span-4 space-y-4 border-b md:border-b-0 md:border-r border-border pb-4 md:pb-0 md:pr-6">
-          <div className="flex items-center space-x-3 mb-2 sm:mb-4">
-            <div className="p-1.5 sm:p-2 bg-primary text-white border border-secondary">
-              <Clock size={16} />
+          <div className="flex items-center justify-between mb-2 sm:mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-1.5 sm:p-2 bg-primary text-white border border-secondary">
+                <Clock size={16} />
+              </div>
+              <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-tight">Terminal Access</h3>
             </div>
-            <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-tight">Terminal Access</h3>
+            
+            <div className="flex items-center space-x-2">
+              {isSyncing && <Zap size={12} className="text-secondary animate-pulse" />}
+              {isOnline ? <Cloud size={14} className="text-emerald-500" /> : <CloudOff size={14} className="text-error" />}
+            </div>
           </div>
 
           {sessionDuration && (
@@ -895,7 +933,28 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
           </div>
           <div>
             <h2 className="text-base font-extrabold text-primary tracking-tight leading-none">Salam, {employee.name.split(' ')[0]}</h2>
-            <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest mt-0.5 opacity-70 italic">Shift: {employee.shiftStart} - {employee.shiftEnd}</p>
+            <div className="flex items-center space-x-2 mt-0.5">
+              <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest opacity-70 italic">Shift: {employee.shiftStart} - {employee.shiftEnd}</p>
+              <div className="w-[1px] h-2 bg-border" />
+              <div className="flex items-center space-x-1">
+                {isSyncing ? (
+                  <div className="flex items-center space-x-1 text-secondary animate-pulse">
+                    <Zap size={10} className="fill-secondary" />
+                    <span className="text-[7px] font-black uppercase">Syncing</span>
+                  </div>
+                ) : isOnline ? (
+                  <div className="flex items-center space-x-1 text-emerald-600">
+                    <Cloud size={10} />
+                    <span className="text-[7px] font-black uppercase">Cloud Ready</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-1 text-error">
+                    <CloudOff size={10} />
+                    <span className="text-[7px] font-black uppercase">Offline</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
         <button 

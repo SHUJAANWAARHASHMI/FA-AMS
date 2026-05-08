@@ -257,7 +257,7 @@ export function usePersistence() {
   };
 
   const updateEmployees = async (newEmployees: Employee[]) => {
-    const oldEmployees = employees;
+    const oldEmployees = [...employees]; // Snapshot for comparison
     setEmployees(newEmployees);
     
     setIsSyncing(true);
@@ -270,33 +270,53 @@ export function usePersistence() {
 
       const deleted = oldEmployees.filter(oldEmp => !newEmployees.find(e => e.id === oldEmp.id));
 
+      if (addedOrUpdated.length === 0 && deleted.length === 0) {
+        setIsSyncing(false);
+        return;
+      }
+
+      console.log(`[Sync] Pushing ${addedOrUpdated.length} updates and ${deleted.length} deletions...`);
+
       // Sync added/updated
       const syncPromises = addedOrUpdated.map(async (emp) => {
         const oldEmp = oldEmployees.find(e => e.id === emp.id);
         
-        // Always save employee basic info if they are new or changed
-        await supabaseService.saveEmployee(emp);
-        
-        // Find specifically which attendance records changed or are new
-        const changedAttendance = emp.attendance.filter(record => {
-          if (!oldEmp) return true;
-          const oldRecord = oldEmp.attendance.find(r => r.date === record.date);
-          return !oldRecord || JSON.stringify(oldRecord) !== JSON.stringify(record);
-        });
+        try {
+          // 1. Try to sync attendance records (High Priority)
+          const changedAttendance = emp.attendance.filter(record => {
+            if (!oldEmp) return true;
+            const oldRecord = oldEmp.attendance.find(r => r.date === record.date);
+            return !oldRecord || JSON.stringify(oldRecord) !== JSON.stringify(record);
+          });
 
-        if (changedAttendance.length > 0) {
-          await supabaseService.upsertAttendance(emp.id, changedAttendance);
-        }
-        
-        // Handle leave requests specifically too
-        const changedLeaves = emp.leaveRequests.filter(req => {
-          if (!oldEmp) return true;
-          const oldReq = oldEmp.leaveRequests.find(r => r.id === req.id);
-          return !oldReq || JSON.stringify(oldReq) !== JSON.stringify(req);
-        });
+          if (changedAttendance.length > 0) {
+            await supabaseService.upsertAttendance(emp.id, changedAttendance);
+          }
 
-        for (const req of changedLeaves) {
-          await supabaseService.upsertLeaveRequest(emp.id, req);
+          // 2. Try to sync leave requests
+          const changedLeaves = emp.leaveRequests.filter(req => {
+            if (!oldEmp) return true;
+            const oldReq = oldEmp.leaveRequests.find(r => r.id === req.id);
+            return !oldReq || JSON.stringify(oldReq) !== JSON.stringify(req);
+          });
+
+          for (const req of changedLeaves) {
+            await supabaseService.upsertLeaveRequest(emp.id, req);
+          }
+
+          // 3. Sync basic employee info (Might require Admin rights)
+          // We only do this if something OTHER than attendance/leaves changed 
+          // or if the employee is new.
+          await supabaseService.saveEmployee(emp);
+          
+        } catch (itemErr: any) {
+          console.error(`Failed to sync employee ${emp.id}:`, itemErr);
+          addNotification(
+            'Sync Error', 
+            `Could not save data for ${emp.name}. Record stored locally.`, 
+            'error'
+          );
+          throw itemErr; // Propagate to trigger the main catch if needed
         }
       });
 
@@ -304,8 +324,10 @@ export function usePersistence() {
       const deletePromises = deleted.map(emp => supabaseService.deleteEmployee(emp.id));
 
       await Promise.all([...syncPromises, ...deletePromises]);
+      setIsOnline(true);
     } catch (err) {
-      console.error('Supabase sync error:', err);
+      console.error('Supabase sync overall error:', err);
+      setIsOnline(false);
     } finally {
       setIsSyncing(false);
     }

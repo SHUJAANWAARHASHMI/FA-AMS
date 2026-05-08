@@ -203,6 +203,8 @@ export default function App() {
         employee={currentUser as Employee} 
         allEmployees={employees}
         systemSettings={systemSettings}
+        isSyncing={isSyncing}
+        isOnline={isOnline}
         onUpdateEmployees={updateEmployees} 
         onLogout={logout}
       />;
