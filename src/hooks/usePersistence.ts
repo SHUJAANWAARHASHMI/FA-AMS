@@ -477,7 +477,7 @@ export function usePersistence() {
       }
 
       // 3. Full Force Sync (Batch for employees)
-      console.log('Syncing 66 staff members...');
+      console.log('Syncing 67 staff members...');
       await forceSyncEmployeesToSupabase(INITIAL_EMPLOYEES);
       
       // 4. Batch Update Users

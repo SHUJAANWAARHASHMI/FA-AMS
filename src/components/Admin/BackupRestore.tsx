@@ -81,14 +81,14 @@ export const BackupRestore: React.FC<BackupRestoreProps> = ({
   const [isRebuilding, setIsRebuilding] = React.useState(false);
 
   const handleRebuildCloud = async () => {
-    if (confirm(`CRITICAL ACTION: This will overwrite your cloud database with the default system data (66 employees). All current unsynced local changes will be replaced. Proceed?`)) {
+    if (confirm(`CRITICAL ACTION: This will overwrite your cloud database with the default system data (67 employees). All current unsynced local changes will be replaced. Proceed?`)) {
       setIsRebuilding(true);
       try {
         await onRebuildCloud();
-        alert('SUCCESS: Cloud registry has been rebuilt with 66 staff members. The system will now refresh to stabilize the local state.');
+        alert('SUCCESS: Cloud registry has been rebuilt with 67 staff members. The system will now refresh to stabilize the local state.');
         window.location.reload();
       } catch (err) {
-        alert('ERROR: Could not complete cloud rebuild. Registry might be partially synchronized.');
+        alert('ERROR: Could not complete cloud rebuild. Check your internet connection or cloud permissions.');
         console.error(err);
       } finally {
         setIsRebuilding(false);
@@ -202,7 +202,7 @@ export const BackupRestore: React.FC<BackupRestoreProps> = ({
           <div className="mt-10 pt-10 border-t border-red-100 flex items-center justify-between">
             <div className="space-y-1">
               <h5 className="text-[10px] font-black text-red-600 uppercase tracking-widest">Master Reset Protocol</h5>
-              <p className="text-[9px] font-bold text-bento-ink/40 uppercase tracking-wider">Replace entire cloud database with system default manifest (66 employees).</p>
+              <p className="text-[9px] font-bold text-bento-ink/40 uppercase tracking-wider">Replace entire cloud database with system default manifest (67 employees).</p>
             </div>
             <button 
               onClick={handleRebuildCloud}
