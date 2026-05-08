@@ -46,6 +46,8 @@ export function usePersistence() {
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [isRealtimeActive, setIsRealtimeActive] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date>(new Date());
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const isFirstSyncDone = useRef(false);
   const syncChannelRef = useRef<any>(null); // Stable channel reference
@@ -259,12 +261,15 @@ export function usePersistence() {
   };
 
   const updateEmployees = async (newEmployees: Employee[]) => {
-    const oldEmployees = [...employees]; // Snapshot for comparison
+    // ALWAYS USE REFS TO GET THE TRUE PREVIOUS STATE BEFORE UPDATE
+    const oldEmployees = [...employeesRef.current];
+    
+    // Update local state immediately (Optimistic UI)
     setEmployees(newEmployees);
     
     setIsSyncing(true);
     try {
-      // Find what changed
+      // Find delta
       const addedOrUpdated = newEmployees.filter(newEmp => {
         const oldEmp = oldEmployees.find(e => e.id === newEmp.id);
         return !oldEmp || JSON.stringify(oldEmp) !== JSON.stringify(newEmp);
@@ -329,15 +334,20 @@ export function usePersistence() {
       
       // Notify other clients to refresh instantly using the stable channel
       if (syncChannelRef.current) {
-        console.log(`[Broadcast] Sending refresh signal to network...`);
+        console.log(`[Broadcast] Sending REFRESH signal via ${syncChannelRef.current.topic}...`);
         syncChannelRef.current.send({
           type: 'broadcast',
           event: 'refresh',
-          payload: { source: currentUser?.id, ts: Date.now() }
+          payload: { 
+            source: currentUser?.id, 
+            ts: Date.now(),
+            hint: 'attendance_update' 
+          }
         }).catch((e: any) => console.warn('Broadcast failed:', e));
       }
 
       setIsOnline(true);
+      setLastSynced(new Date());
     } catch (err) {
       console.error('Supabase sync overall error:', err);
       setIsOnline(false);
@@ -394,30 +404,43 @@ export function usePersistence() {
 
   // Real-time listener for cross-client sync
   useEffect(() => {
-    // Initialize stable channel for both sending and receiving
-    const channel = supabase.channel('fa-realtime-sync');
+    // 1. Initialize stable channel for BROADCAST (Client-to-Client)
+    const broadcastChannel = supabase.channel('fa-sync-network');
     
-    channel
+    broadcastChannel
       .on('broadcast', { event: 'refresh' }, (payload) => {
         const source = payload.payload?.source;
-        console.log(`[Real-time] Network update detected from ${source}. Forcing sync...`);
+        console.log(`[Real-time] Broadcast refresh from ${source}. Syncing data...`);
         
-        // We only trigger sync if it wasn't us
         if (source !== currentUser?.id) {
-          // Add a tiny delay to ensure DB secondary indexes catch up
-          setTimeout(() => {
-            triggerManualSync(true);
-          }, 300);
+          triggerManualSync(true);
         }
       })
       .subscribe((status) => {
-        console.log(`[Real-time] Channel subscription status: ${status}`);
+        console.log(`[Real-time] Broadcast Channel: ${status}`);
+        setIsRealtimeActive(status === 'SUBSCRIBED');
       });
 
-    syncChannelRef.current = channel;
+    syncChannelRef.current = broadcastChannel;
+
+    // 2. Initialize CDC observer (Server-to-Client) as backup
+    // This triggers when ANY database change happens on the attendance table
+    const dbChannel = supabase.channel('fa-db-observer')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'attendance' },
+        (payload) => {
+          console.log('[Real-time] DB detected attendance change:', payload.eventType);
+          // Only trigger if we aren't the one who just sent it (though payloads don't usually have source)
+          // To be safe, we always trigger if the update didn't come from our current session
+          triggerManualSync(true);
+        }
+      )
+      .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(broadcastChannel);
+      supabase.removeChannel(dbChannel);
       syncChannelRef.current = null;
     };
   }, [currentUser]);
@@ -446,6 +469,7 @@ export function usePersistence() {
         setUsers(dbUsers.map((u: any) => ({ ...u, campus: normalizeCampus(u?.campus || 'main') })));
       }
       setIsOnline(true);
+      setLastSynced(new Date());
     } catch (err) {
       console.error('Manual sync failed:', err);
       setIsOnline(false);
@@ -581,6 +605,8 @@ export function usePersistence() {
     currentUser,
     isSyncing,
     isOnline,
+    isRealtimeActive,
+    lastSynced,
     login,
     logout,
     updateEmployees,

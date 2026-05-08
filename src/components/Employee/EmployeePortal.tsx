@@ -32,6 +32,8 @@ interface EmployeePortalProps {
   systemSettings: SystemSettings;
   isSyncing: boolean;
   isOnline: boolean;
+  isRealtimeActive: boolean;
+  lastSynced: Date;
   onUpdateEmployees: (employees: Employee[]) => Promise<void>;
   onLogout: () => void;
 }
@@ -42,6 +44,8 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
   systemSettings, 
   isSyncing,
   isOnline,
+  isRealtimeActive,
+  lastSynced,
   onUpdateEmployees, 
   onLogout 
 }) => {
@@ -536,7 +540,16 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
             
             <div className="flex items-center space-x-2">
               {isSyncing && <Zap size={12} className="text-secondary animate-pulse" />}
-              {isOnline ? <Cloud size={14} className="text-emerald-500" /> : <CloudOff size={14} className="text-error" />}
+              {isRealtimeActive ? (
+                <div className="flex items-center space-x-1 text-emerald-500">
+                  <Cloud size={14} className="animate-pulse" />
+                  <span className="text-[7px] font-black uppercase">Live</span>
+                </div>
+              ) : isOnline ? (
+                <Cloud size={14} className="text-emerald-500" />
+              ) : (
+                <CloudOff size={14} className="text-error" />
+              )}
             </div>
           </div>
 
@@ -942,6 +955,11 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
                     <Zap size={10} className="fill-secondary" />
                     <span className="text-[7px] font-black uppercase">Syncing</span>
                   </div>
+                ) : isRealtimeActive ? (
+                  <div className="flex items-center space-x-1 text-emerald-600">
+                    <Cloud size={10} className="animate-pulse" />
+                    <span className="text-[7px] font-black uppercase">Connected</span>
+                  </div>
                 ) : isOnline ? (
                   <div className="flex items-center space-x-1 text-emerald-600">
                     <Cloud size={10} />
@@ -953,6 +971,10 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
                     <span className="text-[7px] font-black uppercase">Offline</span>
                   </div>
                 )}
+                <div className="w-[1px] h-2 bg-border" />
+                <span className="text-[7px] font-bold text-text-gray/40 uppercase">
+                  Updated: {lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
             </div>
           </div>

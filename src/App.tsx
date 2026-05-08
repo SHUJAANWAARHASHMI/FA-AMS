@@ -174,6 +174,8 @@ export default function App() {
     updateSystemSettings, 
     isSyncing, 
     isOnline,
+    isRealtimeActive,
+    lastSynced,
     triggerManualSync,
     rebuildCloud,
     notifications,
@@ -205,6 +207,8 @@ export default function App() {
         systemSettings={systemSettings}
         isSyncing={isSyncing}
         isOnline={isOnline}
+        isRealtimeActive={isRealtimeActive}
+        lastSynced={lastSynced}
         onUpdateEmployees={updateEmployees} 
         onLogout={logout}
       />;
@@ -355,24 +359,32 @@ export default function App() {
             
             <div className="flex items-center space-x-3">
               {/* Cloud Sync Status */}
-              <button
-                onClick={triggerManualSync}
-                disabled={isSyncing}
-                className={cn(
-                  "flex items-center space-x-2 px-4 h-11 border transition-all text-xs font-bold rounded-xl",
-                  !isOnline 
-                    ? "bg-error/5 border-error/20 text-error" 
-                    : isSyncing 
-                      ? "bg-secondary/5 border-secondary/20 text-secondary animate-pulse" 
-                      : "bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100"
-                )}
-              >
-                {!isOnline ? <CloudOff size={16} /> : <Cloud size={16} className={cn(isSyncing && "animate-bounce")} />}
-                <span className="hidden xl:inline">
-                  {!isOnline ? 'Cloud Offline' : isSyncing ? 'Syncing...' : 'Cloud Active'}
+              <div className="flex flex-col items-end">
+                <button
+                  onClick={() => triggerManualSync(true)}
+                  disabled={isSyncing}
+                  className={cn(
+                    "flex items-center space-x-2 px-4 h-11 border transition-all text-xs font-bold rounded-xl",
+                    !isOnline 
+                      ? "bg-error/5 border-error/20 text-error" 
+                      : isSyncing 
+                        ? "bg-secondary/5 border-secondary/20 text-secondary animate-pulse" 
+                        : "bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                  )}
+                >
+                  {!isOnline ? <CloudOff size={16} /> : <Cloud size={16} className={cn(isSyncing && "animate-bounce")} />}
+                  <span className="hidden xl:inline">
+                    {!isOnline ? 'Cloud Offline' : isSyncing ? 'Syncing...' : 'Cloud Active'}
+                  </span>
+                  <div className={cn(
+                    "w-1.5 h-1.5 rounded-full ml-1", 
+                    isOnline ? (isRealtimeActive ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-emerald-500") : "bg-error"
+                  )} />
+                </button>
+                <span className="text-[7px] font-black uppercase text-text-gray/50 mt-1 mr-1">
+                  Synced: {lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
-                <div className={cn("w-1.5 h-1.5 rounded-full ml-1", isOnline ? "bg-emerald-500" : "bg-error")} />
-              </button>
+              </div>
 
               <div className="relative">
                 <button 
