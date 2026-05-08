@@ -591,17 +591,17 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
             <div className="flex gap-2">
               <button 
                 onClick={() => handleMarkAttendance('in')}
-                disabled={!!(todayAttendance?.sessions?.some(s => !s.checkOut))}
-                className="flex-1 bg-primary text-white py-3 rounded-xl shadow-lg shadow-primary/20 text-[10px] font-extrabold uppercase tracking-widest disabled:opacity-20 transition-all active:scale-95"
+                disabled={isLoading || !!(todayAttendance?.sessions?.some(s => !s.checkOut))}
+                className="flex-1 bg-primary text-white py-3 rounded-xl shadow-lg shadow-primary/20 text-[10px] font-extrabold uppercase tracking-widest disabled:opacity-20 transition-all active:scale-95 flex items-center justify-center min-h-[44px]"
               >
-                CLOCK IN
+                {isLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'CLOCK IN'}
               </button>
               <button 
                 onClick={() => handleMarkAttendance('out')}
-                disabled={!(todayAttendance?.sessions?.some(s => !s.checkOut))}
-                className="flex-1 bg-secondary text-white py-3 rounded-xl shadow-lg shadow-secondary/20 text-[10px] font-extrabold uppercase tracking-widest disabled:opacity-20 transition-all active:scale-95"
+                disabled={isLoading || !(todayAttendance?.sessions?.some(s => !s.checkOut))}
+                className="flex-1 bg-secondary text-white py-3 rounded-xl shadow-lg shadow-secondary/20 text-[10px] font-extrabold uppercase tracking-widest disabled:opacity-20 transition-all active:scale-95 flex items-center justify-center min-h-[44px]"
               >
-                CLOCK OUT
+                {isLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'CLOCK OUT'}
               </button>
             </div>
           </div>

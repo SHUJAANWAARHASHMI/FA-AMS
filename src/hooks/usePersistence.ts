@@ -243,7 +243,11 @@ export function usePersistence() {
         return { success: true, user };
       }
     } else {
-      const employee = employees.find(e => e.username.toLowerCase() === normalizedUsername && e.password === password);
+      const employee = employees.find(e => 
+        e.username.toLowerCase() === normalizedUsername && 
+        e.password === password && 
+        e.campus === campus
+      );
       if (employee) {
         if (employee.accountLocked) {
           return { success: false, locked: true };
