@@ -283,7 +283,7 @@ export default function App() {
             )}
           </div>
 
-          <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2 custom-scrollbar">
+          <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2 scrollbar-hide sm:custom-scrollbar">
             <NavItem tab="dashboard" icon={LayoutDashboard} label="Dashboard" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
             <NavItem tab="manual-attendance" icon={CalendarCheck} label="Manual Entry" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
             <NavItem tab="single-attendance" icon={UserCheck} label="Quick Check" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />

@@ -411,14 +411,16 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="mini-label block px-1">Network User ID</label>
+              <div className="space-y-2 opacity-60">
+                <label className="mini-label block px-1 flex items-center gap-1.5">
+                  <Lock size={10} className="text-error" />
+                  Network User ID (Locked)
+                </label>
                 <input 
                   type="text"
-                  required
-                  className="w-full h-12 px-4 bg-white border border-border text-xs font-bold lowercase rounded-xl outline-none focus:ring-4 focus:ring-primary/10"
+                  readOnly
+                  className="w-full h-12 px-4 bg-accent/5 border border-border text-xs font-bold lowercase rounded-xl cursor-not-allowed outline-none"
                   value={securityForm.newUsername}
-                  onChange={e => setSecurityForm({...securityForm, newUsername: e.target.value})}
                 />
               </div>
               <div className="space-y-2 opacity-50">

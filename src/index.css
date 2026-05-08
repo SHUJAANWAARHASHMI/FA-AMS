@@ -72,6 +72,14 @@
     @apply text-[10px] font-extrabold text-text-gray uppercase tracking-[0.15em];
   }
 
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Ripple pulse for active states */
   .ripple {
     @apply absolute w-full h-full rounded-full animate-[ripple-pulse_3s_infinite] pointer-events-none;
