@@ -91,12 +91,12 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
     return now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric', weekday: 'long' }).replace(',', ' -');
   });
 
-  // Precise Campus Locations adjusted for Karachi as per user request
+  // Precise Campus Locations updated based on user provided links and reported location
   const CAMPUS_LOCATIONS: Record<string, { lat: number, lng: number, radius: number }> = {
-    'Main Campus': { lat: 24.9265, lng: 67.1256, radius: 1000 },   // Gulistan-e-Johar Area, Karachi
-    'Johar Campus': { lat: 24.9180, lng: 67.1320, radius: 1000 },  // Near Safari Park Area
-    'Masjid Campus': { lat: 24.8607, lng: 67.0011, radius: 1000 }, // Saddar/City Area
-    'Maktab Campus': { lat: 24.8900, lng: 67.0800, radius: 1000 }, // Bahadurabad Area
+    'Main Campus': { lat: 24.9265, lng: 67.1256, radius: 800 },   // Block 13-C, Gulistan-e-Johar
+    'Johar Campus': { lat: 24.9308, lng: 67.1247, radius: 800 },  // Block 14, Gulistan-e-Johar (based on user's detected location)
+    'Masjid Campus': { lat: 24.8988, lng: 67.0872, radius: 800 }, // Reported address area
+    'Maktab Campus': { lat: 24.9265, lng: 67.1256, radius: 800 }, // Often same/adjacent to Main Campus
   };
 
   const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -158,10 +158,10 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
           });
           
           if (systemSettings.enforceLocation && !validCampusObj) {
-            const errorMsg = `SECURITY: Outside Campus Boundaries.\n\n` +
-                            `Detected: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}\n\n` +
-                            `HINT: You are currently not within 1000m of ANY campus location (Main, Johar, Masjid, or Maktab).\n\n` +
-                            `Please ensure you are physically present at one of the campus sites and high-accuracy GPS is enabled.`;
+            const errorMsg = `LOCATION ERROR: Outside Campus Boundaries.\n\n` +
+                            `Detected Position: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}\n\n` +
+                            `HINT: You must be within 500m of a registered campus location (Main, Johar, Masjid, or Maktab) to mark attendance.\n\n` +
+                            `Please ensure you are physically at a campus and high-accuracy GPS is enabled.`;
                           
             alert(errorMsg);
             setIsLoading(false);
