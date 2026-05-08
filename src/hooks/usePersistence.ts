@@ -48,6 +48,7 @@ export function usePersistence() {
   const [isOnline, setIsOnline] = useState(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const isFirstSyncDone = useRef(false);
+  const syncChannelRef = useRef<any>(null); // Stable channel reference
 
   const dismissNotification = (id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
@@ -326,12 +327,15 @@ export function usePersistence() {
 
       await Promise.all([...syncPromises, ...deletePromises]);
       
-      // Notify other clients to refresh instantly
-      supabase.channel('app-sync').send({
-        type: 'broadcast',
-        event: 'refresh',
-        payload: { source: currentUser?.id }
-      }).catch(e => console.warn('Broadcast failed, background sync will pick up:', e));
+      // Notify other clients to refresh instantly using the stable channel
+      if (syncChannelRef.current) {
+        console.log(`[Broadcast] Sending refresh signal to network...`);
+        syncChannelRef.current.send({
+          type: 'broadcast',
+          event: 'refresh',
+          payload: { source: currentUser?.id, ts: Date.now() }
+        }).catch((e: any) => console.warn('Broadcast failed:', e));
+      }
 
       setIsOnline(true);
     } catch (err) {
@@ -365,11 +369,13 @@ export function usePersistence() {
       await Promise.all([...syncPromises, ...deletePromises]);
       
       // Notify other clients to refresh instantly
-      supabase.channel('app-sync').send({
-        type: 'broadcast',
-        event: 'refresh',
-        payload: { source: currentUser?.id }
-      }).catch(e => console.warn('Broadcast failed:', e));
+      if (syncChannelRef.current) {
+        syncChannelRef.current.send({
+          type: 'broadcast',
+          event: 'refresh',
+          payload: { source: currentUser?.id, ts: Date.now() }
+        }).catch((e: any) => console.warn('Broadcast failed:', e));
+      }
       
     } catch (err) {
       console.error('Supabase user update error:', err);
@@ -388,25 +394,39 @@ export function usePersistence() {
 
   // Real-time listener for cross-client sync
   useEffect(() => {
-    const channel = supabase.channel('app-sync')
+    // Initialize stable channel for both sending and receiving
+    const channel = supabase.channel('fa-realtime-sync');
+    
+    channel
       .on('broadcast', { event: 'refresh' }, (payload) => {
-        console.log('[Real-time] Received refresh signal from source:', payload.payload?.source);
+        const source = payload.payload?.source;
+        console.log(`[Real-time] Network update detected from ${source}. Forcing sync...`);
+        
         // We only trigger sync if it wasn't us
-        if (payload.payload?.source !== currentUser?.id) {
-          triggerManualSync();
+        if (source !== currentUser?.id) {
+          // Add a tiny delay to ensure DB secondary indexes catch up
+          setTimeout(() => {
+            triggerManualSync(true);
+          }, 300);
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`[Real-time] Channel subscription status: ${status}`);
+      });
+
+    syncChannelRef.current = channel;
 
     return () => {
       supabase.removeChannel(channel);
+      syncChannelRef.current = null;
     };
   }, [currentUser]);
 
-  const triggerManualSync = async () => {
-    if (isSyncing) return;
+  const triggerManualSync = async (force: boolean = false) => {
+    if (isSyncing && !force) return;
     setIsSyncing(true);
     try {
+      console.log(`[Sync] ${force ? 'FORCED' : 'MANUAL'} refresh triggered...`);
       const [dbEmployees, dbUsers, dbSettings] = await Promise.all([
         supabaseService.getEmployees(),
         supabaseService.getAdminUsers(),
