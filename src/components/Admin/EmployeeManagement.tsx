@@ -203,6 +203,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
               </select>
             </div>
           )}
+          <div className="px-4 py-3 bg-bento-ink text-white border border-bento-accent text-[10px] font-black uppercase tracking-widest flex items-center justify-center shrink-0 h-[44px]">
+            TOTAL: {filteredEmployees.length}
+          </div>
         </div>
         
         <button 
@@ -219,6 +222,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-bento-ink text-white">
+              <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-center border-r border-bento-ink/20 w-16">S.No</th>
               <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-left border-r border-bento-ink/20">Employee</th>
               <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-left border-r border-bento-ink/20">Username/ID</th>
               <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-left border-r border-bento-ink/20">Password</th>
@@ -230,6 +234,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
           <tbody>
             {filteredEmployees.map((emp, idx) => (
               <tr key={`${emp.id}-${idx}`} className="border-b border-bento-line hover:bg-bento-bg/20 transition-colors">
+                <td className="px-4 py-4 text-center border-r border-bento-line text-[10px] font-black text-bento-ink/40">
+                  {idx + 1}
+                </td>
                 <td className="px-4 py-4 border-r border-bento-line">
                   <div className="flex items-center">
                     <div className="w-8 h-8 bg-bento-ink text-white flex items-center justify-center font-bold text-xs mr-3 border border-bento-accent shrink-0">
