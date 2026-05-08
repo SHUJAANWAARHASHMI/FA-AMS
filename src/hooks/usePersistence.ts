@@ -158,8 +158,13 @@ export function usePersistence() {
 
   const forceSyncEmployeesToSupabase = async (employeeList: Employee[]) => {
     try {
+      // Use batch save for employees main data
+      await supabaseService.saveEmployeesBatch(employeeList);
+      
+      // Still need to sync sub-collections. 
+      // For a "Force Sync", we handle them in smaller chunks or sequential groups if needed,
+      // but for INITIAL_EMPLOYEES they are usually empty.
       for (const emp of employeeList) {
-        await supabaseService.saveEmployee(emp);
         if (emp.attendance.length > 0) {
           await supabaseService.upsertAttendance(emp.id, emp.attendance);
         }
@@ -169,6 +174,7 @@ export function usePersistence() {
       }
     } catch (err) {
       console.error('Force sync error:', err);
+      throw err; // Propagate the error so the caller knows it failed
     }
   };
 
@@ -459,25 +465,24 @@ export function usePersistence() {
     try {
       console.log('REBUILDING CLOUD REGISTRY...');
       
-      // 1. Clear current employees in Supabase (or at least prepare for full upsert)
-      // Since we use upserts, we can just loop through INITIAL_EMPLOYEES
-      // But we should also handle deletions for any employees NOT in the new list
+      // 1. Get current employees to find orphans
       const currentRemote = await supabaseService.getEmployees();
       const idsToKeep = new Set(INITIAL_EMPLOYEES.map(e => e.id));
       const idsToDelete = currentRemote.filter(r => !idsToKeep.has(r.id)).map(r => r.id);
 
-      // Delete orphans
-      for (const id of idsToDelete) {
-        await supabaseService.deleteEmployee(id);
+      // 2. Batch Delete orphans
+      if (idsToDelete.length > 0) {
+        console.log(`Deleting ${idsToDelete.length} orphan records...`);
+        await supabaseService.deleteEmployeesBatch(idsToDelete);
       }
 
-      // 2. Full Force Sync
+      // 3. Full Force Sync (Batch for employees)
+      console.log('Syncing 66 staff members...');
       await forceSyncEmployeesToSupabase(INITIAL_EMPLOYEES);
       
-      // 3. Update Users too
-      for (const u of INITIAL_USERS) {
-        await supabaseService.saveAdminUser(u);
-      }
+      // 4. Batch Update Users
+      console.log('Syncing admin users...');
+      await supabaseService.saveAdminUsersBatch(INITIAL_USERS);
 
       // Update local state to match system data exactly
       setEmployees(INITIAL_EMPLOYEES);
@@ -486,7 +491,7 @@ export function usePersistence() {
       addNotification('Cloud Rebuilt', `Registry synchronized with ${INITIAL_EMPLOYEES.length} staff members.`, 'success');
     } catch (err) {
       console.error('Rebuild failed:', err);
-      addNotification('Rebuild Error', 'Cloud sync failed for some records. Check console.', 'error');
+      addNotification('Rebuild Error', 'Could not complete cloud synchronization. Check connectivity.', 'error');
       throw err;
     } finally {
       setIsSyncing(false);

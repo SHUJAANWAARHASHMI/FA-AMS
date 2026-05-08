@@ -34,6 +34,21 @@ export const supabaseService = {
     if (error) throw error;
   },
 
+  async saveAdminUsersBatch(users: User[]) {
+    const payloads = users.map(user => ({
+      id: user.id,
+      username: user.username,
+      password: user.password,
+      name: user.name,
+      email: user.email,
+      campus: user.campus,
+      role: user.role,
+      created_at: user.createdAt
+    }));
+    const { error } = await supabase.from('admin_users').upsert(payloads);
+    if (error) throw error;
+  },
+
   async deleteAdminUser(id: string) {
     const { error } = await supabase.from('admin_users').delete().eq('id', id);
     if (error) throw error;
@@ -139,8 +154,37 @@ export const supabaseService = {
     // In a real app, we'd update specific records, but here we'll just handle attendance/leaves when they change.
   },
 
+  async saveEmployeesBatch(employees: Employee[]) {
+    const payloads = employees.map(emp => ({
+      id: emp.id,
+      name: emp.name,
+      designation: emp.designation,
+      department: emp.department,
+      campus: emp.campus,
+      status: emp.status,
+      shift_start: emp.shiftStart,
+      shift_end: emp.shiftEnd,
+      username: emp.username,
+      password: emp.password,
+      leaves_annual_total: emp.leaves.annual.total,
+      leaves_annual_used: emp.leaves.annual.used,
+      leaves_casual_total: emp.leaves.casual.total,
+      leaves_casual_used: emp.leaves.casual.used,
+      leaves_medical_total: emp.leaves.medical.total,
+      leaves_medical_used: emp.leaves.medical.used
+    }));
+    const { error } = await supabase.from('employees').upsert(payloads);
+    if (error) throw error;
+  },
+
   async deleteEmployee(id: string) {
     const { error } = await supabase.from('employees').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  async deleteEmployeesBatch(ids: string[]) {
+    if (ids.length === 0) return;
+    const { error } = await supabase.from('employees').delete().in('id', ids);
     if (error) throw error;
   },
 
