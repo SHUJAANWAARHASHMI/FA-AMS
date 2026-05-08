@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
+import { supabase } from '../lib/supabase';
 import { Employee, User, SystemSettings, AppNotification } from '../types';
 import { INITIAL_EMPLOYEES, INITIAL_USERS } from '../data/initialData';
 import { supabaseService } from '../services/supabaseService';
@@ -324,6 +325,14 @@ export function usePersistence() {
       const deletePromises = deleted.map(emp => supabaseService.deleteEmployee(emp.id));
 
       await Promise.all([...syncPromises, ...deletePromises]);
+      
+      // Notify other clients to refresh instantly
+      supabase.channel('app-sync').send({
+        type: 'broadcast',
+        event: 'refresh',
+        payload: { source: currentUser?.id }
+      }).catch(e => console.warn('Broadcast failed, background sync will pick up:', e));
+
       setIsOnline(true);
     } catch (err) {
       console.error('Supabase sync overall error:', err);
@@ -354,6 +363,14 @@ export function usePersistence() {
       const deletePromises = deleted.map(user => supabaseService.deleteAdminUser(user.id));
 
       await Promise.all([...syncPromises, ...deletePromises]);
+      
+      // Notify other clients to refresh instantly
+      supabase.channel('app-sync').send({
+        type: 'broadcast',
+        event: 'refresh',
+        payload: { source: currentUser?.id }
+      }).catch(e => console.warn('Broadcast failed:', e));
+      
     } catch (err) {
       console.error('Supabase user update error:', err);
     } finally {
@@ -368,6 +385,23 @@ export function usePersistence() {
   useEffect(() => { employeesRef.current = employees; }, [employees]);
   useEffect(() => { usersRef.current = users; }, [users]);
   useEffect(() => { systemSettingsRef.current = systemSettings; }, [systemSettings]);
+
+  // Real-time listener for cross-client sync
+  useEffect(() => {
+    const channel = supabase.channel('app-sync')
+      .on('broadcast', { event: 'refresh' }, (payload) => {
+        console.log('[Real-time] Received refresh signal from source:', payload.payload?.source);
+        // We only trigger sync if it wasn't us
+        if (payload.payload?.source !== currentUser?.id) {
+          triggerManualSync();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser]);
 
   const triggerManualSync = async () => {
     if (isSyncing) return;

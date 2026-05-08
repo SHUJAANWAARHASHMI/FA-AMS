@@ -14,7 +14,7 @@ export const supabaseService = {
       email: u.email,
       campus: u.campus as any,
       role: u.role as any,
-      accountLocked: u.account_locked || false,
+      accountLocked: false,
       createdAt: u.created_at
     }));
   },
@@ -28,7 +28,6 @@ export const supabaseService = {
       email: user.email,
       campus: user.campus,
       role: user.role,
-      account_locked: user.accountLocked,
       created_at: user.createdAt
     };
     const { error } = await supabase.from('admin_users').upsert(payload);
@@ -44,7 +43,6 @@ export const supabaseService = {
       email: user.email,
       campus: user.campus,
       role: user.role,
-      account_locked: user.accountLocked,
       created_at: user.createdAt
     }));
     const { error } = await supabase.from('admin_users').upsert(payloads);
@@ -115,7 +113,7 @@ export const supabaseService = {
         shiftEnd: emp.shift_end,
         username: emp.username,
         password: emp.password,
-        accountLocked: emp.account_locked || false,
+        accountLocked: false,
         leaves: {
           annual: { total: emp.leaves_annual_total, used: emp.leaves_annual_used },
           casual: { total: emp.leaves_casual_total, used: emp.leaves_casual_used },
@@ -142,14 +140,12 @@ export const supabaseService = {
       shift_end: emp.shiftEnd,
       username: emp.username,
       password: emp.password,
-      account_locked: emp.accountLocked || false,
       leaves_annual_total: emp.leaves.annual.total,
       leaves_annual_used: emp.leaves.annual.used,
       leaves_casual_total: emp.leaves.casual.total,
       leaves_casual_used: emp.leaves.casual.used,
       leaves_medical_total: emp.leaves.medical.total,
-      leaves_medical_used: emp.leaves.medical.used,
-      updated_at: new Date().toISOString()
+      leaves_medical_used: emp.leaves.medical.used
     };
     const { error } = await supabase.from('employees').upsert(payload);
     if (error) throw error;
@@ -170,14 +166,12 @@ export const supabaseService = {
       shift_end: emp.shiftEnd,
       username: emp.username,
       password: emp.password,
-      account_locked: emp.accountLocked || false,
       leaves_annual_total: emp.leaves.annual.total,
       leaves_annual_used: emp.leaves.annual.used,
       leaves_casual_total: emp.leaves.casual.total,
       leaves_casual_used: emp.leaves.casual.used,
       leaves_medical_total: emp.leaves.medical.total,
-      leaves_medical_used: emp.leaves.medical.used,
-      updated_at: new Date().toISOString()
+      leaves_medical_used: emp.leaves.medical.used
     }));
     const { error } = await supabase.from('employees').upsert(payloads);
     if (error) throw error;
@@ -226,8 +220,7 @@ export const supabaseService = {
         id: 1,
         enforce_location: settings.enforceLocation,
         auto_sync_enabled: settings.autoSyncEnabled,
-        sync_interval: settings.syncInterval,
-        updated_at: new Date().toISOString()
+        sync_interval: settings.syncInterval
       };
 
       const { error } = await supabase.from('system_settings').upsert(payload, { onConflict: 'id' });
