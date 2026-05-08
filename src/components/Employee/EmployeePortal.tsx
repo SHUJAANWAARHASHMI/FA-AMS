@@ -93,10 +93,10 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
 
   // Precise Campus Locations adjusted for Karachi as per user request
   const CAMPUS_LOCATIONS: Record<string, { lat: number, lng: number, radius: number }> = {
-    'Main Campus': { lat: 24.9265, lng: 67.1256, radius: 250 },   // Gulistan-e-Johar Area, Karachi
-    'Johar Campus': { lat: 24.9180, lng: 67.1320, radius: 250 },  // Near Safari Park Area
-    'Masjid Campus': { lat: 24.8607, lng: 67.0011, radius: 250 }, // Saddar/City Area
-    'Maktab Campus': { lat: 24.8900, lng: 67.0800, radius: 250 }, // Bahadurabad Area
+    'Main Campus': { lat: 24.9265, lng: 67.1256, radius: 1000 },   // Gulistan-e-Johar Area, Karachi
+    'Johar Campus': { lat: 24.9180, lng: 67.1320, radius: 1000 },  // Near Safari Park Area
+    'Masjid Campus': { lat: 24.8607, lng: 67.0011, radius: 1000 }, // Saddar/City Area
+    'Maktab Campus': { lat: 24.8900, lng: 67.0800, radius: 1000 }, // Bahadurabad Area
   };
 
   const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -117,88 +117,77 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
   const handleMarkAttendance = async (type: 'in' | 'out') => {
     setIsLoading(true);
     
-    // GPS Verification Protocol
-    if (systemSettings.enforceLocation) {
+    let userLat: number | undefined;
+    let userLng: number | undefined;
+    let detectedCampus: string = employee.campus;
+    let validCampusObj: any = null;
+
+    // 1. GPS Verification Protocol (Single Geolocation Call)
+    if (systemSettings.enforceLocation || navigator.geolocation) {
       try {
         if (!navigator.geolocation) {
-          alert("CRITICAL: Geolocation is not supported by your browser version. Terminal access denied.");
-          setIsLoading(false);
-          return;
-        }
-
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { 
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0
+          if (systemSettings.enforceLocation) {
+            alert("CRITICAL: Geolocation is not supported by your browser version. Terminal access denied.");
+            setIsLoading(false);
+            return;
+          }
+        } else {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { 
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0
+            });
           });
-        });
 
-        const userLat = position.coords.latitude;
-        const userLng = position.coords.longitude;
-        
-        const campusConfig = CAMPUS_LOCATIONS[employee.campus] || CAMPUS_LOCATIONS['Main Campus'];
-        const distance = getDistance(userLat, userLng, campusConfig.lat, campusConfig.lng);
-        
-        // Enforce strict radius (e.g., 250 meters)
-        if (distance > campusConfig.radius) {
-          const errorMsg = `SECURITY: Position Mismatch.\n\n` +
-                          `Detected: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}\n` +
-                          `Target: ${campusConfig.lat.toFixed(4)}, ${campusConfig.lng.toFixed(4)}\n` +
-                          `Distance: ${distance > 1000 ? Math.round(distance / 1000) + 'km' : Math.round(distance) + 'm'}\n` +
-                          `Max Allowed: ${campusConfig.radius}m\n\n` +
-                          `HINT: If you are physically at the campus, your browser's location (IP-based) may be inaccurate. ` +
-                          `Please use a device with GPS or ask Admin to disable 'GPS Verification' in Admin Controls.`;
-                        
+          userLat = position.coords.latitude;
+          userLng = position.coords.longitude;
+          
+          // Find if user is within radius of ANY campus
+          let minDistance = Infinity;
+
+          Object.entries(CAMPUS_LOCATIONS).forEach(([name, config]) => {
+            const d = getDistance(userLat!, userLng!, config.lat, config.lng);
+            if (d <= config.radius) {
+              if (!validCampusObj || d < minDistance) {
+                validCampusObj = { name, distance: d, config };
+                minDistance = d;
+                detectedCampus = name;
+              }
+            }
+          });
+          
+          if (systemSettings.enforceLocation && !validCampusObj) {
+            const errorMsg = `SECURITY: Outside Campus Boundaries.\n\n` +
+                            `Detected: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}\n\n` +
+                            `HINT: You are currently not within 1000m of ANY campus location (Main, Johar, Masjid, or Maktab).\n\n` +
+                            `Please ensure you are physically present at one of the campus sites and high-accuracy GPS is enabled.`;
+                          
+            alert(errorMsg);
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (err: any) {
+        console.error('Geolocation error:', err);
+        if (systemSettings.enforceLocation) {
+          let errorMsg = "ERROR: Failed to verify location.";
+          if (err.code === 1) errorMsg = "PERMISSIONS: Please enable GPS/Location access to mark attendance.";
+          if (err.code === 3) errorMsg = "TIMEOUT: Location verification timed out. Please try again.";
+          
           alert(errorMsg);
           setIsLoading(false);
           return;
         }
-      } catch (err: any) {
-        console.error('Geolocation error:', err);
-        let errorMsg = "ERROR: Failed to verify location.";
-        if (err.code === 1) errorMsg = "PERMISSIONS: Please enable GPS/Location access to mark attendance.";
-        if (err.code === 3) errorMsg = "TIMEOUT: Location verification timed out. Please try again.";
-        
-        alert(errorMsg);
-        setIsLoading(false);
-        return;
       }
-    } else {
-      console.log('Location verification bypassed via Remote Admin Command');
     }
 
     const now = new Date();
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-    const timeString = `${hours}:${minutes}:${seconds}`;
+    const timeString = now.getHours().toString().padStart(2, '0') + ':' + 
+                       now.getMinutes().toString().padStart(2, '0') + ':' + 
+                       now.getSeconds().toString().padStart(2, '0');
     
-    // Capture location and identify campus
-    let currentCoords: { lat: number; lng: number } | undefined;
-    let detectedCampus: string = employee.campus;
-    
-    try {
-      if (navigator.geolocation) {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-        });
-        currentCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        
-        // Find nearest campus from defined locations
-        let closestDist = Infinity;
-        Object.entries(CAMPUS_LOCATIONS).forEach(([name, loc]) => {
-          const d = getDistance(pos.coords.latitude, pos.coords.longitude, loc.lat, loc.lng);
-          if (d < loc.radius && d < closestDist) {
-            closestDist = d;
-            detectedCampus = name;
-          }
-        });
-      }
-    } catch (e) {
-      console.warn('Could not capture location for audit:', e);
-    }
-
+    const currentCoords = userLat && userLng ? { lat: userLat, lng: userLng } : undefined;
     const latestEmployee = allEmployees.find(emp => emp.id === employee.id) || employee;
     let updatedAttendance = [...latestEmployee.attendance];
     const existingIndex = updatedAttendance.findIndex(a => a.date === today);
@@ -275,8 +264,6 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
       setRemarks('');
     } catch (err) {
       console.error('Cloud Sync Failure:', err);
-      // We don't alert here because usePersistence already shows a notification,
-      // and the data IS saved in local storage, so it will retry later.
     } finally {
       setIsLoading(false);
     }
