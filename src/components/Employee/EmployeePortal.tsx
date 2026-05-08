@@ -237,7 +237,6 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
         };
         updatedAttendance.push(newRecord);
       }
-      alert(`SUCCESS: Registered Entry at ${timeString} (${detectedCampus})`);
     } else {
       if (existingIndex < 0) {
         alert('ERROR: Entry record missing. Access denied.');
@@ -265,7 +264,6 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
         overtime,
         remarks: remarks || record.remarks
       };
-      alert(`SUCCESS: Registered Exit at ${timeString}`);
     }
 
     const updatedEmployees = allEmployees.map(emp => 
@@ -275,12 +273,10 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
     try {
       await onUpdateEmployees(updatedEmployees);
       setRemarks('');
-      alert(`SUCCESS: Registered ${type === 'in' ? 'Entry' : 'Exit'} at ${timeString}. Record synchronized with cloud.`);
     } catch (err) {
       console.error('Cloud Sync Failure:', err);
       // We don't alert here because usePersistence already shows a notification,
       // and the data IS saved in local storage, so it will retry later.
-      alert(`NOTICE: ${type === 'in' ? 'Entry' : 'Exit'} registered locally. Will sync to cloud when connection is stable.`);
     } finally {
       setIsLoading(false);
     }
@@ -342,10 +338,8 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
     try {
       await onUpdateEmployees(updatedEmployees);
       setLeaveForm({ type: 'Annual', from: today, to: today, reason: '' });
-      alert('Leave request submitted successfully!');
     } catch (err) {
       console.error('Leave Request Sync Error:', err);
-      alert('NOTICE: Leave request stored locally. Database sync pending.');
     } finally {
       setIsLoading(false);
     }
@@ -409,7 +403,6 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
       
       onUpdateEmployees(updatedEmployees);
       setSecurityForm({ ...securityForm, currentPassword: '', newPassword: '', confirmPassword: '' });
-      alert('SUCCESS: Credentials updated synchronously. Terminal state refreshed.');
     } catch (err) {
       console.error('Security Update Failed:', err);
       alert('SYSTEM ERROR: Could not sync security parameters.');

@@ -84,7 +84,6 @@ export const SingleAttendance: React.FC<SingleAttendanceProps> = ({ employees, u
     });
 
     onUpdateEmployees(updatedEmployees);
-    alert('Attendance record updated successfully!');
   };
 
   return (
