@@ -454,6 +454,45 @@ export function usePersistence() {
     return () => clearInterval(syncLoop);
   }, [systemSettings.autoSyncEnabled, systemSettings.syncInterval, isOnline]);
 
+  const rebuildCloud = async () => {
+    setIsSyncing(true);
+    try {
+      console.log('REBUILDING CLOUD REGISTRY...');
+      
+      // 1. Clear current employees in Supabase (or at least prepare for full upsert)
+      // Since we use upserts, we can just loop through INITIAL_EMPLOYEES
+      // But we should also handle deletions for any employees NOT in the new list
+      const currentRemote = await supabaseService.getEmployees();
+      const idsToKeep = new Set(INITIAL_EMPLOYEES.map(e => e.id));
+      const idsToDelete = currentRemote.filter(r => !idsToKeep.has(r.id)).map(r => r.id);
+
+      // Delete orphans
+      for (const id of idsToDelete) {
+        await supabaseService.deleteEmployee(id);
+      }
+
+      // 2. Full Force Sync
+      await forceSyncEmployeesToSupabase(INITIAL_EMPLOYEES);
+      
+      // 3. Update Users too
+      for (const u of INITIAL_USERS) {
+        await supabaseService.saveAdminUser(u);
+      }
+
+      // Update local state to match system data exactly
+      setEmployees(INITIAL_EMPLOYEES);
+      setUsers(INITIAL_USERS);
+      
+      addNotification('Cloud Rebuilt', `Registry synchronized with ${INITIAL_EMPLOYEES.length} staff members.`, 'success');
+    } catch (err) {
+      console.error('Rebuild failed:', err);
+      addNotification('Rebuild Error', 'Cloud sync failed for some records. Check console.', 'error');
+      throw err;
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return {
     employees,
     users,
@@ -468,6 +507,7 @@ export function usePersistence() {
     updateSystemSettings,
     setCurrentUser,
     triggerManualSync,
+    rebuildCloud,
     notifications,
     dismissNotification
   };

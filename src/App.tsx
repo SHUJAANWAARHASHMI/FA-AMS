@@ -175,6 +175,7 @@ export default function App() {
     isSyncing, 
     isOnline,
     triggerManualSync,
+    rebuildCloud,
     notifications,
     dismissNotification
   } = usePersistence();
@@ -223,7 +224,13 @@ export default function App() {
       case 'reports':
         return <Reports employees={employees} user={adminUser} />;
       case 'backup-restore':
-        return <BackupRestore employees={employees} users={users} onUpdateEmployees={updateEmployees} onUpdateUsers={updateUsers} />;
+        return <BackupRestore 
+          employees={employees} 
+          users={users} 
+          onUpdateEmployees={updateEmployees} 
+          onUpdateUsers={updateUsers} 
+          onRebuildCloud={rebuildCloud}
+        />;
       case 'admin-controls':
         return <AdminControls users={users} user={adminUser} settings={systemSettings} onUpdateUsers={updateUsers} onUpdateSettings={updateSystemSettings} />;
       default:

@@ -1,17 +1,25 @@
 
 import React, { useRef } from 'react';
 import { Employee, User } from '../../types';
-import { Database, Download, Upload, Trash2, AlertTriangle, CheckCircle2, FileJson, Calendar } from 'lucide-react';
+import { Database, Download, Upload, Trash2, AlertTriangle, CheckCircle2, FileJson, Calendar, RefreshCw } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { INITIAL_EMPLOYEES, INITIAL_USERS } from '../../data/initialData';
 
 interface BackupRestoreProps {
   employees: Employee[];
   users: User[];
   onUpdateEmployees: (employees: Employee[]) => void;
   onUpdateUsers: (users: User[]) => void;
+  onRebuildCloud: () => Promise<void>;
 }
 
-export const BackupRestore: React.FC<BackupRestoreProps> = ({ employees, users, onUpdateEmployees, onUpdateUsers }) => {
+export const BackupRestore: React.FC<BackupRestoreProps> = ({ 
+  employees, 
+  users, 
+  onUpdateEmployees, 
+  onUpdateUsers,
+  onRebuildCloud 
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [targetMonth, setTargetMonth] = React.useState(new Date().toISOString().slice(0, 7));
 
@@ -67,6 +75,24 @@ export const BackupRestore: React.FC<BackupRestoreProps> = ({ employees, users, 
       }));
       onUpdateEmployees(updatedEmployees);
       alert(`All data for ${targetMonth} has been purged.`);
+    }
+  };
+  
+  const [isRebuilding, setIsRebuilding] = React.useState(false);
+
+  const handleRebuildCloud = async () => {
+    if (confirm(`CRITICAL ACTION: This will overwrite your cloud database with the default system data (66 employees). All current unsynced local changes will be replaced. Proceed?`)) {
+      setIsRebuilding(true);
+      try {
+        await onRebuildCloud();
+        alert('SUCCESS: Cloud registry has been rebuilt with 66 staff members. The system will now refresh to stabilize the local state.');
+        window.location.reload();
+      } catch (err) {
+        alert('ERROR: Could not complete cloud rebuild. Registry might be partially synchronized.');
+        console.error(err);
+      } finally {
+        setIsRebuilding(false);
+      }
     }
   };
 
@@ -171,6 +197,30 @@ export const BackupRestore: React.FC<BackupRestoreProps> = ({ employees, users, 
                 <span>PURGE REGISTRY</span>
               </button>
             </div>
+          </div>
+
+          <div className="mt-10 pt-10 border-t border-red-100 flex items-center justify-between">
+            <div className="space-y-1">
+              <h5 className="text-[10px] font-black text-red-600 uppercase tracking-widest">Master Reset Protocol</h5>
+              <p className="text-[9px] font-bold text-bento-ink/40 uppercase tracking-wider">Replace entire cloud database with system default manifest (66 employees).</p>
+            </div>
+            <button 
+              onClick={handleRebuildCloud}
+              disabled={isRebuilding}
+              className={cn(
+                "px-8 py-3 border-2 transition-all text-[10px] font-black uppercase tracking-widest flex items-center space-x-3",
+                isRebuilding 
+                  ? "border-gray-300 text-gray-400 cursor-not-allowed" 
+                  : "border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
+              )}
+            >
+              {isRebuilding ? (
+                <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+              ) : (
+                <RefreshCw size={16} />
+              )}
+              <span>{isRebuilding ? 'REBUILDING...' : 'REBUILD CLOUD REGISTRY'}</span>
+            </button>
           </div>
         </div>
       </div>
