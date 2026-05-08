@@ -129,6 +129,7 @@ const Building2 = (props: any) => (
 
 export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUpdateEmployees, setActiveTab }) => {
   const [targetDate, setTargetDate] = React.useState(getLocalDate());
+  const [performancePeriod, setPerformancePeriod] = React.useState<'today' | 'weekly' | 'monthly'>('monthly');
   
   // Find self as employee
   const selfEmployee = useMemo(() => {
@@ -267,14 +268,57 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
   };
 
   const bestEmployees = useMemo(() => {
+    const now = new Date();
+    const today = getLocalDate();
+    
+    // Helper to check if date is within range
+    const isWithinRange = (dateStr: string, days: number) => {
+      const date = new Date(dateStr);
+      const diffTime = Math.abs(now.getTime() - date.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= days;
+    };
+
     return [...filteredEmployees]
-      .sort((a, b) => {
-        const aScore = a.attendance.filter(att => att.onTime).length;
-        const bScore = b.attendance.filter(att => att.onTime).length;
-        return bScore - aScore;
+      .map(emp => {
+        let score = 0;
+        let displayValue = '0%';
+        let subText = '';
+
+        if (performancePeriod === 'today') {
+          const todayAtt = emp.attendance.find(a => a.date === today);
+          if (todayAtt) {
+            const timeToMinutes = (time: string) => {
+              const [h, m] = time.split(':').map(Number);
+              return h * 60 + m;
+            };
+            const shiftStartMin = timeToMinutes(emp.shiftStart);
+            const actualInMin = timeToMinutes(todayAtt.timeIn);
+            // Higher score for earlier arrival. 
+            // 80 base + (minutes before/after shift start)
+            score = Math.max(0, Math.min(100, 90 - (actualInMin - shiftStartMin)));
+            displayValue = todayAtt.onTime ? 'Punctual' : todayAtt.timeIn;
+          }
+          subText = todayAtt ? `In: ${todayAtt.timeIn}` : 'No Log';
+        } else {
+          const daysToLookBack = performancePeriod === 'weekly' ? 7 : 30;
+          const periodAttendance = emp.attendance.filter(a => isWithinRange(a.date, daysToLookBack));
+          
+          if (periodAttendance.length > 0) {
+            const onTimeDays = periodAttendance.filter(a => a.onTime).length;
+            const presenceDays = periodAttendance.filter(a => a.status === 'Present' || a.status === 'Late').length;
+            
+            score = (onTimeDays / periodAttendance.length) * 100;
+            displayValue = `${score.toFixed(0)}%`;
+            subText = `${onTimeDays}/${periodAttendance.length} On-Time`;
+          }
+        }
+
+        return { ...emp, performanceScore: score, displayValue, subText };
       })
+      .sort((a, b) => b.performanceScore - a.performanceScore)
       .slice(0, 3);
-  }, [filteredEmployees]);
+  }, [filteredEmployees, performancePeriod]);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
@@ -381,38 +425,41 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <BentoBox title="Live Operations" subTitle="Distribution by Campus" className="lg:col-span-1">
-          <div className="h-72 mt-4 flex items-center justify-center">
-            <Doughnut 
-              data={attendanceByCampusData} 
-              options={{ 
-                maintainAspectRatio: false, 
-                cutout: '75%',
-                plugins: { 
-                  legend: { 
-                    position: 'bottom', 
-                    labels: { 
-                      usePointStyle: true,
-                      padding: 20,
-                      font: { 
-                        size: 11,
-                        weight: 'bold' as const,
-                        family: 'Plus Jakarta Sans'
-                      } 
-                    } 
-                  } 
-                } 
-              }} 
-            />
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-12">
-               <span className="text-3xl font-extrabold text-primary">{stats.totalPresent}</span>
-               <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Total Active</span>
+        <BentoBox title="Live Operations" subTitle="Active vs Workforce" className="lg:col-span-1">
+          <div className="flex flex-col h-full">
+            <div className="flex flex-col items-center justify-center py-6 border-b border-border/50 mb-6">
+               <span className="text-6xl font-black text-primary tracking-tighter">{stats.totalPresent}</span>
+               <span className="text-xs font-bold text-text-gray uppercase tracking-widest mt-1">Personnel Active</span>
+            </div>
+            
+            <div className="space-y-5">
+              {Object.entries(stats.campusStats).map(([name, data]: [string, any]) => {
+                const percentage = (data.present / data.total) * 100 || 0;
+                return (
+                  <div key={name} className="space-y-2">
+                    <div className="flex justify-between items-end">
+                      <span className="text-[10px] font-bold text-primary uppercase tracking-tight">{name.replace(' Campus', '')}</span>
+                      <span className="text-[10px] font-extrabold text-primary">{data.present}<span className="text-text-gray/40 font-bold mx-1">/</span>{data.total}</span>
+                    </div>
+                    <div className="h-3 bg-accent/30 rounded-full overflow-hidden relative">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${percentage}%` }}
+                        className={cn(
+                          "h-full rounded-full transition-all duration-1000",
+                          percentage > 80 ? "bg-emerald-500" : percentage > 50 ? "bg-secondary" : "bg-warning"
+                        )}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </BentoBox>
         
-        <BentoBox title="Security & Compliance" subTitle="Attendance Reliability" className="lg:col-span-2">
-            <div className="h-72 mt-4">
+        <BentoBox title="Security & Compliance" subTitle="Attendance Reliability (Present / Total)" className="lg:col-span-2">
+            <div className="h-72 mt-4 text-center">
               <Bar 
                 data={{
                   labels: ['Main', 'Johar', 'Masjid', 'Maktab'],
@@ -422,22 +469,37 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
                       data: [stats.campusStats['Main Campus'].present, stats.campusStats['Johar Campus'].present, stats.campusStats['Masjid Campus'].present, stats.campusStats['Maktab Campus'].present],
                       backgroundColor: '#0066FF',
                       borderRadius: 12,
-                      barThickness: 32
+                      barThickness: 32,
+                      stack: 'stack1',
                     },
                     {
-                      label: 'Target',
-                      data: [stats.campusStats['Main Campus'].total, stats.campusStats['Johar Campus'].total, stats.campusStats['Masjid Campus'].total, stats.campusStats['Maktab Campus'].total],
+                      label: 'Absent/Total',
+                      data: [
+                        stats.campusStats['Main Campus'].total - stats.campusStats['Main Campus'].present,
+                        stats.campusStats['Johar Campus'].total - stats.campusStats['Johar Campus'].present,
+                        stats.campusStats['Masjid Campus'].total - stats.campusStats['Masjid Campus'].present,
+                        stats.campusStats['Maktab Campus'].total - stats.campusStats['Maktab Campus'].present
+                      ],
                       backgroundColor: '#002B4910',
-                      borderRadius: 12,
-                      barThickness: 32
+                      borderRadius: { topLeft: 12, topRight: 12 },
+                      barThickness: 32,
+                      stack: 'stack1',
                     }
                   ]
                 }}
                 options={{
                   maintainAspectRatio: false,
                   scales: {
-                    x: { grid: { display: false }, ticks: { font: { weight: 'bold' as const } } },
-                    y: { grid: { color: '#E2E8F0' }, ticks: { font: { weight: 'bold' as const } } }
+                    x: { 
+                      grid: { display: false }, 
+                      ticks: { font: { weight: 'bold' as const } },
+                      stacked: true
+                    },
+                    y: { 
+                      grid: { color: '#E2E8F0' }, 
+                      ticks: { font: { weight: 'bold' as const } },
+                      stacked: true
+                    }
                   },
                   plugins: {
                     legend: {
@@ -519,13 +581,13 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <h3 className="text-lg font-extrabold text-primary tracking-tight uppercase">Top Performers</h3>
           <div className="flex bg-white p-1 border border-border rounded-xl w-full sm:w-auto">
-            {['today', 'weekly', 'monthly'].map((p) => (
+            {(['today', 'weekly', 'monthly'] as const).map((p) => (
               <button
                 key={p}
-                onClick={() => {}} 
+                onClick={() => setPerformancePeriod(p)} 
                 className={cn(
                   "flex-1 sm:flex-none px-6 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all rounded-lg",
-                  p === 'monthly' ? "bg-primary text-white" : "text-text-gray hover:text-primary hover:bg-bg"
+                  performancePeriod === p ? "bg-primary text-white" : "text-text-gray hover:text-primary hover:bg-bg"
                 )}
               >
                 {p}
@@ -544,10 +606,15 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
                 <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mt-0.5">{(emp?.campus || 'ALL')} | {emp?.id}</p>
                 <div className="flex items-center mt-3">
                   <div className="flex-1 h-1.5 bg-accent/30 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600" style={{ width: `${100 - i * 5}%` }}></div>
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${emp.performanceScore}%` }}
+                      className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600"
+                    />
                   </div>
-                  <span className="text-[10px] font-bold ml-3 text-emerald-600">{(98.5 - i * 1.2).toFixed(1)}%</span>
+                  <span className="text-[10px] font-bold ml-3 text-emerald-600">{emp.displayValue}</span>
                 </div>
+                <p className="text-[9px] text-text-gray/50 font-bold mt-1 uppercase">{emp.subText}</p>
               </div>
             </div>
           ))}

@@ -15,7 +15,11 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
   const [reportType, setReportType] = useState('attendance_summary');
   const [targetCampus, setTargetCampus] = useState(user?.campus === 'all' ? 'all' : (user?.campus || 'all'));
   const [targetEmployee, setTargetEmployee] = useState('all');
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  
+  const today = new Date().toISOString().slice(0, 10);
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+  const [fromDate, setFromDate] = useState(firstDayOfMonth);
+  const [toDate, setToDate] = useState(today);
 
   const filteredEmployees = employees.filter(emp => {
     const matchesCampus = targetCampus === 'all' || (emp?.campus === targetCampus);
@@ -38,18 +42,20 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
     
     doc.setFontSize(10);
     doc.text(`Generated on: ${now.toLocaleString()}`, 105, 29, { align: 'center' });
-    doc.text(`Period: ${month}`, 105, 34, { align: 'center' });
+    doc.text(`Period: ${fromDate} to ${toDate}`, 105, 34, { align: 'center' });
 
     let tableData: any[] = [];
     let tableHeaders: string[] = [];
 
+    const isWithinRange = (date: string) => date >= fromDate && date <= toDate;
+
     if (reportType === 'attendance_summary') {
       tableHeaders = ['ID', 'Name', 'Campus', 'Status', 'Days Present', 'Days Late', 'Avg. Performance'];
       tableData = filteredEmployees.map(emp => {
-        const monthRecords = emp.attendance.filter(a => a.date.startsWith(month));
-        const present = monthRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
-        const late = monthRecords.filter(r => r.status === 'Late').length;
-        const performance = monthRecords.length > 0 ? ((monthRecords.filter(r => r.onTime).length / monthRecords.length) * 100).toFixed(1) + '%' : 'N/A';
+        const periodRecords = emp.attendance.filter(a => isWithinRange(a.date));
+        const present = periodRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
+        const late = periodRecords.filter(r => r.status === 'Late').length;
+        const performance = periodRecords.length > 0 ? ((periodRecords.filter(r => r.onTime).length / periodRecords.length) * 100).toFixed(1) + '%' : 'N/A';
         return [
           emp.id || 'N/A', 
           emp.name || 'N/A', 
@@ -63,7 +69,7 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
     } else if (reportType === 'late_arrivals') {
       tableHeaders = ['Date', 'ID', 'Name', 'Designation', 'Time In', 'Shift Start', 'Late Mins'];
       filteredEmployees.forEach(emp => {
-        const lateRecords = emp.attendance.filter(a => a.date.startsWith(month) && a.status === 'Late');
+        const lateRecords = emp.attendance.filter(a => isWithinRange(a.date) && a.status === 'Late');
         lateRecords.forEach(r => {
           const [inH, inM] = r.timeIn.split(':').map(Number);
           const [sH, sM] = emp.shiftStart.split(':').map(Number);
@@ -74,7 +80,7 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
     } else if (reportType === 'overtime_report') {
       tableHeaders = ['Date', 'ID', 'Name', 'Time Out', 'Shift End', 'OT Hours'];
       filteredEmployees.forEach(emp => {
-        const otRecords = emp.attendance.filter(a => a.date.startsWith(month) && a.overtime > 0);
+        const otRecords = emp.attendance.filter(a => isWithinRange(a.date) && a.overtime > 0);
         otRecords.forEach(r => {
           tableData.push([r.date, emp.id, emp.name, r.timeOut, emp.shiftEnd, r.overtime.toFixed(1)]);
         });
@@ -82,7 +88,7 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
     } else if (reportType === 'leave_history') {
       tableHeaders = ['ID', 'Name', 'Type', 'From', 'To', 'Days', 'Status'];
       filteredEmployees.forEach(emp => {
-        emp.leaveRequests.filter(req => req.from.startsWith(month)).forEach(req => {
+        emp.leaveRequests.filter(req => req.from >= fromDate && req.from <= toDate).forEach(req => {
           const from = new Date(req.from);
           const to = new Date(req.to);
           const days = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -109,7 +115,7 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
       styles: { fontSize: 8, cellPadding: 3 },
     });
 
-    doc.save(`Fiqh_Academy_${reportType}_${month}.pdf`);
+    doc.save(`Fiqh_Academy_${reportType}_${fromDate}_to_${toDate}.pdf`);
   };
 
   const handlePrint = () => {
@@ -127,7 +133,7 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] opacity-30">Management Module</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
           <div className="p-3 sm:p-4 bg-bento-bg/20 border border-bento-line/10">
             <label className="block text-[10px] font-black text-bento-ink uppercase tracking-widest mb-2 sm:mb-3 opacity-60">Report Type</label>
             <div className="relative">
@@ -184,13 +190,26 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
           </div>
 
           <div className="p-3 sm:p-4 bg-bento-bg/20 border border-bento-line/10">
-            <label className="block text-[10px] font-black text-bento-ink uppercase tracking-widest mb-2 sm:mb-3 opacity-60">Select Month</label>
+            <label className="block text-[10px] font-black text-bento-ink uppercase tracking-widest mb-2 sm:mb-3 opacity-60">From Date</label>
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-bento-ink/40" size={16} />
               <input 
-                type="month" 
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
+                type="date" 
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-white border border-bento-line text-[10px] font-black uppercase h-[44px]"
+              />
+            </div>
+          </div>
+
+          <div className="p-3 sm:p-4 bg-bento-bg/20 border border-bento-line/10">
+            <label className="block text-[10px] font-black text-bento-ink uppercase tracking-widest mb-2 sm:mb-3 opacity-60">To Date</label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-bento-ink/40" size={16} />
+              <input 
+                type="date" 
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-white border border-bento-line text-[10px] font-black uppercase h-[44px]"
               />
             </div>
@@ -236,8 +255,8 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
               </thead>
               <tbody className="divide-y divide-bento-bg">
                 {filteredEmployees.slice(0, 10).map((emp, idx) => {
-                   const monthRecords = emp.attendance.filter(a => a.date.startsWith(month));
-                   const perf = monthRecords.length > 0 ? (monthRecords.filter(r => r.onTime).length / monthRecords.length) * 100 : 0;
+                   const periodRecords = emp.attendance.filter(a => a.date >= fromDate && a.date <= toDate);
+                   const perf = periodRecords.length > 0 ? (periodRecords.filter(r => r.onTime).length / periodRecords.length) * 100 : 0;
                    return (
                     <tr key={`${emp.id}-${idx}`} className="hover:bg-bento-bg/10 transition-colors">
                       <td className="px-4 sm:px-6 py-4 font-black text-bento-accent">{emp.id}</td>
