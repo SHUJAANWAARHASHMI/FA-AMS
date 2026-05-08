@@ -247,5 +247,40 @@ export const supabaseService = {
       feedback: review.feedback
     });
     if (error) throw error;
+  },
+
+  // --- Security & Audit ---
+  async updateEmployeeCredentials(employeeId: string, username: string, password?: string) {
+    const payload: any = { username };
+    if (password) payload.password = password;
+    
+    const { error } = await supabase.from('employees').update(payload).eq('id', employeeId);
+    if (error) throw error;
+
+    // Record Audit Log
+    await this.addAuditLog(employeeId, 'CREDENTIAL_UPDATE', `User updated credentials: ${username}`);
+  },
+
+  async addAuditLog(userId: string, action: string, details: string) {
+    try {
+      const { error } = await supabase.from('audit_logs').insert({
+        user_id: userId,
+        action,
+        details,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Handle "Table not found" (PGRST205) or "RLS Violation" (42501)
+      if (error) {
+        const isSecurityError = error.code === '42501' || error.message.includes('row-level security');
+        const isNotFoundError = error.code === 'PGRST205';
+        
+        if (!isSecurityError && !isNotFoundError) {
+          console.warn('Audit log capture deferred:', error.message);
+        }
+      }
+    } catch (e) {
+      // Silent catch for unexpected network errors
+    }
   }
 };

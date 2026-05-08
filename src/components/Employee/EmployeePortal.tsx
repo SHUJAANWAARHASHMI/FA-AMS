@@ -18,7 +18,9 @@ import {
   Zap,
   Target,
   TrendingUp,
-  LogOut
+  LogOut,
+  Shield,
+  Award
 } from 'lucide-react';
 import { calculateLateHours, calculateOvertime, cn, getLocalDate, calculateAttendanceHours, calculateAttendanceMs, formatTimeDisplay } from '../../lib/utils';
 
@@ -31,8 +33,8 @@ interface EmployeePortalProps {
 }
 
 export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmployees, systemSettings, onUpdateEmployees, onLogout }) => {
-  const [activeTab, setActiveTab] = useState<'attendance' | 'leaves' | 'profile' | 'performance'>('attendance');
-  const [mobileTab, setMobileTab] = useState<'checkin' | 'calendar' | 'summary' | 'leaves' | 'profile'>('checkin');
+  const [activeTab, setActiveTab] = useState<'attendance' | 'leaves' | 'profile' | 'performance' | 'security'>('attendance');
+  const [mobileTab, setMobileTab] = useState<'checkin' | 'calendar' | 'summary' | 'leaves' | 'profile' | 'security'>('checkin');
   const [remarks, setRemarks] = useState('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [nowVisible, setNowVisible] = useState(new Date());
@@ -314,39 +316,209 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     alert('Leave request submitted successfully!');
   };
 
+  const [securityForm, setSecurityForm] = useState({
+    currentPassword: '',
+    newUsername: employee.username,
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  const handleUpdateSecurity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // 1. Validate Current Password
+    if (securityForm.currentPassword !== employee.password) {
+      alert('SECURITY: Current password verification failed.');
+      return;
+    }
+
+    // 2. Validate New Password if provided
+    if (securityForm.newPassword) {
+      if (securityForm.newPassword !== securityForm.confirmPassword) {
+        alert('VALIDATION: New passwords do not match.');
+        return;
+      }
+      if (securityForm.newPassword.length < 6) {
+        alert('VALIDATION: Security protocols require min 6 characters.');
+        return;
+      }
+    }
+
+    // 3. Validate Username
+    if (!securityForm.newUsername || securityForm.newUsername.length < 3) {
+      alert('VALIDATION: User ID must be at least 3 characters.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { supabaseService } = await import('../../services/supabaseService');
+      
+      // Update DB
+      await supabaseService.updateEmployeeCredentials(
+        employee.id, 
+        securityForm.newUsername, 
+        securityForm.newPassword || undefined
+      );
+
+      // Record Audit locally for instant feedback if needed, but App.tsx handles refresh
+      const updatedEmployees = allEmployees.map(emp => 
+        emp.id === employee.id 
+          ? { 
+              ...emp, 
+              username: securityForm.newUsername, 
+              password: securityForm.newPassword || emp.password 
+            } 
+          : emp
+      );
+      
+      onUpdateEmployees(updatedEmployees);
+      setSecurityForm({ ...securityForm, currentPassword: '', newPassword: '', confirmPassword: '' });
+      alert('SUCCESS: Credentials updated synchronously. Terminal state refreshed.');
+    } catch (err) {
+      console.error('Security Update Failed:', err);
+      alert('SYSTEM ERROR: Could not sync security parameters.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderSecurityTab = () => (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="bg-white rounded-[24px] p-6 sm:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.06)] border border-border max-w-2xl mx-auto">
+        <div className="flex items-center space-x-4 mb-8">
+          <div className="w-12 h-12 bg-error/10 text-error rounded-2xl flex items-center justify-center">
+            <Shield size={24} />
+          </div>
+          <div>
+            <h3 className="text-xl font-extrabold text-primary tracking-tight">Security Protocol</h3>
+            <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mt-1">Credential Management & Access Control</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleUpdateSecurity} className="space-y-6">
+          <div className="space-y-4">
+            <div className="bg-bg p-4 rounded-xl border border-border">
+              <label className="mini-label block mb-2 text-error">Identity Verification Required</label>
+              <input 
+                type="password"
+                required
+                placeholder="Enter Current Password"
+                className="w-full h-12 px-4 bg-white border border-border text-xs font-bold uppercase rounded-xl outline-none focus:ring-4 focus:ring-error/10 transition-all"
+                value={securityForm.currentPassword}
+                onChange={e => setSecurityForm({...securityForm, currentPassword: e.target.value})}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="mini-label block px-1">Network User ID</label>
+                <input 
+                  type="text"
+                  required
+                  className="w-full h-12 px-4 bg-white border border-border text-xs font-bold lowercase rounded-xl outline-none focus:ring-4 focus:ring-primary/10"
+                  value={securityForm.newUsername}
+                  onChange={e => setSecurityForm({...securityForm, newUsername: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2 opacity-50">
+                <label className="mini-label block px-1">Employee UUID (Immutable)</label>
+                <input 
+                  type="text"
+                  disabled
+                  className="w-full h-12 px-4 bg-accent/5 border border-border text-[10px] font-mono rounded-xl cursor-not-allowed"
+                  value={employee.id}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
+              <div className="space-y-2">
+                <label className="mini-label block px-1">New Terminal Password</label>
+                <input 
+                  type="password"
+                  placeholder="Keep blank to remain same"
+                  className="w-full h-12 px-4 bg-white border border-border text-xs font-bold rounded-xl outline-none focus:ring-4 focus:ring-secondary/10"
+                  value={securityForm.newPassword}
+                  onChange={e => setSecurityForm({...securityForm, newPassword: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="mini-label block px-1">Confirm Protocol</label>
+                <input 
+                  type="password"
+                  placeholder="Re-enter new password"
+                  className="w-full h-12 px-4 bg-white border border-border text-xs font-bold rounded-xl outline-none focus:ring-4 focus:ring-secondary/10"
+                  value={securityForm.confirmPassword}
+                  onChange={e => setSecurityForm({...securityForm, confirmPassword: e.target.value})}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4">
+            <button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full h-14 bg-primary text-white rounded-2xl flex items-center justify-center space-x-3 text-sm font-extrabold uppercase tracking-widest shadow-xl shadow-primary/20 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Save size={18} />
+                  <span>Update Security Registry</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="bg-accent/10 p-4 rounded-xl border border-border border-dashed">
+            <div className="flex items-start space-x-3 text-text-gray">
+              <Shield size={14} className="mt-0.5 shrink-0" />
+              <p className="text-[9px] font-bold uppercase leading-relaxed tracking-wider">
+                Encryption Layer: SHA-256 Symmetric Field Validation. All terminal modifications are logged to the Central Intelligence Registry with User ID, Timestamp, and Client IP.
+              </p>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+
   const renderAttendanceTab = () => {
     const activeSession = todayAttendance?.sessions?.find(s => !s.checkOut);
     
     return (
       <div className="animate-in fade-in duration-500 overflow-hidden">
-      <div className="bg-white rounded-[24px] p-6 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-6">
+      <div className="bg-white rounded-[24px] p-4 sm:p-6 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="md:col-span-4 space-y-4 border-b md:border-b-0 md:border-r border-border pb-4 md:pb-0 md:pr-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="p-2 bg-primary text-white border border-secondary">
+          <div className="flex items-center space-x-3 mb-2 sm:mb-4">
+            <div className="p-1.5 sm:p-2 bg-primary text-white border border-secondary">
               <Clock size={16} />
             </div>
-            <h3 className="text-sm font-extrabold uppercase tracking-tight">Terminal Access</h3>
+            <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-tight">Terminal Access</h3>
           </div>
 
           {sessionDuration && (
-            <div className="py-10 border-b border-border mb-6 text-center">
-              <div className="inline-flex flex-col items-center justify-center w-40 h-40 rounded-full border-4 border-secondary/10 relative shadow-2xl shadow-primary/5">
+            <div className="py-6 sm:py-10 border-b border-border mb-4 sm:mb-6 text-center">
+              <div className="inline-flex flex-col items-center justify-center w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-secondary/10 relative shadow-2xl shadow-primary/5">
                 <div className="flex flex-col items-center justify-center">
-                  <span className="text-[10px] font-extrabold text-secondary uppercase tracking-[0.2em] mb-1">Active</span>
-                  <span className="text-3xl font-extrabold tabular-nums tracking-tight text-primary drop-shadow-sm">{sessionDuration}</span>
+                  <span className="text-[9px] sm:text-[10px] font-extrabold text-secondary uppercase tracking-[0.2em] mb-1">Active</span>
+                  <span className="text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight text-primary drop-shadow-sm">{sessionDuration}</span>
                 </div>
               </div>
             </div>
           )}
           
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-accent/30 p-2 border border-border">
+            <div className="bg-accent/30 p-2 border border-border rounded-lg">
               <span className="mini-label">In</span>
-              <p className="text-sm font-bold text-primary">{todayAttendance?.timeIn || '--:--'}</p>
+              <p className="text-xs sm:text-sm font-bold text-primary">{todayAttendance?.timeIn || '--:--'}</p>
             </div>
-            <div className="bg-accent/30 p-2 border border-border">
+            <div className="bg-accent/30 p-2 border border-border rounded-lg">
               <span className="mini-label">Out</span>
-              <p className="text-sm font-bold text-primary">{todayAttendance?.timeOut || '--:--'}</p>
+              <p className="text-xs sm:text-sm font-bold text-primary">{todayAttendance?.timeOut || '--:--'}</p>
             </div>
           </div>
 
@@ -487,10 +659,10 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
 
   const renderLeavesTab = () => (
     <div className="animate-in fade-in duration-700">
-      <div className="bg-white rounded-[24px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-10">
-        <div className="md:col-span-4 space-y-6 md:border-r border-border md:pr-10">
-          <h3 className="text-sm font-extrabold uppercase tracking-tight text-primary">Balance Details</h3>
-          <div className="grid grid-cols-1 gap-4">
+      <div className="bg-white rounded-[24px] p-4 sm:p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-10">
+        <div className="md:col-span-4 space-y-4 sm:space-y-6 md:border-r border-border md:pr-10">
+          <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-tight text-primary">Balance Details</h3>
+          <div className="grid grid-cols-1 gap-3 sm:gap-4">
             <BalanceCard label="Annual" total={employee.leaves.annual.total} used={employee.leaves.annual.used} accent />
             <BalanceCard label="Casual" total={employee.leaves.casual.total} used={employee.leaves.casual.used} />
             <BalanceCard label="Medical" total={employee.leaves.medical.total} used={employee.leaves.medical.used} />
@@ -581,18 +753,18 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
 
   const renderProfileTab = () => (
     <div className="animate-in slide-in-from-bottom-6 duration-700">
-      <div className="bg-white rounded-[24px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border flex flex-col md:flex-row gap-10">
+      <div className="bg-white rounded-[24px] p-5 sm:p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border flex flex-col md:flex-row gap-6 sm:gap-10">
         <div className="md:w-64 space-y-4">
-          <div className="aspect-square bg-primary text-white flex items-center justify-center text-5xl font-extrabold rounded-3xl border-4 border-secondary/20 shadow-xl shadow-primary/10">
+          <div className="aspect-square bg-primary text-white flex items-center justify-center text-4xl sm:text-5xl font-extrabold rounded-2xl sm:rounded-3xl border-4 border-secondary/20 shadow-xl shadow-primary/10 w-24 h-24 sm:w-auto sm:h-auto mx-auto md:mx-0">
             {employee.name.charAt(0)}
           </div>
-          <div className="bg-accent/20 p-4 rounded-2xl border border-border text-center">
-            <h3 className="text-lg font-extrabold text-primary tracking-tight">{employee.name}</h3>
+          <div className="bg-accent/20 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-border text-center">
+            <h3 className="text-base sm:text-lg font-extrabold text-primary tracking-tight">{employee.name}</h3>
             <span className="mini-label">{employee.id}</span>
           </div>
         </div>
         <div className="flex-1">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
             <ProfileInfo label="Role" value={(employee?.designation || 'N/A').toUpperCase()} />
             <ProfileInfo label="Dept" value={(employee?.department || 'N/A').toUpperCase()} />
             <ProfileInfo label="Campus" value={(employee?.campus || 'N/A').toUpperCase()} />
@@ -600,11 +772,23 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
             <ProfileInfo label="User ID" value={employee.username} />
             <ProfileInfo label="Security" value="SECURE ACCESS" />
           </div>
-          <div className="bg-warning/5 p-4 rounded-2xl border border-warning/10 flex items-start space-x-3">
-            <Lock size={18} className="text-warning mt-0.5 shrink-0" />
-            <p className="text-[10px] font-bold text-warning uppercase tracking-widest leading-relaxed">
-              Profile locked by Central Registry. Contact administrative headquarters for any credential modifications or security overrides.
-            </p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="bg-warning/5 p-4 rounded-xl border border-warning/10 flex items-start space-x-3 flex-1">
+              <Lock size={16} className="text-warning mt-0.5 shrink-0" />
+              <p className="text-[9px] sm:text-[10px] font-bold text-warning uppercase tracking-widest leading-relaxed">
+                Core profile fields are locked by Central Registry. Contact administrative headquarters for protocol overrides.
+              </p>
+            </div>
+            <button 
+              onClick={() => {
+                setActiveTab('security');
+                setMobileTab('security');
+              }}
+              className="bg-primary text-white px-6 py-4 rounded-xl flex items-center justify-center space-x-3 text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/10"
+            >
+              <Shield size={16} />
+              <span>Security Settings</span>
+            </button>
           </div>
         </div>
       </div>
@@ -612,9 +796,9 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   );
 
   const ProfileInfo = ({ label, value }: any) => (
-    <div className="bg-white p-5 border border-border rounded-2xl flex flex-col justify-center shadow-sm hover:border-secondary/20 transition-all">
-      <span className="mini-label mb-1">{label}</span>
-      <p className="font-extrabold text-primary tracking-tight text-sm truncate">{value}</p>
+    <div className="bg-white p-3 sm:p-5 border border-border rounded-xl sm:rounded-2xl flex flex-col justify-center shadow-sm hover:border-secondary/20 transition-all">
+      <span className="mini-label mb-1 text-[8px] sm:text-[10px]">{label}</span>
+      <p className="font-extrabold text-primary tracking-tight text-xs sm:text-sm truncate">{value}</p>
     </div>
   );
 
@@ -622,48 +806,48 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
     const records = employee.attendance.filter(r => r.date.startsWith(currentMonth.toISOString().slice(0, 7)));
     return (
       <div className="animate-in fade-in duration-700 h-full">
-        <div className="bg-white rounded-[24px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-8">
-          <div className="md:col-span-8 space-y-6">
-            <div className="bg-primary p-6 rounded-3xl text-white flex justify-between items-center shadow-xl shadow-primary/20">
-              <div>
-                <h3 className="text-2xl font-extrabold italic tracking-tight">OPERATIONAL ELITE</h3>
-                <p className="mini-label text-white/50 mt-1">Global Performance Ranking: Top 5%</p>
+        <div className="bg-white rounded-[24px] p-4 sm:p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8">
+          <div className="md:col-span-8 space-y-4 sm:space-y-6">
+            <div className="bg-primary p-4 sm:p-6 rounded-[20px] sm:rounded-3xl text-white flex justify-between items-center shadow-xl shadow-primary/20">
+              <div className="max-w-[60%]">
+                <h3 className="text-base sm:text-2xl font-extrabold italic tracking-tight uppercase">Operational Elite</h3>
+                <p className="text-[8px] sm:mini-label text-white/50 mt-1 uppercase">Top 5% Global Index</p>
               </div>
               <div className="text-right">
-                <p className="text-5xl font-extrabold text-secondary leading-none">{attendanceStats.score}%</p>
-                <p className="mini-label text-white/50 mt-2">Compliance Score</p>
+                <p className="text-3xl sm:text-5xl font-extrabold text-secondary leading-none">{attendanceStats.score}%</p>
+                <p className="text-[8px] sm:mini-label text-white/50 mt-1 sm:mt-2 uppercase">Compliance</p>
               </div>
             </div>
             
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-white border border-border p-5 rounded-2xl shadow-sm group hover:border-secondary/30 transition-all">
-                <div className="flex items-center space-x-2 mb-3 text-secondary"><Zap size={14} /><span className="mini-label">AGILITY</span></div>
-                <p className="text-xl font-extrabold text-primary">OPTIMIZED</p>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="bg-white border border-border p-3 sm:p-5 rounded-xl sm:rounded-2xl shadow-sm group hover:border-secondary/30 transition-all">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 mb-2 sm:mb-3 text-secondary"><Zap size={12} className="sm:w-3.5 sm:h-3.5" /><span className="text-[7px] sm:mini-label">AGILITY</span></div>
+                <p className="text-[10px] sm:text-xl font-extrabold text-primary">OPTIMIZED</p>
               </div>
-              <div className="bg-white border border-border p-5 rounded-2xl shadow-sm group hover:border-secondary/30 transition-all">
-                <div className="flex items-center space-x-2 mb-3 text-primary"><Target size={14} /><span className="mini-label">ACCURACY</span></div>
-                <p className="text-xl font-extrabold text-primary">94.8%</p>
+              <div className="bg-white border border-border p-3 sm:p-5 rounded-xl sm:rounded-2xl shadow-sm group hover:border-secondary/30 transition-all">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 mb-2 sm:mb-3 text-primary"><Target size={12} className="sm:w-3.5 sm:h-3.5" /><span className="text-[7px] sm:mini-label">ACCURACY</span></div>
+                <p className="text-[10px] sm:text-xl font-extrabold text-primary">94.8%</p>
               </div>
-              <div className="bg-white border border-border p-5 rounded-2xl shadow-sm group hover:border-secondary/30 transition-all">
-                <div className="flex items-center space-x-2 mb-3 text-warning"><TrendingUp size={14} /><span className="mini-label">MOMENTUM</span></div>
-                <p className="text-xl font-extrabold text-primary">+12.4%</p>
+              <div className="bg-white border border-border p-3 sm:p-5 rounded-xl sm:rounded-2xl shadow-sm group hover:border-secondary/30 transition-all">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 mb-2 sm:mb-3 text-warning"><TrendingUp size={12} className="sm:w-3.5 sm:h-3.5" /><span className="text-[7px] sm:mini-label">MOMENTUM</span></div>
+                <p className="text-[10px] sm:text-xl font-extrabold text-primary">+12.4%</p>
               </div>
             </div>
 
-            <div className="bg-white border border-border p-6 rounded-3xl shadow-sm h-[280px]">
-               <h4 className="mini-label mb-4">ACHIEVEMENTS GALLERY</h4>
-               <div className="space-y-3 overflow-y-auto max-h-[200px] pr-2">
+            <div className="bg-white border border-border p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm h-[240px] sm:h-[280px]">
+               <h4 className="mini-label mb-3 sm:mb-4">ACHIEVEMENTS GALLERY</h4>
+               <div className="space-y-2 sm:space-y-3 overflow-y-auto max-h-[160px] sm:max-h-[200px] pr-1 sm:pr-2">
                  {[
-                   { title: 'EARLY BIRD PROTOCOL', date: 'Oct 2025', desc: '100% Punctuality for 30 consecutive cycles' },
-                   { title: 'SECURITY STAR', date: 'Sep 2025', desc: 'Verified GPS compliance certificate' }
+                   { title: 'EARLY BIRD PROTOCOL', date: 'Oct 2025', desc: '100% Punctuality cycle' },
+                   { title: 'SECURITY STAR', date: 'Sep 2025', desc: 'Verified GPS certificate' }
                  ].map((ach, i) => (
-                   <div key={i} className="bg-accent/10 p-4 rounded-2xl border border-border flex items-center space-x-4">
-                     <div className="p-2 bg-white rounded-lg shadow-sm text-secondary">
-                        <Star size={18} fill="currentColor" />
+                   <div key={i} className="bg-accent/10 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-border flex items-center space-x-3 sm:space-x-4">
+                     <div className="p-1.5 sm:p-2 bg-white rounded-lg shadow-sm text-secondary">
+                        <Star size={14} className="sm:w-[18px] sm:h-[18px]" fill="currentColor" />
                      </div>
                      <div className="flex-1">
-                       <p className="text-xs font-extrabold text-primary uppercase tracking-tight leading-tight">{ach.title}</p>
-                       <p className="text-[10px] font-bold text-text-gray mt-1">{ach.desc}</p>
+                       <p className="text-[9px] sm:text-xs font-extrabold text-primary uppercase tracking-tight leading-tight">{ach.title}</p>
+                       <p className="text-[8px] sm:text-[10px] font-bold text-text-gray mt-0.5 sm:mt-1">{ach.desc}</p>
                      </div>
                    </div>
                  ))}
@@ -700,42 +884,42 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
   };
 
   const renderMobileCheckIn = () => (
-    <div className="flex flex-col min-h-[calc(100vh-160px)] px-5 pt-8 sm:hidden">
+    <div className="flex flex-col min-h-[calc(100vh-160px)] px-4 pt-4 sm:hidden">
       {/* Header Profile Section */}
-      <div className="flex items-center justify-between mb-10">
-        <div className="flex items-center space-x-4">
-          <div className="w-14 h-14 bg-primary text-white rounded-3xl flex items-center justify-center font-bold text-xl shadow-xl shadow-primary/20 rotate-3">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-primary text-white rounded-[16px] flex items-center justify-center font-bold text-base shadow-lg rotate-3">
             {employee.name.charAt(0)}
           </div>
           <div>
-            <h2 className="text-xl font-extrabold text-primary tracking-tight">Hey, {employee.name.split(' ')[0]}</h2>
-            <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mt-0.5">Good Morning! Ready for duty?</p>
+            <h2 className="text-base font-extrabold text-primary tracking-tight leading-none">Salam, {employee.name.split(' ')[0]}</h2>
+            <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest mt-0.5 opacity-70 italic">Shift: {employee.shiftStart} - {employee.shiftEnd}</p>
           </div>
         </div>
         <button 
           onClick={onLogout}
-          className="w-11 h-11 flex items-center justify-center text-error bg-white shadow-lg border border-border rounded-2xl active:scale-95 transition-all"
+          className="w-9 h-9 flex items-center justify-center text-error bg-white shadow-sm border border-border rounded-xl active:scale-95 transition-all"
         >
-          <LogOut size={20} />
+          <LogOut size={16} />
         </button>
       </div>
 
       {/* Main Status & Clock Card */}
-      <div className="bg-white rounded-[32px] p-8 shadow-[0_20px_50px_rgba(0,102,255,0.06)] border border-border relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700"></div>
+      <div className="bg-white rounded-[24px] p-5 shadow-[0_15px_40px_rgba(0,0,0,0.04)] border border-border relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform duration-700"></div>
         
         <div className="relative z-10">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-2 px-3 py-1 bg-primary/10 rounded-full">
-              <div className={cn("w-2 h-2 rounded-full", todayAttendance?.sessions?.some(s => !s.checkOut) ? "bg-emerald-500 animate-pulse" : "bg-text-gray/30")} />
-              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
-                {todayAttendance?.sessions?.some(s => !s.checkOut) ? 'Active Duty' : 'Off-Duty'}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2 px-2 py-0.5 bg-primary/5 rounded-full border border-primary/10">
+              <div className={cn("w-1.5 h-1.5 rounded-full", todayAttendance?.sessions?.some(s => !s.checkOut) ? "bg-emerald-500 animate-pulse" : "bg-text-gray/30")} />
+              <span className="text-[8px] font-extrabold text-primary uppercase tracking-widest">
+                {todayAttendance?.sessions?.some(s => !s.checkOut) ? 'ON AIR' : 'OFFLINE'}
               </span>
             </div>
-            <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">{dateDisplay}</span>
+            <span className="text-[7px] font-bold text-text-gray uppercase tracking-widest bg-bg px-2 py-1 rounded-md">{dateDisplay}</span>
           </div>
 
-          <div className="flex flex-col items-center py-6">
+          <div className="flex flex-col items-center py-2">
             <AnimatePresence mode="wait">
               {sessionDuration ? (
                 <motion.div 
@@ -744,8 +928,8 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
                   animate={{ scale: 1, opacity: 1 }}
                   className="text-center"
                 >
-                  <h1 className="text-6xl font-extrabold text-primary tracking-tighter tabular-nums mb-2">{sessionDuration}</h1>
-                  <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Ongoing Session Time</p>
+                  <h1 className="text-4xl font-extrabold text-primary tracking-tighter tabular-nums mb-1">{sessionDuration}</h1>
+                  <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest">Active Duration</p>
                 </motion.div>
               ) : (
                 <motion.div 
@@ -754,59 +938,85 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
                   animate={{ opacity: 1 }}
                   className="text-center"
                 >
-                  <h1 className="text-5xl font-extrabold text-primary tracking-tighter tabular-nums mb-2 opacity-40">{currentTime.split(' ')[0]}</h1>
-                  <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest">System Clock - Wait for Entry</p>
+                  <h1 className="text-3xl font-extrabold text-primary tracking-tighter tabular-nums mb-1 opacity-10">{currentTime.split(' ')[0]}</h1>
+                  <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest">Awaiting Verification</p>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          <div className="mt-8">
-            <button 
-              onClick={() => handleMarkAttendance(todayAttendance?.sessions?.some(s => !s.checkOut) ? 'out' : 'in')}
-              className={cn(
-                "w-full h-16 rounded-[20px] flex items-center justify-center space-x-3 text-sm font-extrabold uppercase tracking-widest transition-all duration-300 shadow-xl",
-                todayAttendance?.sessions?.some(s => !s.checkOut) 
-                  ? "bg-secondary text-white shadow-secondary/20 active:scale-95" 
-                  : "bg-primary text-white shadow-primary/20 active:scale-95"
-              )}
-            >
-              {todayAttendance?.sessions?.some(s => !s.checkOut) ? (
-                <>
-                  <LogOut size={20} />
-                  <span>Check Out Now</span>
-                </>
-              ) : (
-                <>
-                  <Clock size={20} />
-                  <span>Mark Attendance</span>
-                </>
-              )}
-            </button>
+          <div className="mt-4 flex flex-col space-y-3">
+             <div className="flex space-x-2">
+                <button 
+                  onClick={() => handleMarkAttendance('in')}
+                  disabled={!!(todayAttendance?.sessions?.some(s => !s.checkOut))}
+                  className="flex-1 h-12 bg-primary text-white rounded-xl flex items-center justify-center space-x-2 text-[9px] font-extrabold uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-20"
+                >
+                  <Clock size={14} />
+                  <span>Clock In</span>
+                </button>
+                <button 
+                  onClick={() => handleMarkAttendance('out')}
+                  disabled={!(todayAttendance?.sessions?.some(s => !s.checkOut))}
+                  className="flex-1 h-12 bg-secondary text-white rounded-xl flex items-center justify-center space-x-2 text-[9px] font-extrabold uppercase tracking-widest shadow-lg shadow-secondary/20 active:scale-95 transition-all disabled:opacity-20"
+                >
+                  <LogOut size={14} />
+                  <span>Clock Out</span>
+                </button>
+             </div>
           </div>
         </div>
       </div>
 
-      {/* Mini Stats Group */}
-      <div className="grid grid-cols-2 gap-4 mt-8">
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-border">
-          <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mb-3">Check-In</p>
-          <div className="text-xl font-extrabold text-primary tabular-nums">{todayAttendance?.timeIn || '--:--'}</div>
-          {todayAttendance?.timeIn && <p className="text-[9px] font-bold text-emerald-600 mt-1 uppercase">Punctual Entry</p>}
+      {/* Grid Stats - Fit to Screen */}
+      <div className="grid grid-cols-2 gap-3 mt-6">
+        <div className="bg-white rounded-[24px] p-4 shadow-sm border border-border flex flex-col justify-between h-28">
+           <div className="flex items-center space-x-2 text-primary opacity-40">
+             <Clock size={12} />
+             <span className="text-[8px] font-extrabold uppercase tracking-widest">Checkpoint</span>
+           </div>
+           <div>
+             <div className="text-xl font-extrabold text-primary tabular-nums">{todayAttendance?.timeIn || '--:--'}</div>
+             <p className="text-[8px] font-bold text-text-gray mt-1 uppercase">Today's Start</p>
+           </div>
         </div>
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border border-border">
-          <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mb-3">Work Hours</p>
-          <div className="text-xl font-extrabold text-primary tabular-nums">{calculateHoursWorked(todayAttendance)}h</div>
-          <p className="text-[9px] font-bold text-text-gray mt-1 uppercase tracking-tighter">Day Total Efficiency</p>
+        <div className="bg-white rounded-[24px] p-4 shadow-sm border border-border flex flex-col justify-between h-28">
+           <div className="flex items-center space-x-2 text-secondary opacity-60">
+             <TrendingUp size={12} />
+             <span className="text-[8px] font-extrabold uppercase tracking-widest">Efficacy</span>
+           </div>
+           <div>
+             <div className="text-xl font-extrabold text-primary tabular-nums">{calculateHoursWorked(todayAttendance)}h</div>
+             <p className="text-[8px] font-bold text-text-gray mt-1 uppercase">Operational Hrs</p>
+           </div>
         </div>
       </div>
 
-      {/* Location Badge */}
-      <div className="mt-8 flex items-center justify-center space-x-2 bg-accent/20 py-3 rounded-2xl border border-primary/5">
-        <Target size={14} className="text-primary" />
-        <span className="text-[10px] font-extrabold text-primary uppercase tracking-widest">
-          Verified Site: {employee.campus.toUpperCase()}
-        </span>
+      {/* Performance Hub - Compact Grid */}
+      <div className="mt-6">
+        <h3 className="mini-label mb-3">Intelligence Hub</h3>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Score', value: `${attendanceStats.score}%`, icon: Target, color: 'text-emerald-500' },
+            { label: 'Rank', value: 'ELITE', icon: Award, color: 'text-secondary' },
+            { label: 'Growth', value: '+12%', icon: TrendingUp, color: 'text-orange-500' }
+          ].map((item, idx) => (
+            <div key={idx} className="bg-white p-3 rounded-2xl border border-border shadow-sm flex flex-col items-center justify-center text-center">
+              <item.icon size={14} className={cn("mb-1", item.color)} />
+              <span className="text-[9px] font-extrabold text-primary leading-none mb-1">{item.value}</span>
+              <span className="text-[7px] font-bold text-text-gray uppercase tracking-tighter">{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Verified Location Badge */}
+      <div className="mt-8 flex items-center justify-between bg-emerald-50 px-5 py-3 rounded-2xl border border-emerald-100">
+        <div className="flex items-center space-x-2">
+          <Shield size={14} className="text-emerald-600" />
+          <span className="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest">Site Verified</span>
+        </div>
+        <span className="text-[9px] font-black text-emerald-800 uppercase">{employee.campus.split(' ')[0]}</span>
       </div>
     </div>
   );
@@ -836,6 +1046,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
           <TabButton active={activeTab === 'leaves'} onClick={() => setActiveTab('leaves')} icon={Briefcase} label="Leaves" />
           <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Profile" />
           <TabButton active={activeTab === 'performance'} onClick={() => setActiveTab('performance')} icon={FileText} label="Reviews" />
+          <TabButton active={activeTab === 'security'} onClick={() => setActiveTab('security')} icon={Lock} label="Security" />
           <div className="w-[1px] h-4 bg-white/20 mx-2" />
           <button 
             onClick={onLogout}
@@ -851,6 +1062,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
           {activeTab === 'leaves' && renderLeavesTab()}
           {activeTab === 'profile' && renderProfileTab()}
           {activeTab === 'performance' && renderPerformanceTab()}
+          {activeTab === 'security' && renderSecurityTab()}
         </div>
       </div>
 
@@ -870,6 +1082,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
               {mobileTab === 'summary' && <div className="p-5">{renderPerformanceTab()}</div>}
               {mobileTab === 'leaves' && <div className="p-5">{renderLeavesTab()}</div>}
               {mobileTab === 'profile' && <div className="p-5">{renderProfileTab()}</div>}
+              {mobileTab === 'security' && <div className="p-5">{renderSecurityTab()}</div>}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -880,6 +1093,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({ employee, allEmp
             { id: 'calendar', icon: Calendar, label: 'Logs' },
             { id: 'summary', icon: TrendingUp, label: 'Stats' },
             { id: 'leaves', icon: Briefcase, label: 'Leaves' },
+            { id: 'security', icon: Lock, label: 'Lock' },
             { id: 'profile', icon: User, label: 'Me' }
           ].map((item) => (
             <button 

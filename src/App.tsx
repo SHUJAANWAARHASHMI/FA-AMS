@@ -211,7 +211,7 @@ export default function App() {
     
     switch (activeTab) {
       case 'dashboard':
-        return <AdminDashboard employees={employees} user={adminUser} onUpdateEmployees={updateEmployees} />;
+        return <AdminDashboard employees={employees} user={adminUser} onUpdateEmployees={updateEmployees} setActiveTab={setActiveTab} />;
       case 'manual-attendance':
         return <ManualAttendance employees={employees} user={adminUser} onUpdateEmployees={updateEmployees} />;
       case 'single-attendance':
@@ -306,7 +306,7 @@ export default function App() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Header */}
-        <header className="bg-white px-8 h-24 border-b border-border flex items-center justify-between sticky top-0 z-40">
+        <header className="bg-white px-4 sm:px-8 h-20 sm:h-24 border-b border-border flex items-center justify-between sticky top-0 z-40">
           <div className="flex items-center space-x-8">
              <button 
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -315,16 +315,17 @@ export default function App() {
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
               
-              <div>
-                <h2 className="text-2xl font-extrabold text-primary tracking-tight">
-                  {isEmployeePortal ? 'Employee Portal' : activeTab.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+              <div className="min-w-0">
+                <h2 className="text-sm sm:text-2xl font-extrabold text-primary tracking-tight truncate">
+                  {isEmployeePortal ? 'Staff Terminal' : activeTab.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                 </h2>
-                <div className="flex items-center space-x-4 text-xs text-text-gray font-medium mt-0.5">
-                  <div className="flex items-center space-x-1.5 border-r border-border pr-4 h-4">
-                    <Clock size={14} className="text-secondary" />
-                    <span>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <div className="flex items-center space-x-2 sm:space-x-4 text-[10px] sm:text-xs text-text-gray font-bold mt-0.5">
+                  <div className="flex items-center space-x-1 sm:space-x-1.5 whitespace-nowrap">
+                    <Clock size={12} className="text-secondary sm:w-3.5 sm:h-3.5" />
+                    <span>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                   </div>
-                  <span>{currentTime.toLocaleDateString([], { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                  <div className="w-[1px] h-3 bg-border" />
+                  <span className="whitespace-nowrap">{currentTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: '2-digit' })}</span>
                 </div>
               </div>
           </div>
@@ -410,7 +411,10 @@ export default function App() {
         </header>
 
         {/* Dynamic Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-10 custom-scrollbar">
+        <div className={cn(
+          "flex-1 overflow-y-auto custom-scrollbar",
+          isEmployeePortal ? "p-0" : "p-4 sm:p-10"
+        )}>
           {renderContent()}
         </div>
       </main>

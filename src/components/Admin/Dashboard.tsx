@@ -45,6 +45,7 @@ interface DashboardProps {
   employees: Employee[];
   user: User;
   onUpdateEmployees: (employees: Employee[]) => void;
+  setActiveTab?: (tab: string) => void;
 }
 
 const StatCard = ({ title, value, description, icon: Icon, color, trend }: any) => {
@@ -126,7 +127,7 @@ const Building2 = (props: any) => (
   </svg>
 );
 
-export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUpdateEmployees }) => {
+export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUpdateEmployees, setActiveTab }) => {
   const [targetDate, setTargetDate] = React.useState(getLocalDate());
   
   // Find self as employee
@@ -317,11 +318,11 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatCard 
           title="Total Workforce" 
           value={stats.totalEmployees} 
-          description="Total active employees in system"
+          description="Total active"
           icon={Users}
           color="blue"
           trend={2.4}
@@ -329,7 +330,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
         <StatCard 
           title="Physically Present" 
           value={stats.totalPresent} 
-          description={`${((stats.totalPresent / stats.totalEmployees) * 100 || 0).toFixed(0)}% attendance rate`}
+          description={`${((stats.totalPresent / stats.totalEmployees) * 100 || 0).toFixed(0)}% rate`}
           icon={UserCheck}
           color="emerald"
           trend={1.8}
@@ -337,7 +338,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
         <StatCard 
           title="Late Admissions" 
           value={stats.totalLate} 
-          description="Delayed arrivals today"
+          description="Delayed today"
           icon={Clock}
           color="warning"
           trend={-0.5}
@@ -345,11 +346,39 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
         <StatCard 
           title="Missing Logs" 
           value={stats.totalEmployees - stats.totalPresent} 
-          description="No activity recorded"
+          description="No activity log"
           icon={UserMinus}
           color="error"
         />
       </div>
+
+      {/* Quick Actions for Mobile */}
+      {setActiveTab && (
+        <div className="lg:hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <h3 className="mini-label mb-4">Operations Hub</h3>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { id: 'employees', label: 'Welfare', icon: Users, color: 'primary' },
+              { id: 'attendance', label: 'Terminal', icon: Clock, color: 'secondary' },
+              { id: 'leaves', label: 'Leaves', icon: Calendar, color: 'warning' },
+              { id: 'reports', label: 'Audit', icon: Shield, color: 'emerald' },
+              { id: 'settings', label: 'System', icon: Building2, color: 'error' },
+              { id: 'performance', label: 'Rank', icon: Award, color: 'blue' },
+            ].map((box) => (
+              <button
+                key={box.id}
+                onClick={() => setActiveTab(box.id)}
+                className="bg-white p-4 rounded-2xl border border-border shadow-sm flex flex-col items-center justify-center space-y-2 active:scale-95 transition-all text-center"
+              >
+                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center bg-accent/30 text-primary")}>
+                  <box.icon size={18} />
+                </div>
+                <span className="text-[9px] font-extrabold text-primary uppercase tracking-tight truncate w-full">{box.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <BentoBox title="Live Operations" subTitle="Distribution by Campus" className="lg:col-span-1">
