@@ -21,32 +21,97 @@ export const supabaseService = {
 
   async saveAdminUser(user: User) {
     const payload: any = {
-      id: user.id,
       username: user.username,
       password: user.password,
       name: user.name,
-      email: user.email,
       campus: user.campus,
       role: user.role,
       created_at: user.createdAt
     };
-    const { error } = await supabase.from('admin_users').upsert(payload);
-    if (error) throw error;
+
+    // Only include ID if it's likely to exist (avoiding schema cache issues if possible)
+    if (user.id) {
+      payload.id = user.id;
+    }
+    
+    if (user.email) {
+      payload.email = user.email;
+    }
+
+    const tryUpsert = async (data: any, attempt: number = 0): Promise<any> => {
+      try {
+        // Specify username as conflict target since id column is having issues in schema cache
+        const { error } = await supabase.from('admin_users').upsert(data, { onConflict: 'username' });
+        if (error) {
+          // PGRST204: Column not found in schema cache
+          if (error.code === 'PGRST204' && attempt < 3) {
+            const missingColumn = error.message.match(/'([^']+)'/)?.[1];
+            if (missingColumn && data[missingColumn] !== undefined) {
+              console.warn(`Supabase: Column "${missingColumn}" missing in schema cache. Retrying without it.`);
+              const { [missingColumn]: _, ...newData } = data;
+              return await tryUpsert(newData, attempt + 1);
+            }
+          }
+          throw error;
+        }
+      } catch (err) {
+        if (attempt >= 3) throw err;
+        throw err;
+      }
+    };
+
+    try {
+      await tryUpsert(payload);
+    } catch (err) {
+      console.error('saveAdminUser failed after retries:', err);
+      throw err;
+    }
   },
 
   async saveAdminUsersBatch(users: User[]) {
-    const payloads = users.map(user => ({
-      id: user.id,
-      username: user.username,
-      password: user.password,
-      name: user.name,
-      email: user.email,
-      campus: user.campus,
-      role: user.role,
-      created_at: user.createdAt
-    }));
-    const { error } = await supabase.from('admin_users').upsert(payloads);
-    if (error) throw error;
+    const payloads = users.map(user => {
+      const p: any = {
+        username: user.username,
+        password: user.password,
+        name: user.name,
+        campus: user.campus,
+        role: user.role,
+        created_at: user.createdAt
+      };
+      if (user.id) p.id = user.id;
+      if (user.email) p.email = user.email;
+      return p;
+    });
+
+    const tryBatchUpsert = async (data: any[], attempt: number = 0): Promise<any> => {
+      try {
+        const { error } = await supabase.from('admin_users').upsert(data, { onConflict: 'username' });
+        if (error) {
+          if (error.code === 'PGRST204' && attempt < 3) {
+            const missingColumn = error.message.match(/'([^']+)'/)?.[1];
+            if (missingColumn) {
+              console.warn(`Supabase Batch: Column "${missingColumn}" missing in schema cache. Retrying without it.`);
+              const newData = data.map(item => {
+                const { [missingColumn]: _, ...rest } = item;
+                return rest;
+              });
+              return await tryBatchUpsert(newData, attempt + 1);
+            }
+          }
+          throw error;
+        }
+      } catch (err) {
+        if (attempt >= 3) throw err;
+        throw err;
+      }
+    };
+
+    try {
+      await tryBatchUpsert(payloads);
+    } catch (err) {
+      console.error('saveAdminUsersBatch failed after retries:', err);
+      throw err;
+    }
   },
 
   async deleteAdminUser(id: string) {
@@ -147,11 +212,33 @@ export const supabaseService = {
       leaves_medical_total: emp.leaves.medical.total,
       leaves_medical_used: emp.leaves.medical.used
     };
-    const { error } = await supabase.from('employees').upsert(payload);
-    if (error) throw error;
 
-    // Sync sub-collections (this is naive, but works for the current logic)
-    // In a real app, we'd update specific records, but here we'll just handle attendance/leaves when they change.
+    const tryUpsert = async (data: any, attempt: number = 0): Promise<any> => {
+      try {
+        const { error } = await supabase.from('employees').upsert(data, { onConflict: 'username' });
+        if (error) {
+          if (error.code === 'PGRST204' && attempt < 3) {
+            const missingColumn = error.message.match(/'([^']+)'/)?.[1];
+            if (missingColumn && data[missingColumn] !== undefined) {
+              console.warn(`Supabase: Column "${missingColumn}" missing in employees schema cache. Retrying without it.`);
+              const { [missingColumn]: _, ...newData } = data;
+              return await tryUpsert(newData, attempt + 1);
+            }
+          }
+          throw error;
+        }
+      } catch (err) {
+        if (attempt >= 3) throw err;
+        throw err;
+      }
+    };
+
+    try {
+      await tryUpsert(payload);
+    } catch (err) {
+      console.error('saveEmployee failed after retries:', err);
+      throw err;
+    }
   },
 
   async saveEmployeesBatch(employees: Employee[]) {
@@ -173,8 +260,36 @@ export const supabaseService = {
       leaves_medical_total: emp.leaves.medical.total,
       leaves_medical_used: emp.leaves.medical.used
     }));
-    const { error } = await supabase.from('employees').upsert(payloads);
-    if (error) throw error;
+
+    const tryBatchUpsert = async (data: any[], attempt: number = 0): Promise<any> => {
+      try {
+        const { error } = await supabase.from('employees').upsert(data, { onConflict: 'username' });
+        if (error) {
+          if (error.code === 'PGRST204' && attempt < 3) {
+            const missingColumn = error.message.match(/'([^']+)'/)?.[1];
+            if (missingColumn) {
+              console.warn(`Supabase Batch: Column "${missingColumn}" missing in employees schema cache. Retrying without it.`);
+              const newData = data.map(item => {
+                const { [missingColumn]: _, ...rest } = item;
+                return rest;
+              });
+              return await tryBatchUpsert(newData, attempt + 1);
+            }
+          }
+          throw error;
+        }
+      } catch (err) {
+        if (attempt >= 3) throw err;
+        throw err;
+      }
+    };
+
+    try {
+      await tryBatchUpsert(payloads);
+    } catch (err) {
+      console.error('saveEmployeesBatch failed after retries:', err);
+      throw err;
+    }
   },
 
   async deleteEmployee(id: string) {
