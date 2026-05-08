@@ -334,16 +334,19 @@ export function usePersistence() {
       
       // Notify other clients to refresh instantly using the stable channel
       if (syncChannelRef.current) {
-        console.log(`[Broadcast] Sending REFRESH signal via ${syncChannelRef.current.topic}...`);
-        syncChannelRef.current.send({
-          type: 'broadcast',
-          event: 'refresh',
-          payload: { 
-            source: currentUser?.id, 
-            ts: Date.now(),
-            hint: 'attendance_update' 
-          }
-        }).catch((e: any) => console.warn('Broadcast failed:', e));
+        // Tiny wait to ensure commit is solid
+        setTimeout(() => {
+          console.log(`[Broadcast] Sending REFRESH signal via ${syncChannelRef.current.topic}...`);
+          syncChannelRef.current.send({
+            type: 'broadcast',
+            event: 'refresh',
+            payload: { 
+              source: currentUser?.id, 
+              ts: Date.now(),
+              hint: 'attendance_update' 
+            }
+          }).catch((e: any) => console.warn('Broadcast failed:', e));
+        }, 300);
       }
 
       setIsOnline(true);
@@ -402,7 +405,17 @@ export function usePersistence() {
   useEffect(() => { usersRef.current = users; }, [users]);
   useEffect(() => { systemSettingsRef.current = systemSettings; }, [systemSettings]);
 
-  // Real-time listener for cross-client sync
+  // Real-time listener: 1. Refresh on tab focus
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('[LifeCycle] Window focused. Checking for updates...');
+      triggerManualSync(true);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [currentUser]);
+
+  // Real-time listener: 2. Network Sync Network
   useEffect(() => {
     // 1. Initialize stable channel for BROADCAST (Client-to-Client)
     const broadcastChannel = supabase.channel('fa-sync-network');
@@ -410,30 +423,34 @@ export function usePersistence() {
     broadcastChannel
       .on('broadcast', { event: 'refresh' }, (payload) => {
         const source = payload.payload?.source;
-        console.log(`[Real-time] Broadcast refresh from ${source}. Syncing data...`);
+        const ts = payload.payload?.ts;
+        console.log(`[Real-time] Network signal (TS: ${ts}) from ${source}. Syncing...`);
         
         if (source !== currentUser?.id) {
-          triggerManualSync(true);
+          // Add a longer delay to ensure Supabase secondary replicas and indexes have stabilized
+          setTimeout(() => {
+            triggerManualSync(true);
+          }, 1200);
         }
       })
       .subscribe((status) => {
-        console.log(`[Real-time] Broadcast Channel: ${status}`);
+        console.log(`[Real-time] Broadcast Network Status: ${status}`);
         setIsRealtimeActive(status === 'SUBSCRIBED');
       });
 
     syncChannelRef.current = broadcastChannel;
 
     // 2. Initialize CDC observer (Server-to-Client) as backup
-    // This triggers when ANY database change happens on the attendance table
     const dbChannel = supabase.channel('fa-db-observer')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'attendance' },
         (payload) => {
-          console.log('[Real-time] DB detected attendance change:', payload.eventType);
-          // Only trigger if we aren't the one who just sent it (though payloads don't usually have source)
-          // To be safe, we always trigger if the update didn't come from our current session
-          triggerManualSync(true);
+          console.log('[Real-time] DB Event:', payload.eventType);
+          // Wait for broadcast to likely handle it first, or act as catch-all
+          setTimeout(() => {
+            triggerManualSync(true);
+          }, 2000);
         }
       )
       .subscribe();
