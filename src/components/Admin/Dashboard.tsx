@@ -130,6 +130,7 @@ const Building2 = (props: any) => (
 export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUpdateEmployees, setActiveTab }) => {
   const [targetDate, setTargetDate] = React.useState(getLocalDate());
   const [performancePeriod, setPerformancePeriod] = React.useState<'today' | 'weekly' | 'monthly'>('monthly');
+  const [drillDown, setDrillDown] = React.useState<{ campus: string | 'All', status: 'Present' | 'Absent' } | null>(null);
   
   // Find self as employee
   const selfEmployee = useMemo(() => {
@@ -214,6 +215,17 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
 
     return { totalEmployees, totalPresent, totalLate, campusStats };
   }, [filteredEmployees, targetDate]);
+
+  const drillDownList = useMemo(() => {
+    if (!drillDown) return [];
+    return filteredEmployees.filter(emp => {
+      const matchesCampus = drillDown.campus === 'All' || emp.campus === drillDown.campus;
+      const todayAtt = emp.attendance.find(a => a.date === targetDate);
+      const isPresent = todayAtt && (todayAtt.status === 'Present' || todayAtt.status === 'Late');
+      
+      return matchesCampus && (drillDown.status === 'Present' ? isPresent : !isPresent);
+    });
+  }, [drillDown, filteredEmployees, targetDate]);
 
   // Chart Data: Attendance by Campus
   const attendanceByCampusData = {
@@ -427,19 +439,33 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <BentoBox title="Live Operations" subTitle="Active vs Workforce" className="lg:col-span-1">
           <div className="flex flex-col h-full">
-            <div className="flex flex-col items-center justify-center py-6 border-b border-border/50 mb-6">
-               <span className="text-6xl font-black text-primary tracking-tighter">{stats.totalPresent}</span>
+            <button 
+              onClick={() => setDrillDown({ campus: 'All', status: 'Present' })}
+              className="flex flex-col items-center justify-center py-6 border-b border-border/50 mb-6 group hover:bg-bg transition-all rounded-3xl"
+            >
+               <span className="text-6xl font-black text-primary tracking-tighter group-active:scale-95 transition-transform">{stats.totalPresent}</span>
                <span className="text-xs font-bold text-text-gray uppercase tracking-widest mt-1">Personnel Active</span>
-            </div>
+               <span className="text-[10px] font-bold text-emerald-500 mt-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                 VIEW LIST <TrendingUp size={12} className="ml-1" />
+               </span>
+            </button>
             
             <div className="space-y-5">
               {Object.entries(stats.campusStats).map(([name, data]: [string, any]) => {
                 const percentage = (data.present / data.total) * 100 || 0;
                 return (
-                  <div key={name} className="space-y-2">
+                  <button 
+                    key={name} 
+                    onClick={() => setDrillDown({ campus: name, status: 'Present' })}
+                    className="w-full space-y-2 text-left group"
+                  >
                     <div className="flex justify-between items-end">
-                      <span className="text-[10px] font-bold text-primary uppercase tracking-tight">{name.replace(' Campus', '')}</span>
-                      <span className="text-[10px] font-extrabold text-primary">{data.present}<span className="text-text-gray/40 font-bold mx-1">/</span>{data.total}</span>
+                      <span className="text-[10px] font-bold text-primary uppercase tracking-tight group-hover:text-secondary transition-colors">{name.replace(' Campus', '')}</span>
+                      <span className="text-[10px] font-extrabold text-primary">
+                        {data.present}
+                        <span className="text-text-gray/40 font-bold mx-1">/</span>
+                        {data.total}
+                      </span>
                     </div>
                     <div className="h-3 bg-accent/30 rounded-full overflow-hidden relative">
                       <motion.div 
@@ -451,10 +477,18 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
                         )}
                       />
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
+            
+            <button 
+              onClick={() => setDrillDown({ campus: 'All', status: 'Absent' })}
+              className="mt-6 pt-4 border-t border-border/50 flex justify-between items-center group"
+            >
+              <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Total Absent Today</span>
+              <span className="text-sm font-black text-error group-hover:scale-110 transition-transform">{stats.totalEmployees - stats.totalPresent}</span>
+            </button>
           </div>
         </BentoBox>
         
@@ -620,6 +654,88 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
           ))}
         </div>
       </div>
+      
+      {/* Drill Down Modal */}
+      <AnimatePresence>
+        {drillDown && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDrillDown(null)}
+              className="absolute inset-0 bg-bento-ink/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+            >
+              <div className="p-8 border-b border-border flex items-center justify-between bg-bg/50">
+                <div>
+                  <div className="flex items-center space-x-2 text-[10px] font-black text-text-gray uppercase tracking-[0.2em] mb-1">
+                    <span>{drillDown.campus}</span>
+                    <span>/</span>
+                    <span className={cn(drillDown.status === 'Present' ? 'text-emerald-600' : 'text-error')}>
+                      {drillDown.status}
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-black text-primary tracking-tighter uppercase">
+                    Employee Details <span className="opacity-20 ml-2">({drillDownList.length})</span>
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setDrillDown(null)}
+                  className="w-12 h-12 rounded-2xl bg-accent/30 text-primary flex items-center justify-center hover:bg-error hover:text-white transition-all active:scale-95"
+                >
+                  <TrendingUp size={20} className="rotate-45" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+                {drillDownList.length === 0 ? (
+                  <div className="py-20 text-center">
+                    <p className="text-sm font-bold text-text-gray/40 uppercase tracking-widest italic">No records found for this criteria</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {drillDownList.map((emp) => {
+                      const todayAtt = emp.attendance.find(a => a.date === targetDate);
+                      return (
+                        <div key={emp.id} className="flex items-center justify-between p-5 bg-bg/40 rounded-2xl border border-border group hover:border-secondary/30 transition-all">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 bg-primary text-white rounded-xl flex items-center justify-center text-xl font-black shadow-lg shadow-primary/10">
+                              {emp.name.charAt(0)}
+                            </div>
+                            <div>
+                              <h4 className="font-extrabold text-primary tracking-tight">{emp.name}</h4>
+                              <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest">{emp.id} • {emp.campus}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                             {todayAtt ? (
+                               <>
+                                 <div className="text-xs font-black text-emerald-600 uppercase mb-1">{todayAtt.timeIn}</div>
+                                 <div className="text-[9px] font-bold text-text-gray uppercase opacity-40">{todayAtt.status}</div>
+                               </>
+                             ) : (
+                               <div className="text-xs font-black text-error uppercase">ABSENT</div>
+                             )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="p-6 bg-bg/30 border-t border-border text-center">
+                 <p className="text-[10px] font-bold text-text-gray/50 uppercase tracking-widest">Showing real-time data for {targetDate}</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
