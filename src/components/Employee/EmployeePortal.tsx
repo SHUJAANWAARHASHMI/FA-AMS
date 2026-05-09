@@ -135,8 +135,8 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
           const position = await new Promise<GeolocationPosition>((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(resolve, reject, { 
               enableHighAccuracy: true,
-              timeout: 10000,
-              maximumAge: 0
+              timeout: 30000,
+              maximumAge: 30000
             });
           });
 
