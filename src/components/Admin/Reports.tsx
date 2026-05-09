@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Employee, User, AttendanceRecord } from '../../types';
-import { FileText, Download, Printer, Filter, Calendar, Users, Building2 } from 'lucide-react';
+import { FileText, Download, Printer, Filter, Calendar, Users, Building2, ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -12,14 +12,28 @@ interface ReportsProps {
 }
 
 export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
+  const isManagement = user.role === 'admin' || (user.role === 'mudeer' && user.campus === 'Main Campus');
   const [reportType, setReportType] = useState('attendance_summary');
-  const [targetCampus, setTargetCampus] = useState(user?.campus === 'all' ? 'all' : (user?.campus || 'all'));
+  const [targetCampus, setTargetCampus] = useState(isManagement ? 'all' : user.campus);
   const [targetEmployee, setTargetEmployee] = useState('all');
   
   const today = new Date().toISOString().slice(0, 10);
-  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
-  const [fromDate, setFromDate] = useState(firstDayOfMonth);
+  const [fromDate, setFromDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
   const [toDate, setToDate] = useState(today);
+
+  const setPreset = (type: 'daily' | 'weekly' | 'monthly') => {
+    const end = new Date();
+    const start = new Date();
+    if (type === 'daily') {
+      // already set
+    } else if (type === 'weekly') {
+      start.setDate(end.getDate() - 7);
+    } else if (type === 'monthly') {
+      start.setMonth(end.getMonth() - 1);
+    }
+    setFromDate(start.toISOString().slice(0, 10));
+    setToDate(end.toISOString().slice(0, 10));
+  };
 
   const filteredEmployees = employees.filter(emp => {
     const matchesCampus = targetCampus === 'all' || (emp?.campus === targetCampus);
@@ -33,16 +47,18 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
     
     // Header
     doc.setFontSize(22);
-    doc.setTextColor(16, 185, 129); // emerald-600
+    doc.setTextColor(0, 102, 255); // primary color
     doc.text('FIQH ACADEMY', 105, 15, { align: 'center' });
     
     doc.setFontSize(14);
-    doc.setTextColor(100);
+    doc.setTextColor(40);
     doc.text(`Official ${reportType.replace('_', ' ').toUpperCase()} Report`, 105, 23, { align: 'center' });
     
     doc.setFontSize(10);
+    doc.setTextColor(100);
     doc.text(`Generated on: ${now.toLocaleString()}`, 105, 29, { align: 'center' });
     doc.text(`Period: ${fromDate} to ${toDate}`, 105, 34, { align: 'center' });
+    doc.text(`Campus: ${targetCampus === 'all' ? 'All Campuses' : targetCampus}`, 105, 39, { align: 'center' });
 
     let tableData: any[] = [];
     let tableHeaders: string[] = [];
@@ -50,72 +66,69 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
     const isWithinRange = (date: string) => date >= fromDate && date <= toDate;
 
     if (reportType === 'attendance_summary') {
-      tableHeaders = ['ID', 'Name', 'Campus', 'Status', 'Days Present', 'Days Late', 'Avg. Performance'];
+      tableHeaders = ['ID', 'Name', 'Campus', 'Total Logs', 'Present', 'Late', 'Performance'];
       tableData = filteredEmployees.map(emp => {
         const periodRecords = emp.attendance.filter(a => isWithinRange(a.date));
         const present = periodRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
         const late = periodRecords.filter(r => r.status === 'Late').length;
-        const performance = periodRecords.length > 0 ? ((periodRecords.filter(r => r.onTime).length / periodRecords.length) * 100).toFixed(1) + '%' : 'N/A';
+        const performance = periodRecords.length > 0 ? ((periodRecords.filter(r => r.onTime).length / periodRecords.length) * 100).toFixed(1) + '%' : '0%';
         return [
-          emp.id || 'N/A', 
-          emp.name || 'N/A', 
-          (emp.campus || 'Main Campus').toUpperCase(), 
-          emp.status === 'full_time' ? 'FT' : 'PT', 
+          emp.id, 
+          emp.name, 
+          emp.campus, 
+          periodRecords.length,
           present, 
           late, 
           performance
         ];
       });
-    } else if (reportType === 'late_arrivals') {
-      tableHeaders = ['Date', 'ID', 'Name', 'Designation', 'Time In', 'Shift Start', 'Late Mins'];
-      filteredEmployees.forEach(emp => {
-        const lateRecords = emp.attendance.filter(a => isWithinRange(a.date) && a.status === 'Late');
-        lateRecords.forEach(r => {
-          const [inH, inM] = r.timeIn.split(':').map(Number);
-          const [sH, sM] = emp.shiftStart.split(':').map(Number);
-          const diff = (inH * 60 + inM) - (sH * 60 + sM);
-          tableData.push([r.date, emp.id, emp.name, emp.designation, r.timeIn, emp.shiftStart, diff]);
-        });
-      });
-    } else if (reportType === 'overtime_report') {
-      tableHeaders = ['Date', 'ID', 'Name', 'Time Out', 'Shift End', 'OT Hours'];
-      filteredEmployees.forEach(emp => {
-        const otRecords = emp.attendance.filter(a => isWithinRange(a.date) && a.overtime > 0);
-        otRecords.forEach(r => {
-          tableData.push([r.date, emp.id, emp.name, r.timeOut, emp.shiftEnd, r.overtime.toFixed(1)]);
-        });
-      });
     } else if (reportType === 'leave_history') {
-      tableHeaders = ['ID', 'Name', 'Type', 'From', 'To', 'Days', 'Status'];
+      tableHeaders = ['ID', 'Name', 'Leave Type', 'From', 'To', 'Reason', 'Status'];
       filteredEmployees.forEach(emp => {
         emp.leaveRequests.filter(req => req.from >= fromDate && req.from <= toDate).forEach(req => {
-          const from = new Date(req.from);
-          const to = new Date(req.to);
-          const days = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-          tableData.push([emp.id, emp.name, req.type.toUpperCase(), req.from, req.to, days, req.status.toUpperCase()]);
+          tableData.push([emp.id, emp.name, req.type, req.from, req.to, req.reason, req.status]);
         });
       });
-    } else if (reportType === 'employee_credential') {
-      tableHeaders = ['ID', 'Name', 'Designation', 'Campus', 'Status'];
-      tableData = filteredEmployees.map(emp => [
-        emp.id || 'N/A', 
-        emp.name || 'N/A', 
-        emp.designation || 'N/A', 
-        (emp.campus || '').toUpperCase(), 
-        (emp.status || '').replace('_', ' ').toUpperCase()
-      ]);
+    } else if (reportType === 'campus_performance') {
+      tableHeaders = ['Campus', 'Total Staff', 'Avg. Attendance %', 'Total Late', 'Top Performer'];
+      const campuses = targetCampus === 'all' ? ['Main Campus', 'Johar Campus', 'Masjid Campus', 'Maktab Campus'] : [targetCampus];
+      tableData = campuses.map(c => {
+         const campusEmps = employees.filter(e => e.campus === c);
+         let totalLogs = 0;
+         let onTimeLogs = 0;
+         let totalLate = 0;
+         let bestEmp = 'N/A';
+         let bestScore = -1;
+
+         campusEmps.forEach(e => {
+            const range = e.attendance.filter(a => isWithinRange(a.date));
+            totalLogs += range.length;
+            onTimeLogs += range.filter(r => r.onTime).length;
+            totalLate += range.filter(r => r.status === 'Late').length;
+            
+            const score = range.length > 0 ? (range.filter(r => r.onTime).length / range.length) : 0;
+            if (score > bestScore && range.length > 0) {
+               bestScore = score;
+               bestEmp = e.name;
+            }
+         });
+
+         const avgPerf = totalLogs > 0 ? ((onTimeLogs / totalLogs) * 100).toFixed(1) + '%' : '0%';
+         return [c, campusEmps.length, avgPerf, totalLate, bestEmp];
+      });
     }
 
     autoTable(doc, {
       head: [tableHeaders],
       body: tableData,
-      startY: 45,
-      theme: 'striped',
-      headStyles: { fillColor: [16, 185, 129], fontStyle: 'bold' },
-      styles: { fontSize: 8, cellPadding: 3 },
+      startY: 48,
+      theme: 'grid',
+      headStyles: { fillColor: [0, 102, 255], fontStyle: 'bold', textColor: [255, 255, 255] },
+      styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
+      alternateRowStyles: { fillColor: [245, 247, 250] }
     });
 
-    doc.save(`Fiqh_Academy_${reportType}_${fromDate}_to_${toDate}.pdf`);
+    doc.save(`FIQH_REPORT_${reportType.toUpperCase()}_${fromDate}.pdf`);
   };
 
   const handlePrint = () => {
@@ -123,166 +136,176 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
   };
 
   return (
-    <div className="space-y-6 sm:space-y-10 animate-in fade-in duration-500 max-w-full overflow-hidden">
-      <div className="bento-box p-4 sm:p-8">
-        <div className="mb-6 sm:mb-10 flex flex-col sm:flex-row items-center justify-between border-b border-bento-bg pb-4 sm:pb-8 gap-3 sm:gap-0">
-          <h3 className="font-serif italic text-xl sm:text-2xl flex items-center text-center">
-            <FileText className="mr-3 text-bento-accent shrink-0" size={28} />
-            System Reports
-          </h3>
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] opacity-30">Management Module</span>
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500 pb-20">
+      {/* Configuration Box */}
+      <div className="bg-white rounded-[32px] p-6 sm:p-10 border border-border shadow-sm space-y-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-2xl font-black text-primary tracking-tighter uppercase flex items-center gap-3">
+              <FileText className="text-secondary" size={28} />
+              Analytical Core
+            </h3>
+            <p className="text-xs font-bold text-text-gray uppercase tracking-widest mt-1">Personnel Intelligence Protocol</p>
+          </div>
+          <div className="flex gap-2">
+            {(['daily', 'weekly', 'monthly'] as const).map(p => (
+              <button 
+                key={p}
+                onClick={() => setPreset(p)}
+                className="px-4 py-2 bg-accent/50 hover:bg-accent text-[10px] font-black text-primary uppercase tracking-widest rounded-xl transition-all active:scale-95 border border-primary/5"
+              >
+                {p}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
-          <div className="p-3 sm:p-4 bg-bento-bg/20 border border-bento-line/10">
-            <label className="block text-[10px] font-black text-bento-ink uppercase tracking-widest mb-2 sm:mb-3 opacity-60">Report Type</label>
-            <div className="relative">
-              <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-bento-ink/40" size={16} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Report Type */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-2">
+              <Filter size={12} className="text-secondary" />
+              Category
+            </label>
+            <div className="relative group">
               <select 
                 value={reportType}
                 onChange={(e) => setReportType(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white border border-bento-line text-[10px] font-black uppercase appearance-none h-[44px]"
+                className="w-full pl-5 pr-10 py-4 bg-bg border border-border rounded-2xl text-[11px] font-bold text-primary uppercase appearance-none focus:ring-4 focus:ring-secondary/5 focus:border-secondary outline-none transition-all"
               >
-                <option value="attendance_summary">Attendance Summary</option>
-                <option value="late_arrivals">Late Arrivals Report</option>
-                <option value="overtime_report">Overtime Report</option>
-                <option value="campus_performance">Performance Metrics</option>
-                <option value="employee_credential">Employee Credentials</option>
-                <option value="leave_history">Leave History</option>
+                <option value="attendance_summary">Attendance Analytics</option>
+                <option value="leave_history">Leave Registry</option>
+                <option value="campus_performance">Performance Summary</option>
               </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-text-gray pointer-events-none group-focus-within:rotate-180 transition-transform" size={16} />
             </div>
           </div>
 
-          <div className="p-3 sm:p-4 bg-bento-bg/20 border border-bento-line/10">
-            <label className="block text-[10px] font-black text-bento-ink uppercase tracking-widest mb-2 sm:mb-3 opacity-60">Select Campus</label>
-            <div className="relative">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-bento-ink/40" size={16} />
+          {/* Campus Select */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-2">
+              <Building2 size={12} className="text-secondary" />
+              Deployment Location
+            </label>
+            <div className="relative group">
               <select 
                 value={targetCampus}
                 onChange={(e) => setTargetCampus(e.target.value)}
-                disabled={user.role !== 'admin'}
-                className="w-full pl-10 pr-4 py-3 bg-white border border-bento-line text-[10px] font-black uppercase appearance-none disabled:opacity-50 h-[44px]"
+                disabled={!isManagement}
+                className="w-full pl-5 pr-10 py-4 bg-bg border border-border rounded-2xl text-[11px] font-bold text-primary uppercase appearance-none focus:ring-4 focus:ring-secondary/5 focus:border-secondary outline-none transition-all disabled:opacity-50"
               >
-                 <option value="all">All Campuses</option>
+                {isManagement && <option value="all">All Campuses</option>}
                 <option value="Main Campus">Main Campus</option>
                 <option value="Johar Campus">Johar Campus</option>
                 <option value="Masjid Campus">Masjid Campus</option>
                 <option value="Maktab Campus">Maktab Campus</option>
               </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-text-gray pointer-events-none group-focus-within:rotate-180 transition-transform" size={16} />
             </div>
           </div>
 
-          <div className="p-3 sm:p-4 bg-bento-bg/20 border border-bento-line/10">
-            <label className="block text-[10px] font-black text-bento-ink uppercase tracking-widest mb-2 sm:mb-3 opacity-60">Select Staff</label>
-            <div className="relative">
-              <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-bento-ink/40" size={16} />
-              <select 
-                value={targetEmployee}
-                onChange={(e) => setTargetEmployee(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white border border-bento-line text-[10px] font-black uppercase appearance-none h-[44px]"
-              >
-                <option value="all">All Employees</option>
-                {(employees || [])
-                  .filter(e => targetCampus === 'all' || e?.campus === targetCampus)
-                  .map((e, idx) => <option key={`${e?.id}-${idx}`} value={e?.id}>{e?.name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="p-3 sm:p-4 bg-bento-bg/20 border border-bento-line/10">
-            <label className="block text-[10px] font-black text-bento-ink uppercase tracking-widest mb-2 sm:mb-3 opacity-60">From Date</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-bento-ink/40" size={16} />
-              <input 
-                type="date" 
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white border border-bento-line text-[10px] font-black uppercase h-[44px]"
-              />
-            </div>
-          </div>
-
-          <div className="p-3 sm:p-4 bg-bento-bg/20 border border-bento-line/10">
-            <label className="block text-[10px] font-black text-bento-ink uppercase tracking-widest mb-2 sm:mb-3 opacity-60">To Date</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-bento-ink/40" size={16} />
-              <input 
-                type="date" 
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white border border-bento-line text-[10px] font-black uppercase h-[44px]"
-              />
-            </div>
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-4">
+             <div className="space-y-2">
+                <label className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-2">
+                  <Calendar size={12} className="text-secondary" />
+                  Initial
+                </label>
+                <input 
+                  type="date" 
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="w-full px-5 py-4 bg-bg border border-border rounded-2xl text-[11px] font-bold text-primary focus:ring-4 focus:ring-secondary/5 outline-none"
+                />
+             </div>
+             <div className="space-y-2">
+                <label className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-2">
+                  <Calendar size={12} className="text-secondary" />
+                  Terminal
+                </label>
+                <input 
+                  type="date" 
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="w-full px-5 py-4 bg-bg border border-border rounded-2xl text-[11px] font-bold text-primary focus:ring-4 focus:ring-secondary/5 outline-none"
+                />
+             </div>
           </div>
         </div>
 
-        <div className="mt-8 sm:mt-12 flex flex-col sm:flex-row gap-2 sm:gap-2 pt-6 sm:pt-10 border-t border-bento-bg">
+        <div className="flex flex-col sm:flex-row gap-4 pt-4">
           <button 
             onClick={generatePDF}
-            className="btn-accent px-6 sm:px-10 py-3.5 sm:py-4 text-[10px] sm:text-xs font-black tracking-[0.1em] sm:tracking-[0.2em] uppercase flex items-center justify-center space-x-3 h-[50px] w-full sm:w-auto"
+            className="flex-1 bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-primary/90 shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
           >
             <Download size={18} />
-            <span>DOWNLOAD PDF</span>
+            Execute PDF Export
           </button>
           <button 
             onClick={handlePrint}
-            className="btn-primary px-6 sm:px-10 py-3.5 sm:py-4 text-[10px] sm:text-xs font-black tracking-[0.1em] sm:tracking-[0.2em] uppercase flex items-center justify-center space-x-3 h-[50px] w-full sm:w-auto"
+            className="flex-1 bg-white border border-border text-primary py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-bg transition-all active:scale-[0.98]"
           >
             <Printer size={18} />
-            <span>PRINT REPORT</span>
+            Interface Print
           </button>
         </div>
       </div>
 
       {/* Preview Section */}
-      <div className="bento-box overflow-hidden p-0">
-        <div className="p-4 sm:p-6 border-b border-bento-bg flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
-          <h4 className="font-serif italic text-base sm:text-lg tracking-tight text-center sm:text-left">Report Preview <span className="text-[10px] not-italic font-bold opacity-30 uppercase tracking-[0.2em] sm:tracking-[0.3em] ml-2">FIRST 10 ENTRIES</span></h4>
-          <span className="text-[9px] sm:text-[10px] font-black bg-bento-accent/10 text-bento-accent px-3 sm:px-4 py-1 border border-bento-accent/20 uppercase tracking-widest">
-            {filteredEmployees.length} RECORDS FOUND
+      <div className="bg-white rounded-[32px] border border-border overflow-hidden shadow-sm">
+        <div className="p-6 border-b border-border flex items-center justify-between bg-bg/30">
+          <h4 className="text-sm font-black text-primary uppercase tracking-widest">Protocol Preview</h4>
+          <span className="text-[9px] font-black bg-secondary text-white px-3 py-1 rounded-full uppercase tracking-widest">
+            {filteredEmployees.length} OPERATIVES
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <div className="min-w-[500px] sm:min-w-0">
-            <table className="w-full text-left font-mono text-[9px] sm:text-[10px]">
-              <thead className="border-b-2 border-bento-ink/10 opacity-40 uppercase font-bold">
-                <tr>
-                  <th className="px-4 sm:px-6 py-4">ID</th>
-                  <th className="px-4 sm:px-6 py-4">Employee</th>
-                  <th className="px-4 sm:px-6 py-4">Campus</th>
-                  <th className="px-4 sm:px-6 py-4 text-center">Performance</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-bento-bg">
-                {filteredEmployees.slice(0, 10).map((emp, idx) => {
-                   const periodRecords = emp.attendance.filter(a => a.date >= fromDate && a.date <= toDate);
-                   const perf = periodRecords.length > 0 ? (periodRecords.filter(r => r.onTime).length / periodRecords.length) * 100 : 0;
-                   return (
-                    <tr key={`${emp.id}-${idx}`} className="hover:bg-bento-bg/10 transition-colors">
-                      <td className="px-4 sm:px-6 py-4 font-black text-bento-accent">{emp.id}</td>
-                      <td className="px-4 sm:px-6 py-4">
-                        <div className="font-black text-bento-ink uppercase truncate max-w-[120px]">{emp.name}</div>
-                        <div className="text-[8px] opacity-40 font-bold uppercase truncate max-w-[120px]">{emp.designation}</div>
-                      </td>
-                      <td className="px-4 sm:px-6 py-4">
-                        <span className="status-pill px-2 py-0.5 text-[8px] sm:text-[10px]">
-                          {(emp?.campus || 'N/A').toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-4 sm:px-6 py-4">
-                        <div className="flex items-center justify-center space-x-3">
-                          <div className="w-16 sm:w-24 h-1 bg-bento-bg">
-                            <div className="h-full bg-bento-accent" style={{ width: `${perf}%` }}></div>
-                          </div>
-                          <span className="font-black text-[10px] sm:text-[11px] min-w-[30px]">{perf.toFixed(0)}%</span>
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left font-jakarta border-collapse">
+            <thead>
+              <tr className="bg-bg/50">
+                <th className="px-6 py-4 text-[10px] font-black text-text-gray uppercase tracking-widest">Operative</th>
+                <th className="px-6 py-4 text-[10px] font-black text-text-gray uppercase tracking-widest text-center">Sync Score</th>
+                <th className="px-6 py-4 text-[10px] font-black text-text-gray uppercase tracking-widest">Deployment</th>
+                <th className="px-6 py-4 text-[10px] font-black text-text-gray uppercase tracking-widest">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filteredEmployees.slice(0, 10).map((emp) => {
+                 const range = emp.attendance.filter(a => a.date >= fromDate && a.date <= toDate);
+                 const score = range.length > 0 ? (range.filter(r => r.onTime).length / range.length) * 100 : 0;
+                 return (
+                  <tr key={emp.id} className="hover:bg-bg/20 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-accent text-primary rounded-lg flex items-center justify-center font-black text-xs">{emp.name.charAt(0)}</div>
+                        <div>
+                          <div className="text-xs font-black text-primary">{emp.name}</div>
+                          <div className="text-[9px] font-bold text-text-gray uppercase">{emp.designation}</div>
                         </div>
-                      </td>
-                    </tr>
-                   )
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col items-center">
+                        <div className="text-xs font-black text-primary mb-1">{Math.round(score)}%</div>
+                        <div className="w-20 h-1bg-bg rounded-full overflow-hidden">
+                          <div className={cn("h-full rounded-full transition-all duration-1000", score > 80 ? "bg-emerald-500" : score > 50 ? "bg-warning" : "bg-error")} style={{ width: `${score}%` }} />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-[10px] font-bold text-primary uppercase">{emp.campus}</td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest",
+                        emp.status === 'full_time' ? "bg-emerald-50 text-emerald-600" : "bg-secondary/10 text-secondary"
+                      )}>
+                        {emp.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                  </tr>
+                 )
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

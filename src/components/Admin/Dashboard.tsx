@@ -60,7 +60,7 @@ interface DashboardProps {
   setActiveTab?: (tab: string) => void;
 }
 
-type ViewType = 'Main Campus' | 'Johar Campus' | 'Masjid Campus' | 'Maktab Campus' | 'Summary';
+type ViewType = 'Main Campus' | 'Johar Campus' | 'Masjid Campus' | 'Maktab Campus' | 'Summary' | 'Leave Registry';
 
 const Building2 = (props: any) => (
   <svg 
@@ -104,7 +104,8 @@ const CompactStat = ({ title, value, icon: Icon, color, onClick }: any) => (
 );
 
 export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUpdateEmployees, setActiveTab }) => {
-  const [selectedView, setSelectedView] = useState<ViewType>('Summary');
+  const isManagement = user.role === 'admin' || (user.role === 'mudeer' && user.campus === 'Main Campus');
+  const [selectedView, setSelectedView] = useState<ViewType>(isManagement ? 'Summary' : user.campus as ViewType);
   const [targetDate, setTargetDate] = useState(getLocalDate());
   const [drillDown, setDrillDown] = useState<{ type: 'Present' | 'Absent' | 'Late', campus: string } | null>(null);
   const [performancePeriod, setPerformancePeriod] = useState<'today' | 'weekly' | 'monthly'>('today');
@@ -116,19 +117,22 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
   }, [employees, selectedView]);
 
   const stats = useMemo(() => {
-    const total = currentEmployees.length;
-    const records = currentEmployees.map(e => e.attendance.find(a => a.date === targetDate));
+    // If not management, always factor in their own campus regardless of selectedView (though selectedView should be forced to their campus)
+    const secureEmployees = isManagement ? currentEmployees : employees.filter(e => e.campus === user.campus);
+    const total = secureEmployees.length;
+    const records = secureEmployees.map(e => e.attendance.find(a => a.date === targetDate));
     const presentCount = records.filter(r => r && (r.status === 'Present' || r.status === 'Late')).length;
     const lateCount = records.filter(r => r && r.status === 'Late').length;
     const absentCount = total - presentCount;
     const percentage = total === 0 ? 0 : Math.round((presentCount / total) * 100);
 
     return { total, present: presentCount, late: lateCount, absent: absentCount, percentage };
-  }, [currentEmployees, targetDate]);
+  }, [currentEmployees, targetDate, isManagement, employees, user.campus]);
 
   const pendingLeaves = useMemo(() => {
     const list: any[] = [];
-    currentEmployees.forEach(emp => {
+    const secureEmployees = isManagement ? currentEmployees : employees.filter(e => e.campus === user.campus);
+    secureEmployees.forEach(emp => {
       emp.leaveRequests.forEach(req => {
         if (req.status === 'Pending') {
           list.push({ ...req, employeeId: emp.id, employeeName: emp.name });
@@ -136,7 +140,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
       });
     });
     return list;
-  }, [currentEmployees]);
+  }, [currentEmployees, isManagement, employees, user.campus]);
 
   const handleLeaveAction = (employeeId: string, requestId: string, status: 'Approved' | 'Rejected') => {
     const updated = employees.map(emp => {
@@ -202,11 +206,85 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
         }
       });
     });
-    return activity.sort((a, b) => b.time.localeCompare(a.time)).slice(0, 10);
+    return activity.sort((a, b) => b.time.localeCompare(a.time)).slice(0, 5);
   }, [currentEmployees, targetDate]);
 
+  const renderLeaveRegistry = () => (
+    <div className="flex flex-col h-full space-y-4 p-4 animate-in slide-in-from-right duration-300">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-black text-primary uppercase tracking-tighter">Leave Protocol</h2>
+          <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest">{selectedView === 'Leave Registry' ? 'Global Queue' : selectedView}</p>
+        </div>
+        <div className="bg-primary/10 px-3 py-1.5 rounded-xl text-primary font-black text-[10px] uppercase">
+          {pendingLeaves.length} PENDING
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+        {pendingLeaves.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center opacity-20 space-y-4">
+            <Calendar size={48} />
+            <p className="text-xs font-black uppercase tracking-widest">Registry is Empty</p>
+          </div>
+        ) : (
+          pendingLeaves.map(req => (
+            <div key={req.id} className="bg-white p-4 rounded-[24px] border border-border shadow-sm space-y-3">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-accent text-primary rounded-xl flex items-center justify-center font-black text-lg">
+                    {req.employeeName.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-primary uppercase truncate max-w-[120px]">{req.employeeName}</h4>
+                    <p className="text-[9px] font-bold text-text-gray uppercase">{req.employeeId} | {req.campus || 'Main'}</p>
+                  </div>
+                </div>
+                <div className="px-2 py-1 bg-orange-50 rounded-lg text-orange-600 font-black text-[8px] uppercase border border-orange-100">
+                  {req.type}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 py-3 border-y border-border/50">
+                <div>
+                  <p className="text-[7px] font-black text-text-gray uppercase tracking-widest mb-1">Duration</p>
+                  <p className="text-[10px] font-bold text-primary">{req.from} → {req.to}</p>
+                </div>
+                <div>
+                  <p className="text-[7px] font-black text-text-gray uppercase tracking-widest mb-1">Category</p>
+                  <p className="text-[10px] font-bold text-primary">{req.type}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[7px] font-black text-text-gray uppercase tracking-widest mb-1">Operational Reason</p>
+                <p className="text-[10px] font-medium text-text-gray italic leading-relaxed">"{req.reason || 'No specific reason provided.'}"</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button 
+                  onClick={() => handleLeaveAction(req.employeeId, req.id, 'Rejected')}
+                  className="h-10 rounded-xl border border-error/20 text-error text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <X size={14} /> REJECT
+                </button>
+                <button 
+                  onClick={() => handleLeaveAction(req.employeeId, req.id, 'Approved')}
+                  className="h-10 rounded-xl bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                >
+                  <Check size={14} /> APPROVE
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="h-20 shrink-0" />
+    </div>
+  );
+
   const renderDashboard = () => (
-    <div className="flex flex-col h-full space-y-3 overflow-hidden p-3 pt-4">
+    <div className="flex flex-col h-full space-y-4 overflow-hidden p-3 pt-4">
       {/* Header with Date Picker */}
       <div className="flex items-center justify-between px-1 shrink-0">
         <h2 className="text-sm font-black text-primary uppercase tracking-widest flex items-center gap-2">
@@ -217,14 +295,14 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
           type="date" 
           value={targetDate}
           onChange={(e) => setTargetDate(e.target.value)}
-          className="h-8 px-3 bg-white border border-border text-[10px] font-bold uppercase rounded-xl outline-none focus:ring-2 focus:ring-secondary/20"
+          className="h-8 px-3 bg-white border border-border text-[9px] font-bold uppercase rounded-xl outline-none focus:ring-2 focus:ring-secondary/20 shadow-sm"
         />
       </div>
 
-      {/* Main Stats Row */}
+      {/* Main Stats Row - Horizontal Scrollable on Mobile if needed, but grid for compact fit */}
       <div className="grid grid-cols-4 gap-2 shrink-0">
         <CompactStat 
-          title="Workforce" 
+          title="Total" 
           value={stats.total} 
           icon={Users} 
           color="bg-primary/10 text-primary" 
@@ -253,48 +331,50 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
       </div>
 
       {/* Attendance Goal / Percentage */}
-      <div className="bg-primary p-4 rounded-3xl text-white flex items-center justify-between shadow-xl shadow-primary/20 shrink-0">
-        <div>
-          <div className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60">Daily Efficiency</div>
-          <div className="text-2xl font-black tracking-tighter">{stats.percentage}%</div>
-          <div className="text-[7px] font-bold uppercase opacity-80 mt-1">Personnel Consistency Score</div>
+      <div className="bg-primary p-4 rounded-3xl text-white flex items-center justify-between shadow-xl shadow-primary/20 shrink-0 relative overflow-hidden">
+        <div className="absolute right-[-10px] top-[-10px] opacity-10 rotate-12">
+          <Activity size={80} />
         </div>
-        <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-white flex items-center justify-center font-black text-xs">
+        <div className="relative z-10">
+          <div className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60">Operations Sync</div>
+          <div className="text-2xl font-black tracking-tighter">{stats.percentage}%</div>
+          <div className="text-[7px] font-bold uppercase opacity-80 mt-1">Efficiency Threshold</div>
+        </div>
+        <div className="relative z-10 w-12 h-12 rounded-full border-4 border-white/20 border-t-white flex items-center justify-center font-black text-xs">
           {stats.percentage}%
         </div>
       </div>
 
-      {/* Analytics Grid */}
-      <div className="flex-1 grid grid-cols-2 gap-3 min-h-0 overflow-hidden">
-        {/* Left Column: List/Pending */}
-        <div className="flex flex-col space-y-3 min-h-0">
+      {/* Analytics Grid - Using a more balanced stack for small screens */}
+      <div className="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+        <div className="grid grid-cols-2 gap-3 min-h-0">
           {/* Top Performers */}
-          <div className="bg-white p-3 rounded-2xl border border-border flex flex-col flex-1 min-h-0">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[8px] font-black uppercase tracking-widest text-primary">Top Talent</span>
+          <div className="bg-white p-3 rounded-3xl border border-border flex flex-col h-[180px]">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[8px] font-black uppercase tracking-widest text-primary">Leaders</span>
               <div className="flex gap-1">
                 {(['today', 'weekly', 'monthly'] as const).map(p => (
                   <button 
                     key={p} 
                     onClick={() => setPerformancePeriod(p)}
-                    className={cn("text-[6px] font-black uppercase px-1 rounded", performancePeriod === p ? "bg-secondary text-white" : "bg-bg text-text-gray")}
+                    className={cn("text-[6px] font-black uppercase px-1.5 py-0.5 rounded-md transition-all", performancePeriod === p ? "bg-secondary text-white shadow-sm" : "bg-bg text-text-gray")}
                   >
                     {p[0]}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="space-y-1.5 overflow-y-auto pr-1 flex-1 custom-scrollbar">
+            <div className="space-y-1.5 overflow-hidden flex-1">
               {bestPerformers.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-[7px] font-bold text-text-gray/40">NO PERFORMANCE DATA</div>
+                <div className="h-full flex items-center justify-center text-[7px] font-bold text-text-gray/40">NO DATA</div>
               ) : (
                 bestPerformers.map((emp, i) => (
-                  <div key={emp.id} className="flex items-center justify-between p-1.5 bg-bg/50 rounded-xl border border-border/50">
+                  <div key={emp.id} className="flex items-center justify-between p-2 bg-bg/50 rounded-2xl border border-border/50">
                     <div className="flex items-center gap-2 overflow-hidden">
-                      <div className="w-5 h-5 bg-primary text-white rounded font-black text-[10px] flex items-center justify-center shrink-0">{emp.name.charAt(0)}</div>
+                      <div className="w-6 h-6 bg-primary text-white rounded-lg font-black text-[10px] flex items-center justify-center shrink-0 shadow-sm">{emp.name.charAt(0)}</div>
                       <div className="min-w-0">
-                        <div className="text-[8px] font-black text-primary truncate max-w-[50px]">{emp.name}</div>
-                        <div className="text-[6px] font-bold text-text-gray uppercase">{Math.round(emp.score)}% Sync</div>
+                        <div className="text-[9px] font-black text-primary truncate">{emp.name}</div>
+                        <div className="text-[6px] font-bold text-text-gray uppercase tracking-tighter">{Math.round(emp.score)}% Sync</div>
                       </div>
                     </div>
                     <Award size={10} className={i === 0 ? "text-warning shrink-0" : "text-text-gray/20 shrink-0"} />
@@ -304,49 +384,34 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
             </div>
           </div>
           
-          {/* Leaves */}
-          <div className="bg-white p-3 rounded-2xl border border-border h-32 flex flex-col shrink-0 min-h-0">
-            <span className="text-[8px] font-black uppercase tracking-widest text-primary mb-2">Leave Queue ({pendingLeaves.length})</span>
-            <div className="space-y-1.5 overflow-y-auto pr-1 flex-1 custom-scrollbar">
-              {pendingLeaves.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-[7px] text-center font-bold text-text-gray py-4">NO PENDING PROTOCOL</div>
-              ) : (
-                pendingLeaves.map(req => (
-                  <div key={req.id} className="p-2 bg-warning/5 border border-warning/10 rounded-xl space-y-1">
-                    <div className="flex justify-between items-start">
-                      <div className="min-w-0">
-                        <div className="text-[8px] font-black text-primary uppercase truncate">{req.employeeName}</div>
-                        <div className="text-[6px] font-bold text-text-gray">{req.type} | {req.from}</div>
-                      </div>
-                    </div>
-                    <div className="flex gap-1 justify-end">
-                      <button 
-                        onClick={() => handleLeaveAction(req.employeeId, req.id, 'Approved')}
-                        className="p-1 bg-emerald-500 text-white rounded-md active:scale-90"
-                      >
-                        <Check size={8} />
-                      </button>
-                      <button 
-                        onClick={() => handleLeaveAction(req.employeeId, req.id, 'Rejected')}
-                        className="p-1 bg-error text-white rounded-md active:scale-90"
-                      >
-                        <X size={8} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+          {/* Leave Queue - Compact with trigger */}
+          <button 
+            onClick={() => setSelectedView('Leave Registry')}
+            className="bg-white p-3 rounded-3xl border border-border h-[180px] flex flex-col text-left active:scale-[0.98] transition-all group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[8px] font-black uppercase tracking-widest text-primary">Requests</span>
+              <ChevronRight size={12} className="text-text-gray/40 group-hover:translate-x-1 transition-transform" />
             </div>
-          </div>
+            <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-accent/50 rounded-2xl p-2">
+              <div className="text-3xl font-black text-primary tracking-tighter">{pendingLeaves.length}</div>
+              <div className="text-[8px] font-black text-text-gray uppercase tracking-widest mt-1">Pending</div>
+              <div className="mt-2 w-full h-1 bg-accent/30 rounded-full overflow-hidden">
+                <div className="h-full bg-secondary rounded-full" style={{ width: `${Math.min(100, pendingLeaves.length * 10)}%` }} />
+              </div>
+            </div>
+            <p className="text-[6px] font-black text-secondary uppercase tracking-widest mt-3 text-center">OPEN REGISTRY</p>
+          </button>
         </div>
 
-        {/* Right Column: Charts & Recent Activity */}
-        <div className="flex flex-col space-y-3 min-h-0">
-          <div className="bg-white p-3 rounded-2xl border border-border flex flex-col flex-1 min-h-0">
-            <span className="text-[8px] font-black uppercase tracking-widest text-primary mb-2">
-              {selectedView === 'Summary' ? 'Campus Comparison' : 'Attendance Distribution'}
+        {/* Charts Section - Full width on mobile to avoid overlapping */}
+        <div className="grid grid-cols-1 gap-3 pb-24">
+          {/* Chart Wrapper to maintain aspect ratio and prevent overflow */}
+          <div className="bg-white p-4 rounded-3xl border border-border h-[220px] flex flex-col relative overflow-hidden">
+            <span className="text-[8px] font-black uppercase tracking-widest text-primary mb-3">
+              {selectedView === 'Summary' ? 'Campus Comparison' : 'Attendance Analytics'}
             </span>
-            <div className="flex-1 min-h-0 relative flex items-center justify-center">
+            <div className="flex-1 relative min-h-0 w-full flex items-center justify-center">
               {selectedView === 'Summary' ? (
                 <Bar 
                   data={{
@@ -359,16 +424,30 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
                         return campusEmps.length === 0 ? 0 : Math.round((present / campusEmps.length) * 100);
                       }),
                       backgroundColor: '#0066FF',
-                      borderRadius: 8,
+                      borderRadius: 6,
+                      barThickness: 15,
                     }]
                   }}
                   options={{
                     maintainAspectRatio: false,
+                    responsive: true,
                     scales: {
-                      y: { display: false, max: 100 },
-                      x: { grid: { display: false }, ticks: { font: { size: 8, weight: 'bold' } } }
+                      y: { 
+                        display: false, 
+                        max: 100 
+                      },
+                      x: { 
+                        grid: { display: false }, 
+                        ticks: { 
+                          font: { size: 7, weight: 'bold', family: 'Inter' },
+                          color: '#64748b'
+                        } 
+                      }
                     },
-                    plugins: { legend: { display: false } }
+                    plugins: { 
+                      legend: { display: false },
+                      tooltip: { enabled: true, bodyFont: { size: 10 } }
+                    }
                   }}
                 />
               ) : (
@@ -379,43 +458,52 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
                       data: [stats.present - stats.late, stats.late, stats.absent],
                       backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
                       borderWidth: 0,
-                      hoverOffset: 4
+                      hoverOffset: 6
                     }]
                   }}
                   options={{
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
+                    responsive: true,
+                    plugins: { 
+                      legend: { display: false },
+                      tooltip: { enabled: true, bodyFont: { size: 10 } }
+                    }
                   }}
                 />
               )}
             </div>
             {selectedView !== 'Summary' && (
-              <div className="mt-2 space-y-1 shrink-0">
-                <div className="flex items-center justify-between text-[7px] font-black uppercase">
-                  <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-emerald-500" /> On-Time</span>
-                  <span>{stats.present - stats.late}</span>
+              <div className="mt-3 flex justify-center gap-4 shrink-0">
+                <div className="flex items-center gap-1.5 text-[7px] font-black uppercase">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> On-Time
                 </div>
-                <div className="flex items-center justify-between text-[7px] font-black uppercase text-error">
-                  <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-error" /> Absent</span>
-                  <span>{stats.absent}</span>
+                <div className="flex items-center gap-1.5 text-[7px] font-black uppercase">
+                  <div className="w-1.5 h-1.5 rounded-full bg-warning" /> Late
+                </div>
+                <div className="flex items-center gap-1.5 text-[7px] font-black uppercase text-error">
+                  <div className="w-1.5 h-1.5 rounded-full bg-error" /> Absent
                 </div>
               </div>
             )}
           </div>
 
-          <div className="bg-white p-3 rounded-2xl border border-border h-32 flex flex-col shrink-0 min-h-0">
-             <span className="text-[8px] font-black uppercase tracking-widest text-primary mb-2">Pulse activity</span>
-             <div className="space-y-1.5 overflow-y-auto pr-1 flex-1 custom-scrollbar">
+          {/* Pulse Activity - Full width on mobile */}
+          <div className="bg-white p-4 rounded-3xl border border-border h-[220px] flex flex-col">
+             <span className="text-[8px] font-black uppercase tracking-widest text-primary mb-3">Live Operational Pulse</span>
+             <div className="space-y-2 overflow-y-auto pr-1 flex-1 custom-scrollbar">
                 {recentActivity.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-[7px] font-bold text-text-gray/40">NO RECENT PULSE</div>
+                  <div className="h-full flex items-center justify-center text-[8px] font-bold text-text-gray/40 uppercase tracking-widest">NO LOGS FOUND</div>
                 ) : (
                   recentActivity.map(act => (
-                    <div key={act.id} className="flex items-center justify-between p-1.5 bg-bg/30 rounded-lg border border-border/30">
-                       <div className="flex items-center gap-1.5 min-w-0">
-                          <div className={cn("w-1 h-1 rounded-full", act.type === 'Late' ? "bg-warning" : "bg-emerald-500")} />
-                          <div className="text-[7px] font-black text-primary truncate max-w-[60px]">{act.name}</div>
+                    <div key={act.id} className="flex items-center justify-between p-2.5 bg-bg/40 rounded-xl border border-border/30 group hover:border-secondary transition-all">
+                       <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", act.type === 'Late' ? "bg-warning animate-pulse" : "bg-emerald-500")} />
+                          <div className="min-w-0 text-left">
+                            <div className="text-[9px] font-black text-primary truncate uppercase">{act.name}</div>
+                            <div className="text-[6px] font-bold text-text-gray/50 uppercase tracking-tighter">{act.campus}</div>
+                          </div>
                        </div>
-                       <div className="text-[7px] font-bold text-text-gray">{act.time}</div>
+                       <div className="text-[9px] font-black text-primary bg-accent/50 px-2 py-1 rounded-lg">{act.time}</div>
                     </div>
                   ))
                 )}
@@ -423,43 +511,42 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
           </div>
         </div>
       </div>
-
-      {/* Bottom Spacer for fixed nav */}
-      <div className="h-20 shrink-0" />
     </div>
   );
 
   return (
     <div className="h-full flex flex-col animate-in fade-in duration-500 relative bg-bento-bg">
       {/* Content Area */}
-      <div className="flex-1 overflow-hidden px-2 pt-1 pb-4">
-        {renderDashboard()}
+      <div className="flex-1 overflow-hidden">
+        {selectedView === 'Leave Registry' ? renderLeaveRegistry() : renderDashboard()}
       </div>
 
-      {/* Fixed Bottom Navigation */}
-      <div className="fixed bottom-4 left-4 right-4 bg-primary rounded-[32px] p-2 flex items-center justify-between shadow-2xl shadow-primary/40 z-50 overflow-hidden">
-        {[
-          { id: 'Main Campus', label: 'Main', icon: MapPin },
-          { id: 'Johar Campus', label: 'Johar', icon: Building2 },
-          { id: 'Summary', label: 'Summary', icon: LayoutDashboard },
-          { id: 'Masjid Campus', label: 'Masjid', icon: Building2 },
-          { id: 'Maktab Campus', label: 'Maktab', icon: Building2 },
-        ].map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setSelectedView(item.id as ViewType)}
-            className={cn(
-              "flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all relative flex-1 group",
-              selectedView === item.id ? "bg-white text-primary" : "text-white/60 hover:text-white"
-            )}
-          >
-            <item.icon size={selectedView === item.id ? 18 : 16} className={cn("mb-1 transition-all", selectedView === item.id ? "scale-110" : "group-active:scale-90")} />
-            <span className="text-[7px] font-black uppercase tracking-widest truncate w-full text-center">{item.label}</span>
-            {selectedView === item.id && (
-              <motion.div layoutId="nav-pill" className="absolute -inset-0.5 border-2 border-white/20 rounded-2xl pointer-events-none" />
-            )}
-          </button>
-        ))}
+      {/* Fixed Bottom Navigation - Solidified and Optimized */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 pt-0 z-50 pointer-events-none">
+        <div className="max-w-lg mx-auto bg-primary/95 backdrop-blur-lg rounded-[32px] p-2 flex items-center justify-between shadow-2xl shadow-primary/40 pointer-events-auto border border-white/5">
+          {[
+            { id: 'Summary', label: 'Summary', icon: LayoutDashboard },
+            { id: 'Main Campus', label: 'Main', icon: Building2 },
+            { id: 'Johar Campus', label: 'Johar', icon: Building2 },
+            { id: 'Masjid Campus', label: 'Masjid', icon: Building2 },
+            { id: 'Maktab Campus', label: 'Maktab', icon: Building2 },
+          ].filter(item => isManagement || item.id === user.campus).map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setSelectedView(item.id as ViewType)}
+              className={cn(
+                "flex flex-col items-center justify-center py-2 px-1 rounded-[24px] transition-all relative flex-1 group min-w-0",
+                selectedView === item.id ? "bg-white text-primary shadow-xl" : "text-white/50 hover:text-white/80"
+              )}
+            >
+              <item.icon size={selectedView === item.id ? 18 : 16} className={cn("mb-1 transition-transform duration-300", selectedView === item.id ? "scale-110" : "group-active:scale-90")} />
+              <span className="text-[6px] font-black uppercase tracking-widest truncate w-full text-center px-1">{item.label.split(' ')[0]}</span>
+              {selectedView === item.id && (
+                <motion.div layoutId="nav-glow" className="absolute inset-0 bg-white/10 blur-xl rounded-full pointer-events-none" />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Drill Down Modal */}

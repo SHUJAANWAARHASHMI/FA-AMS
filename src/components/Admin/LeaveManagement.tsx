@@ -24,8 +24,9 @@ interface LeaveManagementProps {
 }
 
 export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, user, onUpdateEmployees }) => {
+  const isManagement = user.role === 'admin' || (user.role === 'mudeer' && user.campus === 'Main Campus');
   const [searchTerm, setSearchTerm] = useState('');
-  const [campusFilter, setCampusFilter] = useState(user?.campus === 'all' ? 'all' : (user?.campus || 'all'));
+  const [campusFilter, setCampusFilter] = useState(isManagement ? 'all' : user.campus);
 
   const handleSyncPolicy = () => {
     if (confirm('Strategic Action: This will synchronize ALL employees to the new Leave Policy (14 Annual, 7 Casual, 7 Medical). This preserves their "Used" balance but resets их "Total" limits. Proceed?')) {
@@ -110,7 +111,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
             <ShieldCheck className="mr-3 text-bento-accent shrink-0" size={24} />
             Pending Authorization
           </h3>
-          {user.role === 'admin' && (
+          {isManagement && (
             <div className="relative w-full sm:w-auto">
               <select 
                 value={campusFilter}

@@ -42,8 +42,9 @@ import { EmployeePortal } from './components/Employee/EmployeePortal';
 
 type Tab = 'dashboard' | 'manual-attendance' | 'single-attendance' | 'employee-management' | 'leave-management' | 'reports' | 'backup-restore' | 'admin-controls';
 
-const NavItem = ({ tab, icon: Icon, label, roles, userRole, activeTab, setActiveTab, isSidebarOpen }: { tab: Tab, icon: any, label: string, roles: UserRole[], userRole: string, activeTab: Tab, setActiveTab: (t: Tab) => void, isSidebarOpen: boolean }) => {
+const NavItem = ({ tab, icon: Icon, label, roles, userRole, activeTab, setActiveTab, isSidebarOpen, restrictedForMainMudeer, isMainMudeer }: { tab: Tab, icon: any, label: string, roles: UserRole[], userRole: string, activeTab: Tab, setActiveTab: (t: Tab) => void, isSidebarOpen: boolean, restrictedForMainMudeer?: boolean, isMainMudeer?: boolean }) => {
   if (!roles.includes(userRole as any)) return null;
+  if (isMainMudeer && restrictedForMainMudeer) return null;
   
   return (
     <button
@@ -182,7 +183,7 @@ export default function App() {
     dismissNotification
   } = usePersistence();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 640);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
@@ -197,6 +198,7 @@ export default function App() {
 
   const isEmployeePortal = currentUser ? 'designation' in currentUser : false;
   const userRole = currentUser ? (isEmployeePortal ? 'employee' : (currentUser as User).role) : 'user';
+  const isMainMudeer = !isEmployeePortal && (currentUser as User).role === 'mudeer' && (currentUser as User).campus === 'Main Campus';
 
   const renderContent = () => {
     if (!currentUser) return null;
@@ -246,28 +248,12 @@ export default function App() {
 
   return (
     <div className="flex flex-col sm:flex-row h-screen bg-bento-bg overflow-hidden font-jakarta">
-      {/* Mobile Header */}
-      {!isEmployeePortal && (
-        <div className="sm:hidden bg-white border-b border-bento-line p-4 flex items-center justify-between z-50">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-bento-accent text-white flex items-center justify-center font-mono font-bold text-sm">FA</div>
-            <span className="font-black text-sm tracking-tighter uppercase">FIQH <span className="font-light opacity-60">ACADEMY</span></span>
-          </div>
-          <button 
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2 hover:bg-black/5"
-          >
-            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-      )}
-
       {/* Sidebar */}
       {!isEmployeePortal && (
         <aside 
           className={cn(
             "bg-primary text-white transition-all duration-300 flex flex-col z-[60] border-r border-border absolute sm:relative h-full",
-            isSidebarOpen ? "w-72 translate-x-0" : "w-0 sm:w-24 -translate-x-full sm:translate-x-0",
+            isSidebarOpen ? "w-72 translate-x-0 shadow-2xl" : "w-0 sm:w-24 -translate-x-full sm:translate-x-0 overflow-hidden",
             "sm:translate-x-0"
           )}
         >
@@ -290,15 +276,15 @@ export default function App() {
           </div>
 
           <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2 scrollbar-hide sm:custom-scrollbar">
-            <NavItem tab="dashboard" icon={LayoutDashboard} label="Dashboard" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
-            <NavItem tab="manual-attendance" icon={CalendarCheck} label="Manual Entry" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
-            <NavItem tab="single-attendance" icon={UserCheck} label="Quick Check" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
+            <NavItem tab="dashboard" icon={LayoutDashboard} label="Dashboard" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} />
+            <NavItem tab="manual-attendance" icon={CalendarCheck} label="Manual Entry" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer />
+            <NavItem tab="single-attendance" icon={UserCheck} label="Quick Check" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer />
             <div className="my-6 border-t border-white/10 mx-2"></div>
-            <NavItem tab="employee-management" icon={Users} label="Employees" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
-            <NavItem tab="leave-management" icon={Briefcase} label="Leaves" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
-            <NavItem tab="reports" icon={FileText} label="Reports" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
-            <NavItem tab="backup-restore" icon={Database} label="System Data" roles={['admin']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
-            <NavItem tab="admin-controls" icon={ShieldCheck} label="Access Control" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} />
+            <NavItem tab="employee-management" icon={Users} label="Employees" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} />
+            <NavItem tab="leave-management" icon={Briefcase} label="Leaves" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} />
+            <NavItem tab="reports" icon={FileText} label="Reports" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} />
+            <NavItem tab="backup-restore" icon={Database} label="System Data" roles={['admin']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer />
+            <NavItem tab="admin-controls" icon={ShieldCheck} label="Access Control" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer />
           </nav>
 
           <div className="p-4 border-t border-white/10">

@@ -28,8 +28,9 @@ interface EmployeeManagementProps {
 }
 
 export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, user, onUpdateEmployees }) => {
+  const isManagement = user.role === 'admin' || (user.role === 'mudeer' && user.campus === 'Main Campus');
   const [searchTerm, setSearchTerm] = useState('');
-  const [campusFilter, setCampusFilter] = useState<string>(user.role === 'admin' ? 'all' : (user.campus || 'all'));
+  const [campusFilter, setCampusFilter] = useState<string>(isManagement ? 'all' : (user.campus || 'all'));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -77,14 +78,14 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
 
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
-      // Admin sees global or filtered. Mudeer sees only their campus.
-      const matchesCampus = user.role === 'admin' 
+      // Management sees global or filtered. Others see only their campus.
+      const matchesCampus = isManagement 
         ? (campusFilter === 'all' || emp.campus === campusFilter)
         : (emp.campus === user.campus);
       const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || emp.id.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCampus && matchesSearch;
     });
-  }, [employees, user, campusFilter, searchTerm]);
+  }, [employees, user, campusFilter, searchTerm, isManagement]);
 
   const generateEmployeeId = (campus: CampusCode) => {
     const prefix = { 
@@ -187,7 +188,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employee
               className="w-full pl-10 pr-4 py-3 bg-bento-bg/30 border border-bento-line text-xs font-bold uppercase focus:outline-hidden focus:ring-1 focus:ring-bento-ink h-[44px]"
             />
           </div>
-          {user.role === 'admin' && (
+          {isManagement && (
             <div className="relative w-full sm:w-48">
               <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-bento-ink/40" size={16} />
               <select 
