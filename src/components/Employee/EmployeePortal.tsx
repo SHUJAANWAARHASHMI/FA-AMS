@@ -146,23 +146,32 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
         let position: GeolocationPosition | null = null;
         
         try {
-          // Tiered Attempt 1: Instant check for cached location (very fast, allows 10 min old fix)
-          position = await getPosition(false, 2000, 600000);
+          // Tiered Attempt 1: Fast check for cached location (very fast, allows 10 min old fix)
+          setLoadingMessage('Checking Cache...');
+          position = await getPosition(false, 3000, 600000);
         } catch (e) {
           console.warn("No recent cached location found.");
         }
 
         if (!position) {
           try {
-            setLoadingMessage('Fetching Fresh GPS...');
-            // Tiered Attempt 2: Fresh High Accuracy fix (shorter timeout to avoid "stuck" feeling)
-            position = await getPosition(true, 8000, 0);
+            setLoadingMessage('Waking GPS (High)...');
+            // Tiered Attempt 2: Fresh High Accuracy fix (increased timeout)
+            position = await getPosition(true, 15000, 0);
           } catch (e) {
             console.warn("High accuracy timeout, trying balanced fix...");
-            setLoadingMessage('Calibrating Accuracy...');
+            setLoadingMessage('Switching Signal (Low)...');
             // Tiered Attempt 3: Fresh Balanced Accuracy (most stable for mobile indoors)
-            position = await getPosition(false, 12000, 60000);
+            position = await getPosition(false, 20000, 60000);
           }
+        }
+
+        if (!position && type === 'out') {
+          // Attempt 4: Clock-out fallback for weak signals (last resort)
+          try {
+            setLoadingMessage('Finalizing Signal...');
+            position = await getPosition(false, 10000, 3600000); // 1-hour old cache allowed for Clock Out
+          } catch (e) {}
         }
 
         if (!position) throw new Error("GEOLOCATION_UNAVAILABLE");
