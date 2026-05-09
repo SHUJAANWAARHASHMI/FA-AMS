@@ -160,8 +160,8 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
           if (systemSettings.enforceLocation && !validCampusObj) {
             const errorMsg = `LOCATION ERROR: Outside Campus Boundaries.\n\n` +
                             `Detected Position: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}\n\n` +
-                            `HINT: You must be within 500m of a registered campus location (Main, Johar, Masjid, or Maktab) to mark attendance.\n\n` +
-                            `Please ensure you are physically at a campus and high-accuracy GPS is enabled.`;
+                            `HINT: You must be within 800m of ANY registered campus location (Main, Johar, Masjid, or Maktab) to mark attendance.\n\n` +
+                            `The system allows you to check in at any campus as long as you are physically present there.`;
                           
             alert(errorMsg);
             setIsLoading(false);
@@ -610,6 +610,11 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
                     </div>
                     <div className="flex justify-between text-text-dark"><span>IN:</span><span className="font-extrabold">{session.checkIn}</span></div>
                     <div className="flex justify-between text-text-dark"><span>OUT:</span><span className="font-extrabold">{session.checkOut || 'PENDING'}</span></div>
+                    {session.campusName && (
+                      <div className="flex justify-between text-text-dark mt-1 pt-1 border-t border-border/50 italic opacity-80">
+                        <span>SITE:</span><span className="font-extrabold">{session.campusName}</span>
+                      </div>
+                    )}
                   </div>
                 ))
               ) : (
@@ -918,7 +923,9 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
     );
   };
 
-  const renderMobileCheckIn = () => (
+  const renderMobileCheckIn = () => {
+    const activeSession = todayAttendance?.sessions?.find(s => !s.checkOut);
+    return (
     <div className="flex flex-col h-full px-4 py-2 sm:hidden gap-2">
       {/* Header Profile Section */}
       <div className="flex items-center justify-between shrink-0 mb-1">
@@ -1057,12 +1064,15 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
       <div className="mt-1 flex items-center justify-between bg-emerald-50 px-5 py-2 rounded-2xl border border-emerald-100 shrink-0">
         <div className="flex items-center space-x-2">
           <Shield size={14} className="text-emerald-600" />
-          <span className="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest">Site Verified</span>
+          <span className="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest">
+            {activeSession ? "Site Verified" : "Verification Required"}
+          </span>
         </div>
-        <span className="text-[9px] font-black text-emerald-800 uppercase">{employee.campus.split(' ')[0]}</span>
+        <span className="text-[9px] font-black text-emerald-800 uppercase">{(activeSession?.campusName || employee.campus).split(' ')[0]}</span>
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="max-w-7xl mx-auto max-w-full overflow-hidden h-full relative flex flex-col bg-bg">
