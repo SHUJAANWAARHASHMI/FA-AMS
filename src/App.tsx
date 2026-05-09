@@ -362,7 +362,7 @@ export default function App() {
             
             <div className="flex items-center space-x-3">
               {/* Cloud Sync Status */}
-              <div className="flex flex-col items-end">
+              <div className="flex flex-col items-end hidden sm:flex">
                 <button
                   onClick={() => triggerManualSync(true)}
                   disabled={isSyncing}

@@ -62,6 +62,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
   }, [allEmployees, employee.id, today]);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Processing...');
 
   useEffect(() => {
     const timer = setInterval(() => setNowVisible(new Date()), 1000);
@@ -116,70 +117,108 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
 
   const handleMarkAttendance = async (type: 'in' | 'out') => {
     setIsLoading(true);
+    setLoadingMessage('Verifying GPS...');
     
     let userLat: number | undefined;
     let userLng: number | undefined;
     let detectedCampus: string = employee.campus;
     let validCampusObj: any = null;
 
-    // 1. GPS Verification Protocol (Single Geolocation Call)
-    if (systemSettings.enforceLocation || navigator.geolocation) {
+    // 1. GPS Verification Protocol with Enhanced Mobile Robustness
+    if (systemSettings.enforceLocation) {
       try {
         if (!navigator.geolocation) {
-          if (systemSettings.enforceLocation) {
-            alert("CRITICAL: Geolocation is not supported by your browser version. Terminal access denied.");
-            setIsLoading(false);
-            return;
-          }
-        } else {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { 
-              enableHighAccuracy: true,
-              timeout: 30000,
-              maximumAge: 30000
+          alert("CRITICAL: Geolocation is not supported by this device. Terminal access denied.");
+          setIsLoading(false);
+          return;
+        }
+
+        const getPosition = (highAccuracy: boolean, timeout: number, maxAge: number): Promise<GeolocationPosition> => {
+          return new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: highAccuracy,
+              timeout: timeout,
+              maximumAge: maxAge
             });
           });
+        };
 
-          userLat = position.coords.latitude;
-          userLng = position.coords.longitude;
-          
-          // Find if user is within radius of ANY campus
-          let minDistance = Infinity;
+        let position: GeolocationPosition | null = null;
+        
+        try {
+          // Tiered Attempt 1: Instant check for cached location (very fast, allows 10 min old fix)
+          position = await getPosition(false, 2000, 600000);
+        } catch (e) {
+          console.warn("No recent cached location found.");
+        }
 
-          Object.entries(CAMPUS_LOCATIONS).forEach(([name, config]) => {
-            const d = getDistance(userLat!, userLng!, config.lat, config.lng);
-            if (d <= config.radius) {
-              if (!validCampusObj || d < minDistance) {
-                validCampusObj = { name, distance: d, config };
-                minDistance = d;
-                detectedCampus = name;
-              }
-            }
-          });
-          
-          if (systemSettings.enforceLocation && !validCampusObj) {
-            const errorMsg = `LOCATION ERROR: Outside Campus Boundaries.\n\n` +
-                            `Detected Position: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}\n\n` +
-                            `HINT: You must be within 800m of ANY registered campus location (Main, Johar, Masjid, or Maktab) to mark attendance.\n\n` +
-                            `The system allows you to check in at any campus as long as you are physically present there.`;
-                          
-            alert(errorMsg);
-            setIsLoading(false);
-            return;
+        if (!position) {
+          try {
+            setLoadingMessage('Fetching Fresh GPS...');
+            // Tiered Attempt 2: Fresh High Accuracy fix (shorter timeout to avoid "stuck" feeling)
+            position = await getPosition(true, 8000, 0);
+          } catch (e) {
+            console.warn("High accuracy timeout, trying balanced fix...");
+            setLoadingMessage('Calibrating Accuracy...');
+            // Tiered Attempt 3: Fresh Balanced Accuracy (most stable for mobile indoors)
+            position = await getPosition(false, 12000, 60000);
           }
         }
-      } catch (err: any) {
-        console.error('Geolocation error:', err);
-        if (systemSettings.enforceLocation) {
-          let errorMsg = "ERROR: Failed to verify location.";
-          if (err.code === 1) errorMsg = "PERMISSIONS: Please enable GPS/Location access to mark attendance.";
-          if (err.code === 3) errorMsg = "TIMEOUT: Location verification timed out. Please try again.";
-          
+
+        if (!position) throw new Error("GEOLOCATION_UNAVAILABLE");
+        
+        setLoadingMessage('Syncing Terminal...');
+
+        userLat = position.coords.latitude;
+        userLng = position.coords.longitude;
+        
+        // Find if user is within radius of ANY campus
+        let minDistance = Infinity;
+
+        Object.entries(CAMPUS_LOCATIONS).forEach(([name, config]) => {
+          const d = getDistance(userLat!, userLng!, config.lat, config.lng);
+          if (d <= config.radius) {
+            if (!validCampusObj || d < minDistance) {
+              validCampusObj = { name, distance: d, config };
+              minDistance = d;
+              detectedCampus = name;
+            }
+          }
+        });
+        
+        if (!validCampusObj) {
+          const errorMsg = `LOCATION ERROR: Outside Campus Boundaries.\n\n` +
+                          `Detected: ${userLat.toFixed(5)}, ${userLng.toFixed(5)}\n\n` +
+                          `HINT: You must be within 800m of a campus. Currently you are outside verified zones.\n\n` +
+                          `Try standing near a window or outdoors for better GPS accuracy.`;
+                        
           alert(errorMsg);
           setIsLoading(false);
           return;
         }
+      } catch (err: any) {
+        console.error('Geolocation error:', err);
+        let errorHint = "Please check your device GPS settings and ensure 'High Accuracy' mode is on.";
+        
+        if (err.code === 1) errorHint = "PERMISSION DENIED: Use device settings to grant Location permission to this app.";
+        if (err.code === 2) errorHint = "POSITION UNAVAILABLE: Your device cannot get a GPS lock. Try going outdoors.";
+        if (err.code === 3 || err.message === "GEOLOCATION_UNAVAILABLE") errorHint = "TIMEOUT: Took too long to get location. Ensure you have clear sky visibility and try again.";
+        
+        alert(`VERIFICATION FAILED\n\nCode: ${err.code || 'TIMEOUT'}\nStatus: ${err.message || 'Signal Weak'}\n\n${errorHint}`);
+        setIsLoading(false);
+        return;
       }
+    } else if (navigator.geolocation) {
+      // Optional background location capture if not enforced
+      try {
+        const position = await new Promise<GeolocationPosition>((res) => {
+          navigator.geolocation.getCurrentPosition(res, () => res({} as any), { timeout: 3000, maximumAge: 600000 });
+        });
+        if (position && position.coords) {
+          userLat = position.coords.latitude;
+          userLng = position.coords.longitude;
+        }
+      } catch (e) {}
     }
 
     const now = new Date();
@@ -934,33 +973,9 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
             {employee.name.charAt(0)}
           </div>
           <div>
-            <h2 className="text-base font-extrabold text-primary tracking-tight leading-none">Salam, {employee.name.split(' ')[0]}</h2>
+            <h2 className="text-base font-extrabold text-primary tracking-tight leading-none">Salam, {employee.name}</h2>
             <div className="flex items-center space-x-2 mt-0.5">
               <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest opacity-70 italic">Shift: {employee.shiftStart} - {employee.shiftEnd}</p>
-              <div className="w-[1px] h-2 bg-border" />
-              <div className="flex items-center space-x-1">
-                {isSyncing ? (
-                  <div className="flex items-center space-x-1 text-secondary animate-pulse">
-                    <Zap size={10} className="fill-secondary" />
-                    <span className="text-[7px] font-black uppercase">Syncing</span>
-                  </div>
-                ) : isRealtimeActive ? (
-                  <div className="flex items-center space-x-1 text-emerald-600">
-                    <Cloud size={10} className="animate-pulse" />
-                    <span className="text-[7px] font-black uppercase">Connected</span>
-                  </div>
-                ) : isOnline ? (
-                  <div className="flex items-center space-x-1 text-emerald-600">
-                    <Cloud size={10} />
-                    <span className="text-[7px] font-black uppercase">Cloud Ready</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-1 text-error">
-                    <CloudOff size={10} />
-                    <span className="text-[7px] font-black uppercase">Offline</span>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
@@ -1082,12 +1097,12 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-white/60 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-6 text-center"
+            className="fixed inset-0 bg-primary/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-6 text-center"
           >
-            <div className="w-12 h-12 border-4 border-bento-accent/20 border-t-bento-accent rounded-full animate-spin mb-4" />
-            <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-bento-ink">Verifying Protocol...</p>
-              <p className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Authenticating physical site presence</p>
+            <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-6" />
+            <div className="space-y-2">
+              <p className="text-white text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">{loadingMessage}</p>
+              <p className="text-white/40 text-[8px] font-bold uppercase tracking-widest">Ensuring Network Integrity</p>
             </div>
           </motion.div>
         )}
