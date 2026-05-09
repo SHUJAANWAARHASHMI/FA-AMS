@@ -464,72 +464,72 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
 
   const renderSecurityTab = () => (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="bg-white rounded-[24px] p-6 sm:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.06)] border border-border max-w-2xl mx-auto">
-        <div className="flex items-center space-x-4 mb-8">
-          <div className="w-12 h-12 bg-error/10 text-error rounded-2xl flex items-center justify-center">
-            <Shield size={24} />
+      <div className="bg-white rounded-[24px] p-4 sm:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.06)] border border-border max-w-2xl mx-auto">
+        <div className="flex items-center space-x-4 mb-4 sm:mb-8">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-error/10 text-error rounded-2xl flex items-center justify-center">
+            <Shield size={20} className="sm:w-6 sm:h-6" />
           </div>
           <div>
-            <h3 className="text-xl font-extrabold text-primary tracking-tight">Security Protocol</h3>
-            <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mt-1">Credential Management & Access Control</p>
+            <h3 className="text-lg sm:text-xl font-extrabold text-primary tracking-tight">Security Protocol</h3>
+            <p className="text-[8px] sm:text-[10px] font-bold text-text-gray uppercase tracking-widest mt-0.5 sm:mt-1">Credential Management & Access Control</p>
           </div>
         </div>
 
-        <form onSubmit={handleUpdateSecurity} className="space-y-6">
-          <div className="space-y-4">
-            <div className="bg-bg p-4 rounded-xl border border-border">
-              <label className="mini-label block mb-2 text-error">Identity Verification Required</label>
+        <form onSubmit={handleUpdateSecurity} className="space-y-4 sm:space-y-6">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="bg-bg p-3 sm:p-4 rounded-xl border border-border">
+              <label className="mini-label block mb-2 text-error text-[8px] sm:text-[10px]">Identity Verification Required</label>
               <input 
                 type="password"
                 required
                 placeholder="Enter Current Password"
-                className="w-full h-12 px-4 bg-white border border-border text-xs font-bold uppercase rounded-xl outline-none focus:ring-4 focus:ring-error/10 transition-all"
+                className="w-full h-10 sm:h-12 px-4 bg-white border border-border text-[10px] sm:text-xs font-bold uppercase rounded-xl outline-none focus:ring-4 focus:ring-error/10 transition-all"
                 value={securityForm.currentPassword}
                 onChange={e => setSecurityForm({...securityForm, currentPassword: e.target.value})}
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2 opacity-60">
-                <label className="mini-label block px-1 flex items-center gap-1.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-1 sm:space-y-2 opacity-60">
+                <label className="mini-label block px-1 flex items-center gap-1.5 text-[8px] sm:text-[10px]">
                   <Lock size={10} className="text-error" />
                   Network User ID (Locked)
                 </label>
                 <input 
                   type="text"
                   readOnly
-                  className="w-full h-12 px-4 bg-accent/5 border border-border text-xs font-bold lowercase rounded-xl cursor-not-allowed outline-none"
+                  className="w-full h-10 sm:h-12 px-4 bg-accent/5 border border-border text-[10px] sm:text-xs font-bold lowercase rounded-xl cursor-not-allowed outline-none"
                   value={securityForm.newUsername}
                 />
               </div>
-              <div className="space-y-2 opacity-50">
-                <label className="mini-label block px-1">Employee UUID (Immutable)</label>
+              <div className="space-y-1 sm:space-y-2 opacity-50">
+                <label className="mini-label block px-1 text-[8px] sm:text-[10px]">Employee UUID (Immutable)</label>
                 <input 
                   type="text"
                   disabled
-                  className="w-full h-12 px-4 bg-accent/5 border border-border text-[10px] font-mono rounded-xl cursor-not-allowed"
+                  className="w-full h-10 sm:h-12 px-4 bg-accent/5 border border-border text-[9px] sm:text-[10px] font-mono rounded-xl cursor-not-allowed"
                   value={employee.id}
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
-              <div className="space-y-2">
-                <label className="mini-label block px-1">New Terminal Password</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 pt-3 sm:pt-4 border-t border-border">
+              <div className="space-y-1 sm:space-y-2">
+                <label className="mini-label block px-1 text-[8px] sm:text-[10px]">New Terminal Password</label>
                 <input 
                   type="password"
                   placeholder="Keep blank to remain same"
-                  className="w-full h-12 px-4 bg-white border border-border text-xs font-bold rounded-xl outline-none focus:ring-4 focus:ring-secondary/10"
+                  className="w-full h-10 sm:h-12 px-4 bg-white border border-border text-[10px] sm:text-xs font-bold rounded-xl outline-none focus:ring-4 focus:ring-secondary/10"
                   value={securityForm.newPassword}
                   onChange={e => setSecurityForm({...securityForm, newPassword: e.target.value})}
                 />
               </div>
-              <div className="space-y-2">
-                <label className="mini-label block px-1">Confirm Protocol</label>
+              <div className="space-y-1 sm:space-y-2">
+                <label className="mini-label block px-1 text-[8px] sm:text-[10px]">Confirm Protocol</label>
                 <input 
                   type="password"
                   placeholder="Re-enter new password"
-                  className="w-full h-12 px-4 bg-white border border-border text-xs font-bold rounded-xl outline-none focus:ring-4 focus:ring-secondary/10"
+                  className="w-full h-10 sm:h-12 px-4 bg-white border border-border text-[10px] sm:text-xs font-bold rounded-xl outline-none focus:ring-4 focus:ring-secondary/10"
                   value={securityForm.confirmPassword}
                   onChange={e => setSecurityForm({...securityForm, confirmPassword: e.target.value})}
                 />
@@ -537,28 +537,28 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
             </div>
           </div>
 
-          <div className="pt-4">
+          <div className="pt-2 sm:pt-4">
             <button 
               type="submit" 
               disabled={isLoading}
-              className="w-full h-14 bg-primary text-white rounded-2xl flex items-center justify-center space-x-3 text-sm font-extrabold uppercase tracking-widest shadow-xl shadow-primary/20 active:scale-95 transition-all disabled:opacity-50"
+              className="w-full h-12 sm:h-14 bg-primary text-white rounded-2xl flex items-center justify-center space-x-3 text-xs sm:text-sm font-extrabold uppercase tracking-widest shadow-xl shadow-primary/20 active:scale-95 transition-all disabled:opacity-50"
             >
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  <Save size={18} />
+                  <Save size={16} />
                   <span>Update Security Registry</span>
                 </>
               )}
             </button>
           </div>
 
-          <div className="bg-accent/10 p-4 rounded-xl border border-border border-dashed">
+          <div className="bg-accent/10 p-3 sm:p-4 rounded-xl border border-border border-dashed">
             <div className="flex items-start space-x-3 text-text-gray">
-              <Shield size={14} className="mt-0.5 shrink-0" />
-              <p className="text-[9px] font-bold uppercase leading-relaxed tracking-wider">
-                Encryption Layer: SHA-256 Symmetric Field Validation. All terminal modifications are logged to the Central Intelligence Registry with User ID, Timestamp, and Client IP.
+              <Shield size={12} className="mt-0.5 shrink-0" />
+              <p className="text-[8px] font-bold uppercase leading-relaxed tracking-wider">
+                Encryption Layer: SHA-256 Symmetric Field Validation. All modifications logged.
               </p>
             </div>
           </div>
@@ -760,23 +760,23 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
   );
 
   const renderLeavesTab = () => (
-    <div className="animate-in fade-in duration-700">
-      <div className="bg-white rounded-[24px] p-4 sm:p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-10">
-        <div className="md:col-span-4 space-y-4 sm:space-y-6 md:border-r border-border md:pr-10">
-          <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-tight text-primary">Balance Details</h3>
-          <div className="grid grid-cols-1 gap-3 sm:gap-4">
+    <div className="animate-in fade-in duration-700 h-full overflow-y-auto sm:overflow-visible scrollbar-hide">
+      <div className="bg-white rounded-[24px] p-3 sm:p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-border grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-10">
+        <div className="md:col-span-4 space-y-3 sm:space-y-6 md:border-r border-border md:pr-10">
+          <h3 className="text-[10px] sm:text-sm font-extrabold uppercase tracking-tight text-primary">Balance Details</h3>
+          <div className="grid grid-cols-3 md:grid-cols-1 gap-2 sm:gap-4">
             <BalanceCard label="Annual" total={employee.leaves.annual.total} used={employee.leaves.annual.used} accent />
             <BalanceCard label="Casual" total={employee.leaves.casual.total} used={employee.leaves.casual.used} />
             <BalanceCard label="Medical" total={employee.leaves.medical.total} used={employee.leaves.medical.used} />
           </div>
         </div>
 
-        <div className="md:col-span-8 flex flex-col md:flex-row gap-10">
-          <div className="flex-1 space-y-4">
-            <h3 className="mini-label">Quick Register</h3>
-            <form onSubmit={handleApplyLeave} className="space-y-4">
+        <div className="md:col-span-8 flex flex-col gap-6 sm:gap-10">
+          <div className="space-y-3">
+            <h3 className="mini-label text-[8px] sm:text-[10px]">Quick Register</h3>
+            <form onSubmit={handleApplyLeave} className="space-y-3">
               <select 
-                className="w-full h-12 px-4 bg-accent/20 border border-border text-xs font-bold uppercase rounded-xl outline-none focus:ring-4 focus:ring-secondary/10 transition-all"
+                className="w-full h-10 sm:h-12 px-4 bg-accent/20 border border-border text-[10px] sm:text-xs font-bold uppercase rounded-xl outline-none focus:ring-4 focus:ring-secondary/10 transition-all"
                 value={leaveForm.type}
                 onChange={(e) => setLeaveForm({...leaveForm, type: e.target.value as any})}
               >
@@ -784,36 +784,36 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
                 <option value="Casual">Casual Allowance</option>
                 <option value="Medical">Medical Hardship</option>
               </select>
-              <div className="grid grid-cols-2 gap-4">
-                <input type="date" className="h-12 px-4 border border-border text-xs font-bold uppercase rounded-xl" value={leaveForm.from} onChange={e => setLeaveForm({...leaveForm, from: e.target.value})} />
-                <input type="date" className="h-12 px-4 border border-border text-xs font-bold uppercase rounded-xl" value={leaveForm.to} onChange={e => setLeaveForm({...leaveForm, to: e.target.value})} />
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <input type="date" className="h-10 sm:h-12 px-4 border border-border text-[10px] sm:text-xs font-bold uppercase rounded-xl" value={leaveForm.from} onChange={e => setLeaveForm({...leaveForm, from: e.target.value})} />
+                <input type="date" className="h-10 sm:h-12 px-4 border border-border text-[10px] sm:text-xs font-bold uppercase rounded-xl" value={leaveForm.to} onChange={e => setLeaveForm({...leaveForm, to: e.target.value})} />
               </div>
               <textarea 
                 placeholder="REASON FOR LEAVE..."
-                className="w-full p-4 border border-border text-xs font-bold uppercase resize-none h-32 rounded-xl outline-none focus:ring-4 focus:ring-secondary/10"
+                className="w-full p-3 sm:p-4 border border-border text-[10px] sm:text-xs font-bold uppercase resize-none h-20 sm:h-32 rounded-xl outline-none focus:ring-4 focus:ring-secondary/10"
                 value={leaveForm.reason}
                 onChange={e => setLeaveForm({...leaveForm, reason: e.target.value})}
               />
-              <button type="submit" className="btn-primary w-full">
+              <button type="submit" className="w-full h-11 sm:h-14 bg-primary text-white rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-95 transition-all">
                 SUBMIT PROTOCOL
               </button>
             </form>
           </div>
 
-          <div className="flex-1 border-t md:border-t-0 md:border-l border-border pt-6 md:pt-0 md:pl-10">
-            <h3 className="mini-label mb-6">Audit Registry</h3>
-            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
+          <div className="border-t border-border pt-4 sm:pt-0 sm:border-t-0 sm:border-l sm:pl-10">
+            <h3 className="mini-label mb-3 sm:mb-6 text-[8px] sm:text-[10px]">Audit Registry</h3>
+            <div className="space-y-2 sm:space-y-3 max-h-[150px] sm:max-h-[350px] overflow-y-auto pr-2">
               {employee.leaveRequests.length === 0 ? (
-                <div className="py-20 text-center opacity-20"><p className="text-[10px] font-extrabold italic uppercase">NO ENTRIES FOUND</p></div>
+                <div className="py-10 sm:py-20 text-center opacity-20"><p className="text-[8px] sm:text-[10px] font-extrabold italic uppercase">NO ENTRIES FOUND</p></div>
               ) : (
                 employee.leaveRequests.map((req, i) => (
-                  <div key={i} className="p-4 rounded-2xl border border-border flex justify-between items-center bg-accent/10 hover:bg-accent/20 transition-all shadow-sm">
+                  <div key={i} className="p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-border flex justify-between items-center bg-accent/10 hover:bg-accent/20 transition-all shadow-sm">
                     <div>
-                      <p className="text-xs font-extrabold uppercase text-primary tracking-tight">{req.type}</p>
-                      <p className="text-[10px] text-text-gray font-bold mt-1 uppercase">{req.from} - {req.to}</p>
+                      <p className="text-[10px] sm:text-xs font-extrabold uppercase text-primary tracking-tight">{req.type}</p>
+                      <p className="text-[8px] sm:text-[10px] text-text-gray font-bold mt-0.5 sm:mt-1 uppercase">{req.from} - {req.to}</p>
                     </div>
                     <span className={cn(
-                      "text-[10px] font-extrabold px-3 py-1 rounded-full border",
+                      "text-[8px] sm:text-[10px] font-extrabold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border",
                       req.status === 'Pending' ? "bg-orange-50 text-orange-600 border-orange-100" : 
                       req.status === 'Rejected' ? "bg-red-50 text-red-600 border-red-100" :
                       "bg-emerald-50 text-emerald-600 border-emerald-100"
@@ -833,18 +833,18 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
     const percentage = (used / total) * 100;
     return (
       <div className={cn(
-        "bg-white border border-border p-5 rounded-2xl flex flex-col justify-between shadow-sm transition-all hover:bg-accent/5 hover:border-secondary/30", 
+        "bg-white border border-border p-3 sm:p-5 rounded-2xl flex flex-col justify-between shadow-sm transition-all hover:bg-accent/5 hover:border-secondary/30", 
         accent && "bg-secondary/[0.02] border-secondary/20"
       )}>
-        <div className="flex justify-between items-start mb-3">
-          <span className="text-[10px] font-extrabold text-primary uppercase tracking-widest">{label}</span>
-          <span className="text-[10px] font-bold text-text-gray">{used} / {total}</span>
+        <div className="flex justify-between items-start mb-1 sm:mb-3">
+          <span className="text-[8px] sm:text-[10px] font-extrabold text-primary uppercase tracking-widest truncate">{label}</span>
+          <span className="text-[7px] sm:text-[10px] font-bold text-text-gray hidden sm:inline">{used} / {total}</span>
         </div>
-        <div className="flex items-baseline space-x-2">
-          <span className="text-2xl font-extrabold text-primary tracking-tight">{available}</span>
-          <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Available</span>
+        <div className="flex items-baseline space-x-1 sm:space-x-2">
+          <span className="text-sm sm:text-2xl font-extrabold text-primary tracking-tight">{available}</span>
+          <span className="text-[6px] sm:text-[10px] font-bold text-text-gray uppercase tracking-widest">Avl</span>
         </div>
-        <div className="mt-4 h-2 w-full bg-bg rounded-full overflow-hidden">
+        <div className="mt-2 sm:mt-4 h-1 sm:h-2 w-full bg-bg rounded-full overflow-hidden">
           <motion.div 
             initial={{ width: 0 }}
             animate={{ width: `${percentage}%` }}
