@@ -1240,7 +1240,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
           </AnimatePresence>
         </div>
 
-        <div className="h-16 bg-secondary flex items-center justify-around px-4 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] shrink-0">
+        <div className="bg-secondary flex items-center justify-around px-4 pb-[env(safe-area-inset-bottom,1.25rem)] pt-2 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] shrink-0">
           {[
             { id: 'checkin', icon: Clock, label: 'Entry' },
             { id: 'calendar', icon: Calendar, label: 'Logs' },
