@@ -919,9 +919,9 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
   };
 
   const renderMobileCheckIn = () => (
-    <div className="flex flex-col min-h-[calc(100vh-160px)] px-4 pt-4 sm:hidden">
+    <div className="flex flex-col h-full px-4 py-2 sm:hidden gap-2">
       {/* Header Profile Section */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between shrink-0 mb-1">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-primary text-white rounded-[16px] flex items-center justify-center font-bold text-base shadow-lg rotate-3">
             {employee.name.charAt(0)}
@@ -953,10 +953,6 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
                     <span className="text-[7px] font-black uppercase">Offline</span>
                   </div>
                 )}
-                <div className="w-[1px] h-2 bg-border" />
-                <span className="text-[7px] font-bold text-text-gray/40 uppercase">
-                  Updated: {lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
               </div>
             </div>
           </div>
@@ -970,11 +966,11 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
       </div>
 
       {/* Main Status & Clock Card */}
-      <div className="bg-white rounded-[24px] p-5 shadow-[0_15px_40px_rgba(0,0,0,0.04)] border border-border relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform duration-700"></div>
+      <div className="flex-1 min-h-0 bg-white rounded-[24px] p-4 shadow-[0_15px_40px_rgba(0,0,0,0.04)] border border-border relative overflow-hidden group my-1 flex flex-col justify-center">
+        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12"></div>
         
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-4">
+        <div className="relative z-10 w-full">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-2 px-2 py-0.5 bg-primary/5 rounded-full border border-primary/10">
               <div className={cn("w-1.5 h-1.5 rounded-full", todayAttendance?.sessions?.some(s => !s.checkOut) ? "bg-emerald-500 animate-pulse" : "bg-text-gray/30")} />
               <span className="text-[8px] font-extrabold text-primary uppercase tracking-widest">
@@ -993,7 +989,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
                   animate={{ scale: 1, opacity: 1 }}
                   className="text-center"
                 >
-                  <h1 className="text-4xl font-extrabold text-primary tracking-tighter tabular-nums mb-1">{sessionDuration}</h1>
+                  <h1 className="text-7xl font-extrabold text-primary tracking-tighter tabular-nums mb-0.5">{sessionDuration}</h1>
                   <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest">Active Duration</p>
                 </motion.div>
               ) : (
@@ -1003,29 +999,29 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
                   animate={{ opacity: 1 }}
                   className="text-center"
                 >
-                  <h1 className="text-3xl font-extrabold text-primary tracking-tighter tabular-nums mb-1 opacity-10">{currentTime.split(' ')[0]}</h1>
+                  <h1 className="text-5xl font-extrabold text-primary tracking-tighter tabular-nums mb-0.5 opacity-10">{currentTime.split(' ')[0]}</h1>
                   <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest">Awaiting Verification</p>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          <div className="mt-4 flex flex-col space-y-3">
+          <div className="mt-2 flex flex-col space-y-2">
              <div className="flex space-x-2">
                 <button 
                   onClick={() => handleMarkAttendance('in')}
                   disabled={!!(todayAttendance?.sessions?.some(s => !s.checkOut))}
-                  className="flex-1 h-12 bg-primary text-white rounded-xl flex items-center justify-center space-x-2 text-[9px] font-extrabold uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-20"
+                  className="flex-1 h-10 bg-primary text-white rounded-xl flex items-center justify-center space-x-2 text-[9px] font-extrabold uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-20"
                 >
-                  <Clock size={14} />
+                  <Clock size={12} />
                   <span>Clock In</span>
                 </button>
                 <button 
                   onClick={() => handleMarkAttendance('out')}
                   disabled={!(todayAttendance?.sessions?.some(s => !s.checkOut))}
-                  className="flex-1 h-12 bg-secondary text-white rounded-xl flex items-center justify-center space-x-2 text-[9px] font-extrabold uppercase tracking-widest shadow-lg shadow-secondary/20 active:scale-95 transition-all disabled:opacity-20"
+                  className="flex-1 h-10 bg-secondary text-white rounded-xl flex items-center justify-center space-x-2 text-[9px] font-extrabold uppercase tracking-widest shadow-lg shadow-secondary/20 active:scale-95 transition-all disabled:opacity-20"
                 >
-                  <LogOut size={14} />
+                  <LogOut size={12} />
                   <span>Clock Out</span>
                 </button>
              </div>
@@ -1034,49 +1030,31 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
       </div>
 
       {/* Grid Stats - Fit to Screen */}
-      <div className="grid grid-cols-2 gap-3 mt-6">
-        <div className="bg-white rounded-[24px] p-4 shadow-sm border border-border flex flex-col justify-between h-28">
+      <div className="grid grid-cols-2 gap-3 shrink-0">
+        <div className="bg-white rounded-[24px] p-4 shadow-sm border border-border flex flex-col justify-between h-24">
            <div className="flex items-center space-x-2 text-primary opacity-40">
              <Clock size={12} />
              <span className="text-[8px] font-extrabold uppercase tracking-widest">Checkpoint</span>
            </div>
            <div>
-             <div className="text-xl font-extrabold text-primary tabular-nums">{todayAttendance?.timeIn || '--:--'}</div>
+             <div className="text-lg font-extrabold text-primary tabular-nums">{todayAttendance?.timeIn || '--:--'}</div>
              <p className="text-[8px] font-bold text-text-gray mt-1 uppercase">Today's Start</p>
            </div>
         </div>
-        <div className="bg-white rounded-[24px] p-4 shadow-sm border border-border flex flex-col justify-between h-28">
+        <div className="bg-white rounded-[24px] p-4 shadow-sm border border-border flex flex-col justify-between h-24">
            <div className="flex items-center space-x-2 text-secondary opacity-60">
              <TrendingUp size={12} />
              <span className="text-[8px] font-extrabold uppercase tracking-widest">Efficacy</span>
            </div>
            <div>
-             <div className="text-xl font-extrabold text-primary tabular-nums">{calculateHoursWorked(todayAttendance)}h</div>
+             <div className="text-lg font-extrabold text-primary tabular-nums">{calculateHoursWorked(todayAttendance)}h</div>
              <p className="text-[8px] font-bold text-text-gray mt-1 uppercase">Operational Hrs</p>
            </div>
         </div>
       </div>
 
-      {/* Performance Hub - Compact Grid */}
-      <div className="mt-6">
-        <h3 className="mini-label mb-3">Intelligence Hub</h3>
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Score', value: `${attendanceStats.score}%`, icon: Target, color: 'text-emerald-500' },
-            { label: 'Rank', value: 'ELITE', icon: Award, color: 'text-secondary' },
-            { label: 'Growth', value: '+12%', icon: TrendingUp, color: 'text-orange-500' }
-          ].map((item, idx) => (
-            <div key={idx} className="bg-white p-3 rounded-2xl border border-border shadow-sm flex flex-col items-center justify-center text-center">
-              <item.icon size={14} className={cn("mb-1", item.color)} />
-              <span className="text-[9px] font-extrabold text-primary leading-none mb-1">{item.value}</span>
-              <span className="text-[7px] font-bold text-text-gray uppercase tracking-tighter">{item.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Verified Location Badge */}
-      <div className="mt-8 flex items-center justify-between bg-emerald-50 px-5 py-3 rounded-2xl border border-emerald-100">
+      <div className="mt-1 flex items-center justify-between bg-emerald-50 px-5 py-2 rounded-2xl border border-emerald-100 shrink-0">
         <div className="flex items-center space-x-2">
           <Shield size={14} className="text-emerald-600" />
           <span className="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest">Site Verified</span>
@@ -1087,7 +1065,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-10 max-w-full overflow-hidden min-h-screen pb-10 relative">
+    <div className="max-w-7xl mx-auto max-w-full overflow-hidden h-full relative flex flex-col bg-bg">
       <AnimatePresence>
         {isLoading && (
           <motion.div 
@@ -1132,31 +1110,30 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
       </div>
 
       {/* Mobile View */}
-      <div className="sm:hidden flex flex-col min-h-[calc(100vh-80px)]">
-        <div className="flex-1 pb-32">
+      <div className="sm:hidden flex flex-col h-full overflow-hidden bg-bg">
+        <div className="flex-1 overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
               key={mobileTab}
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.02 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.2 }}
+              className="h-full"
             >
               {mobileTab === 'checkin' && renderMobileCheckIn()}
-              {mobileTab === 'calendar' && <div className="p-5">{renderAttendanceTab()}</div>}
-              {mobileTab === 'summary' && <div className="p-5">{renderPerformanceTab()}</div>}
-              {mobileTab === 'leaves' && <div className="p-5">{renderLeavesTab()}</div>}
-              {mobileTab === 'profile' && <div className="p-5">{renderProfileTab()}</div>}
-              {mobileTab === 'security' && <div className="p-5">{renderSecurityTab()}</div>}
+              {mobileTab === 'calendar' && <div className="px-4 h-full overflow-y-auto scrollbar-hide py-2">{renderAttendanceTab()}</div>}
+              {mobileTab === 'leaves' && <div className="px-4 h-full overflow-y-auto scrollbar-hide py-2">{renderLeavesTab()}</div>}
+              {mobileTab === 'profile' && <div className="px-4 h-full overflow-y-auto scrollbar-hide py-2">{renderProfileTab()}</div>}
+              {mobileTab === 'security' && <div className="px-4 h-full overflow-y-auto scrollbar-hide py-2">{renderSecurityTab()}</div>}
             </motion.div>
           </AnimatePresence>
         </div>
 
-        <div className="fixed bottom-6 left-6 right-6 h-20 bg-secondary rounded-[24px] shadow-2xl border border-white/5 flex items-center justify-around px-4 z-50">
+        <div className="h-16 bg-secondary flex items-center justify-around px-4 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] shrink-0">
           {[
             { id: 'checkin', icon: Clock, label: 'Entry' },
             { id: 'calendar', icon: Calendar, label: 'Logs' },
-            { id: 'summary', icon: TrendingUp, label: 'Stats' },
             { id: 'leaves', icon: Briefcase, label: 'Leaves' },
             { id: 'security', icon: Lock, label: 'Lock' },
             { id: 'profile', icon: User, label: 'Me' }

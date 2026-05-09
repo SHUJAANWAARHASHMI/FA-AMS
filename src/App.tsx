@@ -319,17 +319,20 @@ export default function App() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Header */}
-        <header className="bg-white px-4 sm:px-8 h-20 sm:h-24 border-b border-border flex items-center justify-between sticky top-0 z-40">
-          <div className="flex items-center space-x-8">
+        <header className={cn(
+          "bg-white px-4 sm:px-8 flex items-center justify-between sticky top-0 z-40 border-b border-border transition-all",
+          isEmployeePortal ? "h-14 sm:h-24" : "h-20 sm:h-24"
+        )}>
+          <div className="flex items-center space-x-3 sm:space-x-8">
              <button 
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="p-2 hover:bg-bg rounded-lg transition-colors text-text-gray"
               >
-                {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+                {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
               
               <div className="min-w-0">
-                <h2 className="text-sm sm:text-2xl font-extrabold text-primary tracking-tight truncate">
+                <h2 className="text-xs sm:text-2xl font-extrabold text-primary tracking-tight truncate">
                   {isEmployeePortal ? 'Staff Terminal' : activeTab.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                 </h2>
                 <div className="flex items-center space-x-2 sm:space-x-4 text-[10px] sm:text-xs text-text-gray font-bold mt-0.5">
@@ -433,8 +436,8 @@ export default function App() {
 
         {/* Dynamic Content */}
         <div className={cn(
-          "flex-1 overflow-y-auto custom-scrollbar",
-          isEmployeePortal ? "p-0" : "p-4 sm:p-10"
+          "flex-1 custom-scrollbar scrollbar-hide",
+          isEmployeePortal ? "p-0 overflow-hidden sm:overflow-y-auto" : "p-4 sm:p-10 overflow-y-auto"
         )}>
           {renderContent()}
         </div>
