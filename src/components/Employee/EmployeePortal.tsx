@@ -63,6 +63,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
 
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Processing...');
+  const [locationError, setLocationError] = useState<{ code: number; message: string; hint: string } | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNowVisible(new Date()), 1000);
@@ -118,6 +119,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
   const handleMarkAttendance = async (type: 'in' | 'out') => {
     setIsLoading(true);
     setLoadingMessage('Verifying GPS...');
+    setLocationError(null);
     
     let userLat: number | undefined;
     let userLng: number | undefined;
@@ -127,6 +129,8 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
     // 1. GPS Verification Protocol with Enhanced Mobile Robustness
     if (systemSettings.enforceLocation) {
       try {
+        const isWebView = /wv|WebView|Android.*(Version\/[\d.]+)/.test(navigator.userAgent);
+        
         if (!navigator.geolocation) {
           alert("CRITICAL: Geolocation is not supported by this device. Terminal access denied.");
           setIsLoading(false);
@@ -156,21 +160,22 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
         if (!position) {
           try {
             setLoadingMessage('Waking GPS (High)...');
-            // Tiered Attempt 2: Fresh High Accuracy fix (increased timeout)
-            position = await getPosition(true, 15000, 0);
+            // Tiered Attempt 2: Fresh High Accuracy fix
+            // Give WebViews more time as they can be sluggish on first lock
+            position = await getPosition(true, isWebView ? 25000 : 15000, 0);
           } catch (e) {
             console.warn("High accuracy timeout, trying balanced fix...");
             setLoadingMessage('Switching Signal (Low)...');
             // Tiered Attempt 3: Fresh Balanced Accuracy (most stable for mobile indoors)
-            position = await getPosition(false, 20000, 60000);
+            position = await getPosition(false, 30000, 60000);
           }
         }
 
         if (!position && type === 'out') {
-          // Attempt 4: Clock-out fallback for weak signals (last resort)
+          // Attempt 4: Clock-out fallback for weak signals (last resort for APKs)
           try {
             setLoadingMessage('Finalizing Signal...');
-            position = await getPosition(false, 10000, 3600000); // 1-hour old cache allowed for Clock Out
+            position = await getPosition(false, 15000, 3600000); // 1-hour old cache allowed for Clock Out
           } catch (e) {}
         }
 
@@ -207,13 +212,24 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
         }
       } catch (err: any) {
         console.error('Geolocation error:', err);
+        const isWebView = /wv|WebView|Android.*(Version\/[\d.]+)/.test(navigator.userAgent);
         let errorHint = "Please check your device GPS settings and ensure 'High Accuracy' mode is on.";
         
-        if (err.code === 1) errorHint = "PERMISSION DENIED: Use device settings to grant Location permission to this app.";
-        if (err.code === 2) errorHint = "POSITION UNAVAILABLE: Your device cannot get a GPS lock. Try going outdoors.";
-        if (err.code === 3 || err.message === "GEOLOCATION_UNAVAILABLE") errorHint = "TIMEOUT: Took too long to get location. Ensure you have clear sky visibility and try again.";
+        if (err.code === 1) {
+          errorHint = "PERMISSION DENIED: In your phone settings, go to Apps -> [This App] -> Permissions and allow 'Location'.";
+          if (isWebView) {
+            errorHint = "PERMISSION DENIED: Your APK wrapper is blocking location. \n\n1. Check phone settings -> Apps -> [This App] -> Permissions.\n\n2. If not found there, the APK was built without 'ACCESS_FINE_LOCATION' permission in its manifest.";
+          }
+        }
+        if (err.code === 2) errorHint = "POSITION UNAVAILABLE: Your device cannot get a GPS lock. Try going outdoors or near a window.";
+        if (err.code === 3 || err.message === "GEOLOCATION_UNAVAILABLE") {
+          errorHint = "TIMEOUT: Location signal is too weak. Please ensure GPS is ON and you are in an open area.";
+          if (isWebView) {
+            errorHint += "\n\nWebViews/APKs can take longer to warm up GPS. Try again in a few seconds.";
+          }
+        }
         
-        alert(`VERIFICATION FAILED\n\nCode: ${err.code || 'TIMEOUT'}\nStatus: ${err.message || 'Signal Weak'}\n\n${errorHint}`);
+        setLocationError({ code: err.code || 0, message: err.message || 'Signal Weak', hint: errorHint });
         setIsLoading(false);
         return;
       }
@@ -860,24 +876,42 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
             <ProfileInfo label="User ID" value={employee.username} />
             <ProfileInfo label="Security" value="SECURE ACCESS" />
           </div>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="bg-warning/5 p-4 rounded-xl border border-warning/10 flex items-start space-x-3 flex-1">
-              <Lock size={16} className="text-warning mt-0.5 shrink-0" />
-              <p className="text-[9px] sm:text-[10px] font-bold text-warning uppercase tracking-widest leading-relaxed">
-                Core profile fields are locked by Central Registry. Contact administrative headquarters for protocol overrides.
-              </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button 
+                onClick={async () => {
+                  if (navigator.permissions) {
+                    try {
+                      const result = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+                      alert(`CURRENT LOCATION STATUS: ${result.state.toUpperCase()}\n\nNote: If 'denied', check phone settings. If you can't find the setting, the APK manifest is missing location permissions.`);
+                    } catch (e) {
+                      alert("Unable to query standard permissions API. Try marking attendance to see error code.");
+                    }
+                  } else {
+                    alert("Permissions API not supported in this environment.");
+                  }
+                }}
+                className="bg-secondary/10 text-secondary px-6 py-4 rounded-xl flex items-center justify-center space-x-3 text-xs font-black uppercase tracking-widest hover:bg-secondary/20 transition-all active:scale-95 border border-secondary/20"
+              >
+                <Target size={16} />
+                <span>Check Permissions</span>
+              </button>
+              <div className="bg-warning/5 p-4 rounded-xl border border-warning/10 flex items-start space-x-3 flex-1">
+                <Lock size={16} className="text-warning mt-0.5 shrink-0" />
+                <p className="text-[9px] sm:text-[10px] font-bold text-warning uppercase tracking-widest leading-relaxed">
+                  Core profile fields are locked by Central Registry. Contact administrative headquarters for protocol overrides.
+                </p>
+              </div>
+              <button 
+                onClick={() => {
+                  setActiveTab('security');
+                  setMobileTab('security');
+                }}
+                className="bg-primary text-white px-6 py-4 rounded-xl flex items-center justify-center space-x-3 text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/10"
+              >
+                <Shield size={16} />
+                <span>Security Settings</span>
+              </button>
             </div>
-            <button 
-              onClick={() => {
-                setActiveTab('security');
-                setMobileTab('security');
-              }}
-              className="bg-primary text-white px-6 py-4 rounded-xl flex items-center justify-center space-x-3 text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/10"
-            >
-              <Shield size={16} />
-              <span>Security Settings</span>
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -1085,14 +1119,56 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
       </div>
 
       {/* Verified Location Badge */}
-      <div className="mt-1 flex items-center justify-between bg-emerald-50 px-5 py-2 rounded-2xl border border-emerald-100 shrink-0">
-        <div className="flex items-center space-x-2">
-          <Shield size={14} className="text-emerald-600" />
-          <span className="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest">
-            {activeSession ? "Site Verified" : "Verification Required"}
-          </span>
+      <div className="mt-1 flex flex-col gap-2 shrink-0">
+        <div className="flex items-center justify-between bg-emerald-50 px-5 py-2 rounded-2xl border border-emerald-100">
+          <div 
+            onClick={async () => {
+              try {
+                setLoadingMessage('Waking GPS...');
+                setIsLoading(true);
+                await new Promise((resolve, reject) => {
+                  navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, maximumAge: 0 });
+                });
+                alert("LOCATION STATUS: Operational.\n\nYour device has successfully acquired a GPS lock.");
+                setLocationError(null);
+              } catch (e: any) {
+                const hint = e.code === 1 ? "Permission Denied. Check phone settings." : "Signal weak or GPS disabled.";
+                alert(`Diagnostic Result: ${hint}`);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+            className="flex items-center space-x-2 cursor-pointer active:opacity-60 transition-opacity"
+          >
+            <Shield size={14} className="text-emerald-600" />
+            <span className="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest">
+              {activeSession ? "Site Verified" : "Verification Required"}
+            </span>
+          </div>
+          <span className="text-[9px] font-black text-emerald-800 uppercase">{(activeSession?.campusName || employee.campus).split(' ')[0]}</span>
         </div>
-        <span className="text-[9px] font-black text-emerald-800 uppercase">{(activeSession?.campusName || employee.campus).split(' ')[0]}</span>
+
+        {locationError && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 p-3 rounded-2xl border border-red-100 space-y-2"
+          >
+            <div className="flex items-start space-x-2">
+              <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-[9px] font-black text-red-600 uppercase tracking-wider">Location Error Detected</p>
+                <p className="text-[8px] text-red-700 leading-tight mt-1 font-medium">{locationError.hint}</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setLocationError(null)}
+              className="w-full py-1.5 bg-red-100 text-red-700 text-[8px] font-black uppercase rounded-lg hover:bg-red-200 transition-colors"
+            >
+              Dismiss Helper
+            </button>
+          </motion.div>
+        )}
       </div>
     </div>
     );
