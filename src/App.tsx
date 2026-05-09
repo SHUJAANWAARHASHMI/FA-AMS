@@ -437,7 +437,7 @@ export default function App() {
         {/* Dynamic Content */}
         <div className={cn(
           "flex-1 custom-scrollbar scrollbar-hide",
-          isEmployeePortal ? "p-0 overflow-hidden sm:overflow-y-auto" : "p-4 sm:p-10 overflow-y-auto"
+          (isEmployeePortal || activeTab === 'dashboard') ? "p-0 overflow-hidden sm:overflow-y-auto" : "p-4 sm:p-10 overflow-y-auto"
         )}>
           {renderContent()}
         </div>
