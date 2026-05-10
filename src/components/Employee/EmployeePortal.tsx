@@ -2,6 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Employee, AttendanceRecord, AttendanceStatus, LeaveRequest, SystemSettings } from '../../types';
+import { calculateLateHours, calculateOvertime, cn, getLocalDate, calculateAttendanceHours, calculateAttendanceMs, formatTimeDisplay } from '../../lib/utils';
+import { formatTo12h } from '../../lib/timeUtils';
 import { 
   Clock, 
   Calendar, 
@@ -24,7 +26,6 @@ import {
   Cloud,
   CloudOff
 } from 'lucide-react';
-import { calculateLateHours, calculateOvertime, cn, getLocalDate, calculateAttendanceHours, calculateAttendanceMs, formatTimeDisplay } from '../../lib/utils';
 
 interface EmployeePortalProps {
   employee: Employee;
@@ -611,11 +612,11 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-accent/30 p-2 border border-border rounded-lg">
               <span className="mini-label">In</span>
-              <p className="text-xs sm:text-sm font-bold text-primary">{todayAttendance?.timeIn || '--:--'}</p>
+              <p className="text-xs sm:text-sm font-bold text-primary">{formatTo12h(todayAttendance?.timeIn) || '--:--'}</p>
             </div>
             <div className="bg-accent/30 p-2 border border-border rounded-lg">
               <span className="mini-label">Out</span>
-              <p className="text-xs sm:text-sm font-bold text-primary">{todayAttendance?.timeOut || '--:--'}</p>
+              <p className="text-xs sm:text-sm font-bold text-primary">{formatTo12h(todayAttendance?.timeOut) || '--:--'}</p>
             </div>
           </div>
 
@@ -672,8 +673,8 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="flex justify-between text-text-dark"><span>IN:</span><span className="font-extrabold">{session.checkIn}</span></div>
-                    <div className="flex justify-between text-text-dark"><span>OUT:</span><span className="font-extrabold">{session.checkOut || 'PENDING'}</span></div>
+                    <div className="flex justify-between text-text-dark"><span>IN:</span><span className="font-extrabold">{formatTo12h(session.checkIn)}</span></div>
+                    <div className="flex justify-between text-text-dark"><span>OUT:</span><span className="font-extrabold">{formatTo12h(session.checkOut) || 'PENDING'}</span></div>
                     {session.campusName && (
                       <div className="flex justify-between text-text-dark mt-1 pt-1 border-t border-border/50 italic opacity-80">
                         <span>SITE:</span><span className="font-extrabold">{session.campusName}</span>
@@ -872,7 +873,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
             <ProfileInfo label="Role" value={(employee?.designation || 'N/A').toUpperCase()} />
             <ProfileInfo label="Dept" value={(employee?.department || 'N/A').toUpperCase()} />
             <ProfileInfo label="Campus" value={(employee?.campus || 'N/A').toUpperCase()} />
-            <ProfileInfo label="Shift" value={`${employee.shiftStart} - ${employee.shiftEnd}`} />
+            <ProfileInfo label="Shift" value={`${formatTo12h(employee.shiftStart)} - ${formatTo12h(employee.shiftEnd)}`} />
             <ProfileInfo label="User ID" value={employee.username} />
             <ProfileInfo label="Security" value="SECURE ACCESS" />
           </div>
@@ -1018,7 +1019,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
           <div>
             <h2 className="text-base font-extrabold text-primary tracking-tight leading-none">Salam, {employee.name}</h2>
             <div className="flex items-center space-x-2 mt-0.5">
-              <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest opacity-70 italic">Shift: {employee.shiftStart} - {employee.shiftEnd}</p>
+              <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest opacity-70 italic">Shift: {formatTo12h(employee.shiftStart)} - {formatTo12h(employee.shiftEnd)}</p>
             </div>
           </div>
         </div>

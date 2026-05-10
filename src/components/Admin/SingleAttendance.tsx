@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Employee, User, AttendanceStatus, AttendanceRecord } from '../../types';
 import { UserCheck, Search, Calendar, Clock, Save, History, Building2 } from 'lucide-react';
 import { calculateLateHours, calculateOvertime, cn, getLocalDate } from '../../lib/utils';
+import { formatTo12h } from '../../lib/timeUtils';
 
 interface SingleAttendanceProps {
   employees: Employee[];
@@ -147,7 +148,7 @@ export const SingleAttendance: React.FC<SingleAttendanceProps> = ({ employees, u
               <div className="text-right">
                 <span className="text-[9px] font-black text-bento-ink opacity-30 uppercase tracking-[0.2em] block mb-2">Protocol Shift</span>
                 <span className="px-3 py-1.5 bg-bento-ink text-white font-mono text-[10px] font-bold tracking-tight border border-bento-accent">
-                  {selectedEmployee.shiftStart} - {selectedEmployee.shiftEnd}
+                  {formatTo12h(selectedEmployee.shiftStart)} - {formatTo12h(selectedEmployee.shiftEnd)}
                 </span>
               </div>
             </div>
@@ -247,7 +248,7 @@ export const SingleAttendance: React.FC<SingleAttendanceProps> = ({ employees, u
                       </span>
                     </td>
                     <td className="px-8 py-4 font-bold opacity-60">
-                      <div>{att.timeIn} - {att.timeOut}</div>
+                      <div>{formatTo12h(att.timeIn)} - {formatTo12h(att.timeOut)}</div>
                       {att.sessions && att.sessions.map((s, idx) => s.location && (
                         <div key={idx} className="text-[7px] text-bento-accent mt-1 opacity-80 uppercase tracking-tighter">
                           Session {idx+1}: {s.campusName || 'OFF-CAMPUS'} ({s.location.lat.toFixed(4)}, {s.location.lng.toFixed(4)})

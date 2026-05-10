@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { Employee, User } from '../../types';
 import { cn, getLocalDate } from '../../lib/utils';
+import { formatTo12h } from '../../lib/timeUtils';
 import { 
   Users, 
   UserCheck, 
@@ -503,7 +504,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
                             <div className="text-[6px] font-bold text-text-gray/50 uppercase tracking-tighter">{act.campus}</div>
                           </div>
                        </div>
-                       <div className="text-[9px] font-black text-primary bg-accent/50 px-2 py-1 rounded-lg">{act.time}</div>
+                       <div className="text-[9px] font-black text-primary bg-accent/50 px-2 py-1 rounded-lg">{formatTo12h(act.time)}</div>
                     </div>
                   ))
                 )}
@@ -605,7 +606,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
                         </div>
                         <div className="text-right">
                            <div className={cn("text-xs font-black uppercase", att ? (att.status === 'Late' ? 'text-warning' : 'text-emerald-600') : 'text-error')}>
-                             {att ? att.timeIn : 'Absent'}
+                             {att ? formatTo12h(att.timeIn) : 'Absent'}
                            </div>
                            <div className="text-[8px] font-bold text-text-gray uppercase opacity-40">{att?.status || 'No Log'}</div>
                         </div>

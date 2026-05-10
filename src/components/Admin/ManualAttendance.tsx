@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Employee, User, AttendanceStatus, AttendanceRecord } from '../../types';
 import { Save, Search, Download, Calendar as CalendarIcon, Clock, Filter, CheckCircle2 } from 'lucide-react';
 import { calculateLateHours, calculateOvertime, cn, getLocalDate } from '../../lib/utils';
+import { formatTo12h } from '../../lib/timeUtils';
 
 interface ManualAttendanceProps {
   employees: Employee[];
@@ -224,7 +225,7 @@ export const ManualAttendance: React.FC<ManualAttendanceProps> = ({ employees, u
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-[9px] font-bold opacity-60">
-                          {emp.shiftStart} - {emp.shiftEnd}
+                          {formatTo12h(emp.shiftStart)} - {formatTo12h(emp.shiftEnd)}
                         </div>
                       </td>
                       <td className="px-6 py-4">

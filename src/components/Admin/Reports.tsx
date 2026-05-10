@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Employee, User, AttendanceRecord } from '../../types';
 import { FileText, Download, Printer, Filter, Calendar, Users, Building2, ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { formatTo12h } from '../../lib/timeUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -56,7 +57,8 @@ export const Reports: React.FC<ReportsProps> = ({ employees, user }) => {
     
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Generated on: ${now.toLocaleString()}`, 105, 29, { align: 'center' });
+    const timestampStr = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+    doc.text(`Generated on: ${timestampStr}`, 105, 29, { align: 'center' });
     doc.text(`Period: ${fromDate} to ${toDate}`, 105, 34, { align: 'center' });
     doc.text(`Campus: ${targetCampus === 'all' ? 'All Campuses' : targetCampus}`, 105, 39, { align: 'center' });
 

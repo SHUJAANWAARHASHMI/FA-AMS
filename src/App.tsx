@@ -38,9 +38,10 @@ import { LeaveManagement } from './components/Admin/LeaveManagement';
 import { Reports } from './components/Admin/Reports';
 import { BackupRestore } from './components/Admin/BackupRestore';
 import { AdminControls } from './components/Admin/AdminControls';
+import { EmployeePerformance } from './components/Admin/EmployeePerformance';
 import { EmployeePortal } from './components/Employee/EmployeePortal';
 
-type Tab = 'dashboard' | 'manual-attendance' | 'single-attendance' | 'employee-management' | 'leave-management' | 'reports' | 'backup-restore' | 'admin-controls';
+type Tab = 'dashboard' | 'manual-attendance' | 'single-attendance' | 'employee-management' | 'leave-management' | 'reports' | 'backup-restore' | 'admin-controls' | 'performance-explorer';
 
 const NavItem = ({ tab, icon: Icon, label, roles, userRole, activeTab, setActiveTab, isSidebarOpen, restrictedForMainMudeer, isMainMudeer, onSelect }: { tab: Tab, icon: any, label: string, roles: UserRole[], userRole: string, activeTab: Tab, setActiveTab: (t: Tab) => void, isSidebarOpen: boolean, restrictedForMainMudeer?: boolean, isMainMudeer?: boolean, onSelect?: () => void }) => {
   if (!roles.includes(userRole as any)) return null;
@@ -70,6 +71,7 @@ const MainMudeerNav = ({ activeTab, setActiveTab }: { activeTab: Tab, setActiveT
   const options: { label: string, tab: Tab, icon: any }[] = [
     { label: 'Dashboard', tab: 'dashboard', icon: LayoutDashboard },
     { label: 'Employees', tab: 'employee-management', icon: Users },
+    { label: 'Performance', tab: 'performance-explorer', icon: Search },
     { label: 'Leaves', tab: 'leave-management', icon: Briefcase },
     { label: 'Reports', tab: 'reports', icon: FileText },
   ];
@@ -296,6 +298,8 @@ export default function App() {
         return <LeaveManagement employees={employees} user={adminUser} onUpdateEmployees={updateEmployees} />;
       case 'reports':
         return <Reports employees={employees} user={adminUser} />;
+      case 'performance-explorer':
+        return <EmployeePerformance employees={employees} />;
       case 'backup-restore':
         return <BackupRestore 
           employees={employees} 
@@ -342,6 +346,7 @@ export default function App() {
 
           <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2 scrollbar-hide sm:custom-scrollbar">
             <NavItem tab="dashboard" icon={LayoutDashboard} label="Dashboard" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
+            <NavItem tab="performance-explorer" icon={Search} label="Performance" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
             <NavItem tab="manual-attendance" icon={CalendarCheck} label="Manual Entry" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
             <NavItem tab="single-attendance" icon={UserCheck} label="Quick Check" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
             <div className="my-6 border-t border-white/10 mx-2"></div>
@@ -445,7 +450,7 @@ export default function App() {
                   )} />
                 </button>
                 <span className="text-[7px] font-black uppercase text-text-gray/50 mt-1 mr-1">
-                  Synced: {lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  Synced: {lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
                 </span>
               </div>
 
