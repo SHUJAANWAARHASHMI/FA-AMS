@@ -42,13 +42,16 @@ import { EmployeePortal } from './components/Employee/EmployeePortal';
 
 type Tab = 'dashboard' | 'manual-attendance' | 'single-attendance' | 'employee-management' | 'leave-management' | 'reports' | 'backup-restore' | 'admin-controls';
 
-const NavItem = ({ tab, icon: Icon, label, roles, userRole, activeTab, setActiveTab, isSidebarOpen, restrictedForMainMudeer, isMainMudeer }: { tab: Tab, icon: any, label: string, roles: UserRole[], userRole: string, activeTab: Tab, setActiveTab: (t: Tab) => void, isSidebarOpen: boolean, restrictedForMainMudeer?: boolean, isMainMudeer?: boolean }) => {
+const NavItem = ({ tab, icon: Icon, label, roles, userRole, activeTab, setActiveTab, isSidebarOpen, restrictedForMainMudeer, isMainMudeer, onSelect }: { tab: Tab, icon: any, label: string, roles: UserRole[], userRole: string, activeTab: Tab, setActiveTab: (t: Tab) => void, isSidebarOpen: boolean, restrictedForMainMudeer?: boolean, isMainMudeer?: boolean, onSelect?: () => void }) => {
   if (!roles.includes(userRole as any)) return null;
   if (isMainMudeer && restrictedForMainMudeer) return null;
   
   return (
     <button
-      onClick={() => setActiveTab(tab)}
+      onClick={() => {
+        setActiveTab(tab);
+        if (onSelect) onSelect();
+      }}
       className={cn(
         "flex items-center space-x-3 w-full px-4 py-3 transition-all duration-200 text-sm font-medium rounded-xl",
         activeTab === tab 
@@ -59,6 +62,68 @@ const NavItem = ({ tab, icon: Icon, label, roles, userRole, activeTab, setActive
       <Icon size={20} />
       {isSidebarOpen && <span>{label}</span>}
     </button>
+  );
+};
+
+const MainMudeerNav = ({ activeTab, setActiveTab }: { activeTab: Tab, setActiveTab: (t: Tab) => void }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const options: { label: string, tab: Tab, icon: any }[] = [
+    { label: 'Dashboard', tab: 'dashboard', icon: LayoutDashboard },
+    { label: 'Employees', tab: 'employee-management', icon: Users },
+    { label: 'Leaves', tab: 'leave-management', icon: Briefcase },
+    { label: 'Reports', tab: 'reports', icon: FileText },
+  ];
+
+  const activeOption = options.find(o => o.tab === activeTab) || options[0];
+
+  return (
+    <div className="relative">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center space-x-3 bg-white border border-border h-12 px-5 rounded-2xl hover:bg-bg transition-all text-primary font-black uppercase text-[10px] tracking-widest shadow-sm active:scale-95"
+      >
+        <activeOption.icon size={16} className="text-secondary" />
+        <span className="hidden sm:inline">{activeOption.label}</span>
+        <ChevronDown size={14} className={cn("transition-transform duration-300 ml-1 opacity-50", isOpen && "rotate-180")} />
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+            <motion.div 
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              className="absolute left-0 mt-3 w-64 bg-white border border-border shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[24px] z-50 overflow-hidden"
+            >
+              <div className="p-3 bg-bg/50 border-b border-border">
+                <span className="text-[8px] font-black text-text-gray uppercase tracking-[0.2em] px-2">Navigation Core</span>
+              </div>
+              <div className="p-2 space-y-1">
+                {options.map((opt) => (
+                  <button
+                    key={opt.tab}
+                    onClick={() => {
+                      setActiveTab(opt.tab);
+                      setIsOpen(false);
+                    }}
+                    className={cn(
+                      "flex items-center space-x-3 w-full px-4 py-3.5 text-left transition-all rounded-xl group",
+                      activeTab === opt.tab 
+                        ? "bg-primary text-white shadow-lg shadow-primary/20" 
+                        : "text-text-gray hover:bg-bg hover:text-primary"
+                    )}
+                  >
+                    <opt.icon size={18} className={cn(activeTab !== opt.tab && "text-secondary")} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 
@@ -249,7 +314,7 @@ export default function App() {
   return (
     <div className="flex flex-col sm:flex-row h-screen bg-bento-bg overflow-hidden font-jakarta">
       {/* Sidebar */}
-      {!isEmployeePortal && (
+      {!isEmployeePortal && !isMainMudeer && (
         <aside 
           className={cn(
             "bg-primary text-white transition-all duration-300 flex flex-col z-[60] border-r border-border absolute sm:relative h-full",
@@ -276,15 +341,15 @@ export default function App() {
           </div>
 
           <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2 scrollbar-hide sm:custom-scrollbar">
-            <NavItem tab="dashboard" icon={LayoutDashboard} label="Dashboard" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} />
-            <NavItem tab="manual-attendance" icon={CalendarCheck} label="Manual Entry" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer />
-            <NavItem tab="single-attendance" icon={UserCheck} label="Quick Check" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer />
+            <NavItem tab="dashboard" icon={LayoutDashboard} label="Dashboard" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
+            <NavItem tab="manual-attendance" icon={CalendarCheck} label="Manual Entry" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
+            <NavItem tab="single-attendance" icon={UserCheck} label="Quick Check" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
             <div className="my-6 border-t border-white/10 mx-2"></div>
-            <NavItem tab="employee-management" icon={Users} label="Employees" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} />
-            <NavItem tab="leave-management" icon={Briefcase} label="Leaves" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} />
-            <NavItem tab="reports" icon={FileText} label="Reports" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} />
-            <NavItem tab="backup-restore" icon={Database} label="System Data" roles={['admin']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer />
-            <NavItem tab="admin-controls" icon={ShieldCheck} label="Access Control" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer />
+            <NavItem tab="employee-management" icon={Users} label="Employees" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
+            <NavItem tab="leave-management" icon={Briefcase} label="Leaves" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
+            <NavItem tab="reports" icon={FileText} label="Reports" roles={['admin', 'mudeer', 'user']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
+            <NavItem tab="backup-restore" icon={Database} label="System Data" roles={['admin']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
+            <NavItem tab="admin-controls" icon={ShieldCheck} label="Access Control" roles={['admin', 'mudeer']} userRole={userRole} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} isMainMudeer={isMainMudeer} restrictedForMainMudeer onSelect={() => window.innerWidth < 640 && setIsSidebarOpen(false)} />
           </nav>
 
           <div className="p-4 border-t border-white/10">
@@ -310,12 +375,21 @@ export default function App() {
           isEmployeePortal ? "h-14 sm:h-24" : "h-20 sm:h-24"
         )}>
           <div className="flex items-center space-x-3 sm:space-x-8">
-             <button 
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 hover:bg-bg rounded-lg transition-colors text-text-gray"
-              >
-                {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-              </button>
+             {!isMainMudeer ? (
+               <button 
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="p-2 hover:bg-bg rounded-lg transition-colors text-text-gray"
+                >
+                  {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+             ) : (
+                <div className="flex items-center space-x-4">
+                   <div className="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center font-bold shadow-lg">
+                      <ShieldCheck size={24} />
+                   </div>
+                   <MainMudeerNav activeTab={activeTab} setActiveTab={setActiveTab} />
+                </div>
+             )}
               
               <div className="min-w-0">
                 <h2 className="text-xs sm:text-2xl font-extrabold text-primary tracking-tight truncate">
