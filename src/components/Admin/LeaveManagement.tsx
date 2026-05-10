@@ -27,9 +27,11 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
   const isManagement = user.role === 'admin' || (user.role === 'mudeer' && user.campus === 'Main Campus');
   const [searchTerm, setSearchTerm] = useState('');
   const [campusFilter, setCampusFilter] = useState(isManagement ? 'all' : user.campus);
+  const [rejectionModal, setRejectionModal] = useState<{empId: string, reqId: string} | null>(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('');
 
   const handleSyncPolicy = () => {
-    if (confirm('Strategic Action: This will synchronize ALL employees to the new Leave Policy (14 Annual, 7 Casual, 7 Medical). This preserves their "Used" balance but resets их "Total" limits. Proceed?')) {
+    if (confirm('Strategic Action: This will synchronize ALL employees to the new Leave Policy (14 Annual, 7 Casual, 7 Medical). This preserves their "Used" balance but resets their "Total" limits. Proceed?')) {
       const updated = employees.map(emp => ({
         ...emp,
         leaves: {
@@ -49,7 +51,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
       .map(req => ({ ...req, employeeId: emp.id, employeeName: emp.name, campus: emp?.campus || 'Main Campus' }))
   ).filter(req => campusFilter === 'all' || req.campus === campusFilter);
 
-  const handleUpdateStatus = (employeeId: string, requestId: string, newStatus: 'Approved' | 'Rejected') => {
+  const handleUpdateStatus = (employeeId: string, requestId: string, newStatus: 'Approved' | 'Rejected', reason?: string) => {
     const updatedEmployees = employees.map(emp => {
       if (emp.id === employeeId) {
         const updatedRequests = emp.leaveRequests.map(req => {
@@ -85,7 +87,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
                 }
               }
             }
-            return { ...req, status: newStatus };
+            return { ...req, status: newStatus, rejectionReason: reason };
           }
           return req;
         });
@@ -94,6 +96,8 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
       return emp;
     });
     onUpdateEmployees(updatedEmployees);
+    setRejectionModal(null);
+    setRejectionReasonInput('');
   };
 
   const filteredEmployeesForBalances = employees.filter(emp => {
@@ -104,6 +108,42 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
 
   return (
     <div className="space-y-8 sm:space-y-12 animate-in fade-in duration-500 max-w-full overflow-hidden">
+      {/* Rejection Modal */}
+      {rejectionModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white bento-box max-w-md w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <h4 className="font-serif italic text-xl mb-4 flex items-center gap-3">
+              <AlertCircle size={24} className="text-red-500" />
+              Specify Rejection Reason
+            </h4>
+            <p className="text-[10px] font-black uppercase text-bento-ink/40 tracking-widest mb-4">
+              Enter the reason or a question for the staff member.
+            </p>
+            <textarea 
+              value={rejectionReasonInput}
+              onChange={(e) => setRejectionReasonInput(e.target.value)}
+              placeholder="e.g. Can you move this to next week?"
+              className="w-full h-32 p-4 border border-bento-line text-xs font-mono bg-bento-bg/10 focus:ring-1 focus:ring-bento-ink focus:outline-hidden"
+            />
+            <div className="flex gap-4 mt-6">
+              <button 
+                onClick={() => setRejectionModal(null)}
+                className="flex-1 py-3 border border-bento-line text-[10px] font-black uppercase tracking-widest hover:bg-bento-bg/30"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handleUpdateStatus(rejectionModal.empId, rejectionModal.reqId, 'Rejected', rejectionReasonInput)}
+                className="flex-1 py-3 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
+                disabled={!rejectionReasonInput.trim()}
+              >
+                Reject Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pending Requests */}
       <div className="bento-box overflow-hidden p-0 rounded-none">
         <div className="p-4 sm:p-8 border-b border-bento-bg bg-bento-bg/10 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -169,6 +209,12 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
                       </td>
                       <td className="px-4 sm:px-8 py-6 max-w-[150px] sm:max-w-xs">
                         <p className="text-[10px] font-medium text-bento-ink opacity-60 italic leading-relaxed line-clamp-2">"{req.reason}"</p>
+                        {req.staffResponse && (
+                          <div className="mt-2 p-2 bg-bento-bg/20 border-l-2 border-bento-accent rounded-r-md">
+                            <span className="text-[7px] font-black uppercase text-bento-ink/40 tracking-widest block mb-1">Staff Observation</span>
+                            <p className="text-[9px] font-bold text-bento-ink italic">"{req.staffResponse}"</p>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 sm:px-8 py-6 text-right">
                         <div className="flex items-center justify-end space-x-2">
@@ -180,7 +226,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ employees, use
                             <CheckCircle2 size={16} />
                           </button>
                           <button 
-                            onClick={() => handleUpdateStatus(req.employeeId, req.id, 'Rejected')}
+                            onClick={() => setRejectionModal({empId: req.employeeId, reqId: req.id})}
                             className="p-2 border border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-all active:scale-90 h-[36px] w-[36px] flex items-center justify-center"
                             title="Deny"
                           >

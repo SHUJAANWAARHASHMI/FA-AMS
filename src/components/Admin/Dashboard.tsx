@@ -113,7 +113,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
 
   // Filtering Logic
   const currentEmployees = useMemo(() => {
-    if (selectedView === 'Summary') return employees;
+    if (selectedView === 'Summary' || selectedView === 'Leave Registry') return employees;
     return employees.filter(e => e.campus === selectedView);
   }, [employees, selectedView]);
 
@@ -387,7 +387,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
           
           {/* Leave Queue - Compact with trigger */}
           <button 
-            onClick={() => setSelectedView('Leave Registry')}
+            onClick={() => setActiveTab ? setActiveTab('leave-management' as any) : setSelectedView('Leave Registry')}
             className="bg-white p-3 rounded-3xl border border-border h-[180px] flex flex-col text-left active:scale-[0.98] transition-all group"
           >
             <div className="flex items-center justify-between mb-3">
@@ -401,7 +401,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
                 <div className="h-full bg-secondary rounded-full" style={{ width: `${Math.min(100, pendingLeaves.length * 10)}%` }} />
               </div>
             </div>
-            <p className="text-[6px] font-black text-secondary uppercase tracking-widest mt-3 text-center">OPEN REGISTRY</p>
+            <p className="text-[6px] font-black text-secondary uppercase tracking-widest mt-3 text-center">MANAGE ALL</p>
           </button>
         </div>
 

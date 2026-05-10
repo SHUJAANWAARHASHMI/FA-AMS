@@ -373,6 +373,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
     to: today,
     reason: ''
   });
+  const [responseInputs, setResponseInputs] = useState<Record<string, string>>({});
 
   const handleApplyLeave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -392,6 +393,35 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
       setLeaveForm({ type: 'Annual', from: today, to: today, reason: '' });
     } catch (err) {
       console.error('Leave Request Sync Error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStaffResponse = async (requestId: string) => {
+    const response = responseInputs[requestId];
+    if (!response?.trim()) return;
+
+    setIsLoading(true);
+    const updatedEmployees = allEmployees.map(emp => {
+      if (emp.id === employee.id) {
+        const updatedRequests = emp.leaveRequests.map(req => 
+          req.id === requestId ? { ...req, staffResponse: response } : req
+        );
+        return { ...emp, leaveRequests: updatedRequests };
+      }
+      return emp;
+    });
+    
+    try {
+      await onUpdateEmployees(updatedEmployees);
+      setResponseInputs(prev => {
+        const next = { ...prev };
+        delete next[requestId];
+        return next;
+      });
+    } catch (err) {
+      console.error('Staff response sync error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -803,22 +833,64 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
 
           <div className="border-t border-border pt-4 sm:pt-0 sm:border-t-0 sm:border-l sm:pl-10">
             <h3 className="mini-label mb-3 sm:mb-6 text-[8px] sm:text-[10px]">Audit Registry</h3>
-            <div className="space-y-2 sm:space-y-3 max-h-[150px] sm:max-h-[350px] overflow-y-auto pr-2">
+            <div className="space-y-4 max-h-[150px] sm:max-h-[450px] overflow-y-auto pr-2">
               {employee.leaveRequests.length === 0 ? (
                 <div className="py-10 sm:py-20 text-center opacity-20"><p className="text-[8px] sm:text-[10px] font-extrabold italic uppercase">NO ENTRIES FOUND</p></div>
               ) : (
-                employee.leaveRequests.map((req, i) => (
-                  <div key={i} className="p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-border flex justify-between items-center bg-accent/10 hover:bg-accent/20 transition-all shadow-sm">
-                    <div>
-                      <p className="text-[10px] sm:text-xs font-extrabold uppercase text-primary tracking-tight">{req.type}</p>
-                      <p className="text-[8px] sm:text-[10px] text-text-gray font-bold mt-0.5 sm:mt-1 uppercase">{req.from} - {req.to}</p>
+                [...employee.leaveRequests].reverse().map((req, i) => (
+                  <div key={req.id} className="p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-accent/5 hover:bg-accent/10 transition-all shadow-sm space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-[10px] sm:text-xs font-black uppercase text-primary tracking-tight">{req.type} Leave Protocol</p>
+                        <p className="text-[8px] sm:text-[10px] text-text-gray font-bold mt-1 uppercase tracking-widest">{req.from} <span className="mx-1 text-[8px] opacity-20">TO</span> {req.to}</p>
+                      </div>
+                      <span className={cn(
+                        "text-[8px] sm:text-[10px] font-black px-3 py-1 rounded-full border uppercase tracking-widest",
+                        req.status === 'Pending' ? "bg-orange-50 text-orange-600 border-orange-100" : 
+                        req.status === 'Rejected' ? "bg-red-50 text-red-600 border-red-100" :
+                        "bg-emerald-50 text-emerald-600 border-emerald-100"
+                      )}>{req.status}</span>
                     </div>
-                    <span className={cn(
-                      "text-[8px] sm:text-[10px] font-extrabold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border",
-                      req.status === 'Pending' ? "bg-orange-50 text-orange-600 border-orange-100" : 
-                      req.status === 'Rejected' ? "bg-red-50 text-red-600 border-red-100" :
-                      "bg-emerald-50 text-emerald-600 border-emerald-100"
-                    )}>{req.status.toUpperCase()}</span>
+
+                    {/* Manager's Rejection Reason / Question */}
+                    {req.rejectionReason && (
+                      <div className="bg-red-50/50 p-3 rounded-xl border border-red-100/50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertCircle size={12} className="text-red-500" />
+                          <span className="text-[8px] font-black text-red-600 uppercase tracking-widest">Management Inquiry / Reason</span>
+                        </div>
+                        <p className="text-[10px] font-bold text-red-700 italic">"{req.rejectionReason}"</p>
+                        
+                        {/* Response Form */}
+                        {!req.staffResponse ? (
+                          <div className="mt-3 space-y-2">
+                            <textarea 
+                              placeholder="Submit your answer here..."
+                              className="w-full p-2 bg-white border border-red-100 text-[10px] font-bold uppercase rounded-lg outline-none focus:ring-2 focus:ring-red-200 resize-none h-16"
+                              value={responseInputs[req.id] || ''}
+                              onChange={(e) => setResponseInputs(prev => ({ ...prev, [req.id]: e.target.value }))}
+                            />
+                            <button 
+                              onClick={() => handleStaffResponse(req.id)}
+                              disabled={!responseInputs[req.id]?.trim()}
+                              className="w-full py-2 bg-red-600 text-white text-[8px] font-black uppercase rounded-lg hover:bg-black transition-all disabled:opacity-30"
+                            >
+                              Send Response
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="mt-3 bg-white p-3 rounded-xl border border-red-100">
+                             <span className="text-[8px] font-black text-primary uppercase tracking-widest mb-1 block">Your Protocol Response</span>
+                             <p className="text-[10px] font-bold text-primary italic">"{req.staffResponse}"</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-border/50">
+                      <p className="text-[8px] font-black text-text-gray uppercase tracking-widest mb-1">Your Submission context</p>
+                      <p className="text-[9px] font-medium text-primary/60 italic leading-snug">"{req.reason}"</p>
+                    </div>
                   </div>
                 ))
               )}

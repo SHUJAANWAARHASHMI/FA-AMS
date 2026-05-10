@@ -35,6 +35,8 @@ export interface LeaveRequest {
   to: string;
   reason: string;
   status: 'Pending' | 'Approved' | 'Rejected';
+  rejectionReason?: string;
+  staffResponse?: string;
 }
 
 export interface LeaveBalance {
