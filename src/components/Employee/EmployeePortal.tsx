@@ -1215,12 +1215,6 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
                 </div>
               </div>
             </div>
-            <button 
-              onClick={onLogout}
-              className="w-10 h-10 flex items-center justify-center text-white bg-error shadow-lg shadow-error/20 rounded-xl active:scale-95 transition-all"
-            >
-              <LogOut size={18} />
-            </button>
           </div>
         </div>
 
