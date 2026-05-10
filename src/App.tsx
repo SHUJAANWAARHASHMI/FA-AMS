@@ -256,6 +256,7 @@ export default function App() {
     lastSynced,
     triggerManualSync,
     rebuildCloud,
+    resetAllData,
     notifications,
     dismissNotification
   } = usePersistence();
@@ -317,6 +318,7 @@ export default function App() {
           onUpdateEmployees={updateEmployees} 
           onUpdateUsers={updateUsers} 
           onRebuildCloud={rebuildCloud}
+          onResetAllData={resetAllData}
         />;
       case 'admin-controls':
         return <AdminControls users={users} user={adminUser} settings={systemSettings} onUpdateUsers={updateUsers} onUpdateSettings={updateSystemSettings} />;

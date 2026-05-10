@@ -619,6 +619,39 @@ export function usePersistence() {
     }
   };
 
+  const resetAllData = async () => {
+    setIsSyncing(true);
+    try {
+      console.log('[Maintenance] Triggering Full Data Reset...');
+      
+      // 1. Wipe cloud data
+      await supabaseService.resetTransactions();
+      
+      // 2. Clear local data
+      const resetEmployees = employees.map(emp => ({
+        ...emp,
+        attendance: [],
+        leaveRequests: [],
+        leaves: {
+          annual: { total: 14, used: 0 },
+          casual: { total: 7, used: 0 },
+          medical: { total: 7, used: 0 }
+        }
+      }));
+      
+      setEmployees(resetEmployees);
+      addNotification('Data Reset Complete', 'All attendance and leave records have been purged from the system.', 'success');
+      
+      return true;
+    } catch (err) {
+      console.error('Reset failed:', err);
+      addNotification('Reset Failed', 'Technical error during database purge. Please try again.', 'error');
+      throw err;
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return {
     employees,
     users,
@@ -636,7 +669,8 @@ export function usePersistence() {
     setCurrentUser,
     triggerManualSync,
     rebuildCloud,
+    resetAllData,
     notifications,
     dismissNotification
   };
-}
+};

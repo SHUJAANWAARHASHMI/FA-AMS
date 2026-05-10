@@ -129,7 +129,7 @@ export const EmployeePerformance: React.FC<EmployeePerformanceProps> = ({ employ
                   <>
                     {/* Leave Balance Summary Header */}
                     <div className="grid grid-cols-3 gap-2 mb-4">
-                      {Object.entries(performanceData?.leaveStats || {}).map(([key, stats]) => (
+                      {Object.entries(performanceData?.leaveStats || {}).map(([key, stats]: [string, any]) => (
                         <div key={key} className="bg-bg p-3 rounded-2xl border border-border/50 text-center">
                           <div className="text-[8px] font-black text-text-gray uppercase mb-1">
                             {key === 'an' ? 'Annual' : key === 'cs' ? 'Casual' : 'Medical'}

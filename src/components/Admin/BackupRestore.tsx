@@ -11,6 +11,7 @@ interface BackupRestoreProps {
   onUpdateEmployees: (employees: Employee[]) => void;
   onUpdateUsers: (users: User[]) => void;
   onRebuildCloud: () => Promise<void>;
+  onResetAllData: () => Promise<void>;
 }
 
 export const BackupRestore: React.FC<BackupRestoreProps> = ({ 
@@ -18,7 +19,8 @@ export const BackupRestore: React.FC<BackupRestoreProps> = ({
   users, 
   onUpdateEmployees, 
   onUpdateUsers,
-  onRebuildCloud 
+  onRebuildCloud,
+  onResetAllData
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [targetMonth, setTargetMonth] = React.useState(new Date().toISOString().slice(0, 7));
@@ -79,6 +81,7 @@ export const BackupRestore: React.FC<BackupRestoreProps> = ({
   };
   
   const [isRebuilding, setIsRebuilding] = React.useState(false);
+  const [isResetting, setIsResetting] = React.useState(false);
 
   const handleRebuildCloud = async () => {
     if (confirm(`CRITICAL ACTION: This will overwrite your cloud database with the default system data (67 employees). All current unsynced local changes will be replaced. Proceed?`)) {
@@ -92,6 +95,24 @@ export const BackupRestore: React.FC<BackupRestoreProps> = ({
         console.error(err);
       } finally {
         setIsRebuilding(false);
+      }
+    }
+  };
+
+  const handleFullReset = async () => {
+    if (confirm(`ULTIMATE WARNING: This will PERMANENTLY DELETE all attendance logs, leave requests, and performance metrics for EVERY employee across ALL campuses. Staff profiles will remain, but their history will be WIPED. Do you want to proceed?`)) {
+      if (confirm(`FINAL VERIFICATION: Type "RESET" to confirm this terminal action.`)) {
+        setIsResetting(true);
+        try {
+          await onResetAllData();
+          alert('SYSTEM PURGE COMPLETE: All transactional data has been destroyed. The system is now back to a fresh state.');
+          window.location.reload();
+        } catch (err) {
+          alert('ERROR: Reset protocol failed. Please check connectivity.');
+          console.error(err);
+        } finally {
+          setIsResetting(false);
+        }
       }
     }
   };
@@ -220,6 +241,30 @@ export const BackupRestore: React.FC<BackupRestoreProps> = ({
                 <RefreshCw size={16} />
               )}
               <span>{isRebuilding ? 'REBUILDING...' : 'REBUILD CLOUD REGISTRY'}</span>
+            </button>
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-red-100 flex items-center justify-between">
+            <div className="space-y-1">
+              <h5 className="text-[10px] font-black text-red-600 uppercase tracking-widest">Fresh Start Protocol</h5>
+              <p className="text-[9px] font-bold text-bento-ink/40 uppercase tracking-wider">Wipe ALL attendance and leave history while keeping CURRENT employee list.</p>
+            </div>
+            <button 
+              onClick={handleFullReset}
+              disabled={isResetting}
+              className={cn(
+                "px-8 py-3 border-2 transition-all text-[10px] font-black uppercase tracking-widest flex items-center space-x-3",
+                isResetting 
+                  ? "border-gray-300 text-gray-400 cursor-not-allowed" 
+                  : "border-black bg-black text-white hover:bg-white hover:text-black"
+              )}
+            >
+              {isResetting ? (
+                <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+              ) : (
+                <Trash2 size={16} />
+              )}
+              <span>{isResetting ? 'PURGING DATA...' : 'WIPE ALL HISTORY'}</span>
             </button>
           </div>
         </div>

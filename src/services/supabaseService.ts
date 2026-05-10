@@ -440,5 +440,23 @@ export const supabaseService = {
     } catch (e) {
       // Silent catch for unexpected network errors
     }
+  },
+
+  async resetTransactions() {
+    // 1. Wipe Attendance
+    const { error: attError } = await supabase.from('attendance').delete().neq('employee_id', 'ALL_WIPE');
+    if (attError) throw attError;
+
+    // 2. Wipe Leave Requests
+    const { error: leaveError } = await supabase.from('leave_requests').delete().neq('employee_id', 'ALL_WIPE');
+    if (leaveError) throw leaveError;
+
+    // 3. Reset Leave Balances in Employees table
+    const { error: empError } = await supabase.from('employees').update({
+      leaves_annual_used: 0,
+      leaves_casual_used: 0,
+      leaves_medical_used: 0
+    }).neq('id', 'ALL_WIPE');
+    if (empError) throw empError;
   }
 };
