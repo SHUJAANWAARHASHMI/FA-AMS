@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Employee, AttendanceRecord } from '../../types';
 import { Search, Calendar, Award, TrendingUp, TrendingDown, Clock, CheckCircle2, XCircle, ChevronRight, User as UserIcon } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -42,15 +43,37 @@ export const EmployeePerformance: React.FC<EmployeePerformanceProps> = ({ employ
     const offDays = records.filter(r => r.status === 'Absent' || r.status === 'Leave').length;
     
     const score = totalLogs > 0 ? (onTime / totalLogs) * 100 : 0;
+    
+    // Dynamic Rating
+    let rating = 'EXCELLENT';
+    let ratingColor = 'text-emerald-600';
+    if (score < 60) { rating = 'CRITICAL'; ratingColor = 'text-rose-600'; }
+    else if (score < 75) { rating = 'NEEDS FOCUS'; ratingColor = 'text-orange-600'; }
+    else if (score < 85) { rating = 'AVERAGE'; ratingColor = 'text-indigo-600'; }
+    else if (score < 95) { rating = 'GOOD'; ratingColor = 'text-secondary'; }
 
     let streak = 0;
     const sorted = [...selectedEmployee.attendance].sort((a, b) => b.date.localeCompare(a.date));
     for (const r of sorted) {
-      if (r.status === 'Present' || r.status === 'Late') streak++;
+      if (r.status === 'Present' || r.status === 'Late') {
+        if (r.onTime) streak++;
+        else break;
+      }
       else if (r.status === 'Holiday') continue;
       else break;
     }
 
+    // Calculate Leave Summary
+    const approvedLeaves = selectedEmployee.leaveRequests?.filter(l => l.status === 'Approved') || [];
+    
+    // Detailed Leave Balances
+    const lv = selectedEmployee.leaves;
+    const leaveStats = {
+      an: { t: lv.annual.total, u: lv.annual.used, r: lv.annual.total - lv.annual.used },
+      cs: { t: lv.casual.total, u: lv.casual.used, r: lv.casual.total - lv.casual.used },
+      md: { t: lv.medical.total, u: lv.medical.used, r: lv.medical.total - lv.medical.used }
+    };
+    
     return { 
       score, 
       onTime, 
@@ -59,13 +82,113 @@ export const EmployeePerformance: React.FC<EmployeePerformanceProps> = ({ employ
       offDays,
       totalLateHours,
       totalOvertime,
-      streak, 
-      records: sorted.slice(0, 5) // Reduced to fit in compact layout
+      approvedLeaves,
+      leaveStats,
+      rating,
+      ratingColor,
+      records: sorted.slice(0, 5),
+      lateRecords: records.filter(r => r.status === 'Late').sort((a, b) => b.date.localeCompare(a.date)),
+      overtimeRecords: records.filter(r => (r.overtime || 0) > 0).sort((a, b) => b.date.localeCompare(a.date))
     };
   }, [selectedEmployee]);
 
+  const [showDetailModal, setShowDetailModal] = useState<'late' | 'overtime' | 'leaves' | null>(null);
+
   return (
     <div className="flex flex-col h-full space-y-3 animate-in fade-in duration-500 overflow-hidden p-2 sm:p-0">
+      {/* Detail Modal Overlay */}
+      <AnimatePresence>
+        {showDetailModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDetailModal(null)}
+              className="absolute inset-0 bg-primary/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden border border-border"
+            >
+              <div className="p-6 border-b border-border bg-bg flex items-center justify-between">
+                <h3 className="text-sm font-black text-primary uppercase tracking-widest flex items-center gap-2">
+                  {showDetailModal === 'late' && <Clock className="text-orange-500" size={18} />}
+                  {showDetailModal === 'overtime' && <TrendingUp className="text-secondary" size={18} />}
+                  {showDetailModal === 'leaves' && <Calendar className="text-rose-500" size={18} />}
+                  {showDetailModal === 'late' ? 'LATE ARRIVAL LOGS' : showDetailModal === 'overtime' ? 'OVERTIME CONTRIBUTION LOGS' : 'LEAVE HISTORY'}
+                </h3>
+                <button onClick={() => setShowDetailModal(null)} className="text-text-gray hover:text-primary transition-colors">
+                  <XCircle size={20} />
+                </button>
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                {showDetailModal === 'leaves' ? (
+                  <>
+                    {/* Leave Balance Summary Header */}
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      {Object.entries(performanceData?.leaveStats || {}).map(([key, stats]) => (
+                        <div key={key} className="bg-bg p-3 rounded-2xl border border-border/50 text-center">
+                          <div className="text-[8px] font-black text-text-gray uppercase mb-1">
+                            {key === 'an' ? 'Annual' : key === 'cs' ? 'Casual' : 'Medical'}
+                          </div>
+                          <div className="text-xs font-black text-indigo-600">
+                            {stats.t} / {stats.u} / {stats.r}
+                          </div>
+                          <div className="text-[6px] font-bold text-text-gray/40 uppercase mt-0.5">T / U / R</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="text-[9px] font-black text-primary uppercase tracking-widest px-1 mb-2">Usage History</h4>
+                      {performanceData?.approvedLeaves.map((leave, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-bg rounded-2xl border border-border/50">
+                          <div>
+                            <div className="text-[10px] font-black text-primary uppercase">{leave.date}</div>
+                            <div className="text-[8px] font-bold text-text-gray uppercase mt-0.5">{leave.type} LEAVE</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[10px] font-black text-rose-500 uppercase tracking-tighter">Approved</div>
+                            <div className="text-[7px] font-bold text-text-gray uppercase opacity-40">{leave.reason}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  (showDetailModal === 'late' ? performanceData?.lateRecords : performanceData?.overtimeRecords)?.map((rec, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-bg rounded-2xl border border-border/50">
+                      <div>
+                        <div className="text-[10px] font-black text-primary uppercase">{rec.date}</div>
+                        <div className="text-[8px] font-bold text-text-gray uppercase mt-0.5">
+                          {formatTo12h(rec.timeIn)} - {formatTo12h(rec.timeOut)}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={cn(
+                          "text-[10px] font-black",
+                          showDetailModal === 'late' ? "text-orange-600" : "text-secondary"
+                        )}>
+                          {showDetailModal === 'late' ? `+${rec.lateHours?.toFixed(1)}h Late` : `+${rec.overtime?.toFixed(1)}h OT`}
+                        </div>
+                        <div className="text-[7px] font-bold text-text-gray uppercase opacity-40">Verified Log</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+                {((showDetailModal === 'leaves' ? performanceData?.approvedLeaves : (showDetailModal === 'late' ? performanceData?.lateRecords : performanceData?.overtimeRecords))?.length || 0) === 0 && (
+                  <div className="py-10 text-center opacity-30">
+                    <p className="text-[10px] font-black uppercase tracking-widest">No records found for this category</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* Search Header - Ultra Compact */}
       <div className="bg-white px-4 py-2 rounded-2xl border border-border flex items-center gap-4">
         <div className="flex items-center gap-2 shrink-0 pr-4 border-r border-border">
@@ -186,30 +309,52 @@ export const EmployeePerformance: React.FC<EmployeePerformanceProps> = ({ employ
 
           {/* Stats Grid - Very Compact */}
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 shrink-0">
-            <div className="bg-white p-3 rounded-2xl border border-border text-center">
+            <div className="bg-white p-3 rounded-2xl border border-border text-center shadow-sm">
               <div className="text-base font-black text-primary">{Math.round(performanceData?.score || 0)}%</div>
               <div className="text-[7px] font-black text-text-gray uppercase tracking-widest">Punctuality</div>
             </div>
-            <div className="bg-white p-3 rounded-2xl border border-border text-center">
+            <div className="bg-white p-3 rounded-2xl border border-border text-center shadow-sm">
               <div className="text-base font-black text-emerald-600">{performanceData?.totalPresent}</div>
               <div className="text-[7px] font-black text-text-gray uppercase tracking-widest">Present Days</div>
             </div>
-            <div className="bg-white p-3 rounded-2xl border border-border text-center">
-               <div className="text-base font-black text-orange-600">{performanceData?.totalLateHours.toFixed(1)}h</div>
+            <button 
+              onClick={() => setShowDetailModal('late')}
+              className="bg-white p-3 rounded-2xl border border-border text-center shadow-sm hover:border-orange-200 hover:bg-orange-50/10 transition-all group"
+            >
+               <div className="text-base font-black text-orange-600 group-hover:scale-110 transition-transform">{performanceData?.totalLateHours.toFixed(1)}h</div>
                <div className="text-[7px] font-black text-text-gray uppercase tracking-widest">Late Hours</div>
-            </div>
-            <div className="bg-white p-3 rounded-2xl border border-border text-center">
-               <div className="text-base font-black text-secondary">{performanceData?.totalOvertime.toFixed(1)}h</div>
+            </button>
+            <button 
+              onClick={() => setShowDetailModal('overtime')}
+              className="bg-white p-3 rounded-2xl border border-border text-center shadow-sm hover:border-secondary/20 hover:bg-secondary/5 transition-all group"
+            >
+               <div className="text-base font-black text-secondary group-hover:scale-110 transition-transform">{performanceData?.totalOvertime.toFixed(1)}h</div>
                <div className="text-[7px] font-black text-text-gray uppercase tracking-widest">Overtime</div>
-            </div>
-            <div className="bg-white p-3 rounded-2xl border border-border text-center">
+            </button>
+            <div className="bg-white p-3 rounded-2xl border border-border text-center shadow-sm">
                <div className="text-base font-black text-rose-500">{performanceData?.offDays}</div>
                <div className="text-[7px] font-black text-text-gray uppercase tracking-widest">Off Days</div>
             </div>
-            <div className="bg-white p-3 rounded-2xl border border-border text-center">
-              <div className="text-base font-black text-indigo-600">{performanceData?.streak}</div>
-              <div className="text-[7px] font-black text-text-gray uppercase tracking-widest">Streak</div>
-            </div>
+            <button 
+              onClick={() => setShowDetailModal('leaves')}
+              className="bg-white p-2 rounded-2xl border border-border text-center shadow-sm hover:border-indigo-200 hover:bg-indigo-50/10 transition-all group flex flex-col justify-center items-center min-h-[58px]"
+            >
+              <div className="grid grid-cols-1 gap-0 w-full">
+                <div className="flex items-center justify-center gap-1 leading-none">
+                  <span className="text-[6px] font-black text-text-gray/40">AN:</span>
+                  <span className="text-[8px] font-black text-indigo-600">{performanceData?.leaveStats.an.t}/{performanceData?.leaveStats.an.u}/{performanceData?.leaveStats.an.r}</span>
+                </div>
+                <div className="flex items-center justify-center gap-1 leading-none mt-0.5">
+                  <span className="text-[6px] font-black text-text-gray/40">CS:</span>
+                  <span className="text-[8px] font-black text-indigo-600">{performanceData?.leaveStats.cs.t}/{performanceData?.leaveStats.cs.u}/{performanceData?.leaveStats.cs.r}</span>
+                </div>
+                <div className="flex items-center justify-center gap-1 leading-none mt-0.5">
+                  <span className="text-[6px] font-black text-text-gray/40">MD:</span>
+                  <span className="text-[8px] font-black text-indigo-600">{performanceData?.leaveStats.md.t}/{performanceData?.leaveStats.md.u}/{performanceData?.leaveStats.md.r}</span>
+                </div>
+              </div>
+              <div className="text-[6px] font-black text-text-gray uppercase tracking-tighter mt-1">Leaves (T/U/R)</div>
+            </button>
           </div>
 
           {/* Bottom Section - Split */}
@@ -219,7 +364,9 @@ export const EmployeePerformance: React.FC<EmployeePerformanceProps> = ({ employ
                <div>
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-[9px] font-black text-primary uppercase tracking-widest">Performance Score</h4>
-                    <span className="text-[9px] font-black text-emerald-600 uppercase">Excellent</span>
+                    <span className={cn("text-[9px] font-black uppercase", performanceData?.ratingColor)}>
+                      {performanceData?.rating}
+                    </span>
                   </div>
                   <div className="w-full h-2 bg-bg rounded-full overflow-hidden flex">
                     <div className="h-full bg-emerald-500" style={{ width: `${performanceData?.score}%` }} />
@@ -240,11 +387,15 @@ export const EmployeePerformance: React.FC<EmployeePerformanceProps> = ({ employ
                <div className="bg-bg/50 p-3 rounded-2xl border border-border/50 mt-4">
                   <div className="flex items-center gap-2 mb-1">
                     <TrendingUp size={12} className="text-secondary" />
-                    <span className="text-[9px] font-black text-primary uppercase">Mudeer Assessment</span>
+                    <span className="text-[9px] font-black text-primary uppercase">Recommendation</span>
                   </div>
                   <p className="text-[8px] font-medium text-text-gray italic leading-relaxed">
-                    Operative exhibits consistent arrival patterns with notable overtime contribution in the last cycle. 
-                    Recommended for efficiency bonus.
+                    {performanceData && performanceData.score > 90 
+                      ? "Operative exhibits elite sync status. Highly recommended for advancement/bonus."
+                      : performanceData && performanceData.score > 75
+                      ? "Operative maintains standard operational efficiency. Consistent patterns observed."
+                      : "Performance fluctuation detected. Direct oversight recommended for next cycle."
+                    }
                   </p>
                </div>
             </div>

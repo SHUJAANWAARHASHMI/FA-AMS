@@ -1010,27 +1010,6 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
     const activeSession = todayAttendance?.sessions?.find(s => !s.checkOut);
     return (
     <div className="flex flex-col h-full px-4 py-2 sm:hidden gap-2">
-      {/* Header Profile Section */}
-      <div className="flex items-center justify-between shrink-0 mb-1">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-primary text-white rounded-[16px] flex items-center justify-center font-bold text-base shadow-lg rotate-3">
-            {employee.name.charAt(0)}
-          </div>
-          <div>
-            <h2 className="text-base font-extrabold text-primary tracking-tight leading-none">Salam, {employee.name}</h2>
-            <div className="flex items-center space-x-2 mt-0.5">
-              <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest opacity-70 italic">Shift: {formatTo12h(employee.shiftStart)} - {formatTo12h(employee.shiftEnd)}</p>
-            </div>
-          </div>
-        </div>
-        <button 
-          onClick={onLogout}
-          className="w-9 h-9 flex items-center justify-center text-error bg-white shadow-sm border border-border rounded-xl active:scale-95 transition-all"
-        >
-          <LogOut size={16} />
-        </button>
-      </div>
-
       {/* Main Status & Clock Card */}
       <div className="flex-1 min-h-0 bg-white rounded-[24px] p-4 shadow-[0_15px_40px_rgba(0,0,0,0.04)] border border-border relative overflow-hidden group my-1 flex flex-col justify-center">
         <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12"></div>
@@ -1222,6 +1201,29 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
 
       {/* Mobile View */}
       <div className="sm:hidden flex flex-col h-full overflow-hidden bg-bg">
+        {/* Persistent Mobile Header */}
+        <div className="px-4 pt-4 pb-2 bg-white border-b border-border shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-primary text-white rounded-[16px] flex items-center justify-center font-bold text-base shadow-lg rotate-3">
+                {employee.name.charAt(0)}
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-primary tracking-tight leading-none">Salam, {employee.name}</h2>
+                <div className="flex items-center space-x-2 mt-0.5">
+                  <p className="text-[8px] font-bold text-text-gray uppercase tracking-widest opacity-70 italic">Shift: {formatTo12h(employee.shiftStart)} - {formatTo12h(employee.shiftEnd)}</p>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={onLogout}
+              className="w-10 h-10 flex items-center justify-center text-white bg-error shadow-lg shadow-error/20 rounded-xl active:scale-95 transition-all"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        </div>
+
         <div className="flex-1 overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div

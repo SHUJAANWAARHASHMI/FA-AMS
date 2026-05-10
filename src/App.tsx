@@ -66,7 +66,7 @@ const NavItem = ({ tab, icon: Icon, label, roles, userRole, activeTab, setActive
   );
 };
 
-const MainMudeerNav = ({ activeTab, setActiveTab }: { activeTab: Tab, setActiveTab: (t: Tab) => void }) => {
+const MainMudeerNav = ({ activeTab, setActiveTab, onLogout }: { activeTab: Tab, setActiveTab: (t: Tab) => void, onLogout: () => void }) => {
   const [isOpen, setIsOpen] = useState(false);
   const options: { label: string, tab: Tab, icon: any }[] = [
     { label: 'Dashboard', tab: 'dashboard', icon: LayoutDashboard },
@@ -120,6 +120,16 @@ const MainMudeerNav = ({ activeTab, setActiveTab }: { activeTab: Tab, setActiveT
                     <span className="text-[10px] font-black uppercase tracking-widest">{opt.label}</span>
                   </button>
                 ))}
+                
+                <div className="pt-2 mt-2 border-t border-border">
+                  <button
+                    onClick={() => onLogout()}
+                    className="flex items-center space-x-3 w-full px-4 py-3.5 text-left transition-all rounded-xl text-rose-500 hover:bg-rose-50 group"
+                  >
+                    <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Logout System</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>
@@ -392,7 +402,7 @@ export default function App() {
                    <div className="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center font-bold shadow-lg">
                       <ShieldCheck size={24} />
                    </div>
-                   <MainMudeerNav activeTab={activeTab} setActiveTab={setActiveTab} />
+                   <MainMudeerNav activeTab={activeTab} setActiveTab={setActiveTab} onLogout={logout} />
                 </div>
              )}
               
@@ -458,7 +468,7 @@ export default function App() {
                 <button 
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                   className={cn(
-                    "relative w-11 h-11 flex items-center justify-center rounded-xl transition-all border",
+                    "relative w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-xl transition-all border",
                     isNotificationsOpen ? "bg-secondary/5 border-secondary/20 text-secondary" : "bg-white border-border text-text-gray hover:bg-bg"
                   )}
                 >
@@ -473,28 +483,38 @@ export default function App() {
               </div>
 
               {/* User Profile */}
-              <div className="flex items-center pl-6 border-l border-border ml-2">
-                <div className="flex items-center space-x-3 mr-4">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-sm font-extrabold text-primary tracking-tight leading-none">{currentUser?.name || 'User'}</p>
-                    <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mt-1">
-                      {isEmployeePortal ? 'STAFF' : (currentUser as User)?.role?.toUpperCase() || 'USER'}
-                    </p>
-                  </div>
-                  <div className="relative">
-                    <div className="w-12 h-12 bg-secondary text-white rounded-xl flex items-center justify-center font-bold text-lg shadow-lg shadow-secondary/20 overflow-hidden">
-                       <span className="relative z-10">{currentUser?.name?.charAt(0) || '?'}</span>
-                       <div className="absolute inset-0 bg-gradient-to-tr from-secondary to-secondary-dark opacity-50" />
+                <div className="flex items-center pl-3 sm:pl-6 border-l border-border ml-1 sm:ml-2">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mr-2 sm:mr-4">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-sm font-extrabold text-primary tracking-tight leading-none">{currentUser?.name || 'User'}</p>
+                      <p className="text-[10px] font-bold text-text-gray uppercase tracking-widest mt-1">
+                        {isEmployeePortal ? 'STAFF' : (currentUser as User)?.role?.toUpperCase() || 'USER'}
+                      </p>
+                    </div>
+                    <div className="relative">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-secondary text-white rounded-xl flex items-center justify-center font-bold text-base sm:text-lg shadow-lg shadow-secondary/20 overflow-hidden">
+                         <span className="relative z-10">{currentUser?.name?.charAt(0) || '?'}</span>
+                         <div className="absolute inset-0 bg-gradient-to-tr from-secondary to-secondary-dark opacity-50" />
+                      </div>
                     </div>
                   </div>
+                  
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <div className="h-10 px-3 bg-accent/50 border border-secondary/10 rounded-xl hidden md:flex gap-2 items-center text-primary">
+                        <Building2 size={16} />
+                        <span className="text-xs font-bold uppercase tracking-widest">{currentUser?.campus || 'Main Campus'}</span>
+                        <ChevronDown size={14} className="text-text-gray" />
+                    </div>
+
+                    <button 
+                      onClick={logout}
+                      className="w-10 h-10 flex items-center justify-center bg-error text-white sm:bg-error/5 sm:text-error rounded-xl border border-error/10 transition-all active:scale-95 group shadow-lg shadow-error/20 sm:shadow-none"
+                      title="Logout System"
+                    >
+                      <LogOut size={18} className="sm:group-hover:-translate-x-0.5 transition-transform" />
+                    </button>
+                  </div>
                 </div>
-                
-                <div className="h-11 px-4 bg-accent/50 border border-secondary/10 rounded-xl flex gap-2 items-center text-primary">
-                    <Building2 size={16} />
-                    <span className="text-xs font-bold uppercase tracking-widest">{currentUser?.campus || 'Main Campus'}</span>
-                    <ChevronDown size={14} className="text-text-gray" />
-                </div>
-              </div>
             </div>
           </div>
         </header>
