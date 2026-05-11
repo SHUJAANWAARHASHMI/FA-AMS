@@ -96,10 +96,10 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
 
   // Precise Campus Locations updated based on user provided links and reported location
   const CAMPUS_LOCATIONS: Record<string, { lat: number, lng: number, radius: number }> = {
-    'Main Campus': { lat: 24.9265, lng: 67.1256, radius: 800 },   // Block 13-C, Gulistan-e-Johar
-    'Johar Campus': { lat: 24.9308, lng: 67.1247, radius: 800 },  // Block 14, Gulistan-e-Johar (based on user's detected location)
-    'Masjid Campus': { lat: 24.8988, lng: 67.0872, radius: 800 }, // Reported address area
-    'Maktab Campus': { lat: 24.9265, lng: 67.1256, radius: 800 }, // Often same/adjacent to Main Campus
+    'Main Campus': { lat: 24.9265, lng: 67.1256, radius: 1200 },   // Block 13-C, Gulistan-e-Johar
+    'Johar Campus': { lat: 24.9308, lng: 67.1247, radius: 1200 },  // Block 14, Gulistan-e-Johar
+    'Masjid Campus': { lat: 24.8988, lng: 67.0872, radius: 1200 }, // Reported address area
+    'Maktab Campus': { lat: 24.9265, lng: 67.1256, radius: 1200 }, // Often same/adjacent to Main Campus
   };
 
   const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -204,7 +204,8 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
         if (!validCampusObj) {
           const errorMsg = `LOCATION ERROR: Outside Campus Boundaries.\n\n` +
                           `Detected: ${userLat.toFixed(5)}, ${userLng.toFixed(5)}\n\n` +
-                          `HINT: You must be within 800m of a campus. Currently you are outside verified zones.\n\n` +
+                          `HINT: You must be within 1.2km of a verified campus. You can mark attendance at ANY of the four campuses.\n\n` +
+                          `Nearest campus is ${minDistance > 5000 ? 'too far' : Math.round(minDistance) + 'm away'}.\n\n` +
                           `Try standing near a window or outdoors for better GPS accuracy.`;
                         
           alert(errorMsg);

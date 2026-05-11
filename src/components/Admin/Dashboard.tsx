@@ -202,7 +202,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ employees, user, onUp
             name: emp.name,
             time: att.timeIn,
             type: att.status,
-            campus: emp.campus
+            campus: att.campusName || emp.campus
           });
         }
       });
