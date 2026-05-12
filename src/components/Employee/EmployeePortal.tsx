@@ -95,11 +95,12 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
   });
 
   // Precise Campus Locations updated based on user provided links and reported location
+  // Increased radius to 15km (15000m) to ensure absolute reliability for all users even with low GPS accuracy
   const CAMPUS_LOCATIONS: Record<string, { lat: number, lng: number, radius: number }> = {
-    'Main Campus': { lat: 24.9265, lng: 67.1256, radius: 1200 },   // Block 13-C, Gulistan-e-Johar
-    'Johar Campus': { lat: 24.9308, lng: 67.1247, radius: 1200 },  // Block 14, Gulistan-e-Johar
-    'Masjid Campus': { lat: 24.8988, lng: 67.0872, radius: 1200 }, // Reported address area
-    'Maktab Campus': { lat: 24.9265, lng: 67.1256, radius: 1200 }, // Often same/adjacent to Main Campus
+    'Main Campus': { lat: 24.9265, lng: 67.1256, radius: 15000 },   // Block 13-C, Gulistan-e-Johar
+    'Johar Campus': { lat: 24.9308, lng: 67.1247, radius: 15000 },  // Block 14, Gulistan-e-Johar
+    'Masjid Campus': { lat: 24.8988, lng: 67.0872, radius: 15000 }, // Reported address area
+    'Maktab Campus': { lat: 24.9265, lng: 67.1256, radius: 15000 }, // Often same/adjacent to Main Campus
   };
 
   const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -124,6 +125,7 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
     
     let userLat: number | undefined;
     let userLng: number | undefined;
+    let userAccuracy: number | undefined;
     let detectedCampus: string = employee.campus;
     let validCampusObj: any = null;
 
@@ -186,27 +188,37 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
 
         userLat = position.coords.latitude;
         userLng = position.coords.longitude;
+        userAccuracy = position.coords.accuracy;
         
         // Find if user is within radius of ANY campus
         let minDistance = Infinity;
+        let nearestCampusName = '';
 
         Object.entries(CAMPUS_LOCATIONS).forEach(([name, config]) => {
           const d = getDistance(userLat!, userLng!, config.lat, config.lng);
+          
+          // Track overall nearest regardless of radius
+          if (d < minDistance) {
+            minDistance = d;
+            nearestCampusName = name;
+          }
+
           if (d <= config.radius) {
-            if (!validCampusObj || d < minDistance) {
+            if (!validCampusObj || d < (validCampusObj.distance || Infinity)) {
               validCampusObj = { name, distance: d, config };
-              minDistance = d;
               detectedCampus = name;
             }
           }
         });
         
         if (!validCampusObj) {
-          const errorMsg = `LOCATION ERROR: Outside Campus Boundaries.\n\n` +
-                          `Detected: ${userLat.toFixed(5)}, ${userLng.toFixed(5)}\n\n` +
-                          `HINT: You must be within 1.2km of a verified campus. You can mark attendance at ANY of the four campuses.\n\n` +
-                          `Nearest campus is ${minDistance > 5000 ? 'too far' : Math.round(minDistance) + 'm away'}.\n\n` +
-                          `Try standing near a window or outdoors for better GPS accuracy.`;
+          const errorMsg = `LOCATION SECURITY PROTOCOL ERROR\n\n` +
+                          `Detected Coords: ${userLat.toFixed(6)}, ${userLng.toFixed(6)}\n` +
+                          `Signal Accuracy: ±${Math.round(userAccuracy || 0)}m\n\n` +
+                          `Nearest Campus: ${nearestCampusName}\n` +
+                          `Current Distance: ${Math.round(minDistance)}m\n` +
+                          `Allowed Radius: 15000m\n\n` +
+                          `SECURITY HINT: You are physically too far from the verified campus zones. Please move closer to the campus building or try again outdoors for better GPS accuracy.`;
                         
           alert(errorMsg);
           setIsLoading(false);
