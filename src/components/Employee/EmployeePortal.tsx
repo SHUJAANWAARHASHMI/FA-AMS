@@ -95,12 +95,12 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
   });
 
   // Precise Campus Locations updated based on user provided links and reported location
-  // Increased radius to 15km (15000m) to ensure absolute reliability for all users even with low GPS accuracy
+  // Set to 500m radius as requested by user.
   const CAMPUS_LOCATIONS: Record<string, { lat: number, lng: number, radius: number }> = {
-    'Main Campus': { lat: 24.9265, lng: 67.1256, radius: 15000 },   // Block 13-C, Gulistan-e-Johar
-    'Johar Campus': { lat: 24.9308, lng: 67.1247, radius: 15000 },  // Block 14, Gulistan-e-Johar
-    'Masjid Campus': { lat: 24.8988, lng: 67.0872, radius: 15000 }, // Reported address area
-    'Maktab Campus': { lat: 24.9265, lng: 67.1256, radius: 15000 }, // Often same/adjacent to Main Campus
+    'Main Campus': { lat: 24.9265, lng: 67.1256, radius: 500 },   // Block 13-C, Gulistan-e-Johar
+    'Johar Campus': { lat: 24.9308, lng: 67.1247, radius: 500 },  // Block 14, Gulistan-e-Johar
+    'Masjid Campus': { lat: 24.8988, lng: 67.0872, radius: 500 }, // Reported address area
+    'Maktab Campus': { lat: 24.9265, lng: 67.1256, radius: 500 }, // Often same/adjacent to Main Campus
   };
 
   const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -212,15 +212,24 @@ export const EmployeePortal: React.FC<EmployeePortalProps> = ({
         });
         
         if (!validCampusObj) {
+          const distances = Object.entries(CAMPUS_LOCATIONS).map(([name, config]) => {
+            const d = getDistance(userLat!, userLng!, config.lat, config.lng);
+            return `${name}: ${Math.round(d)}m`;
+          }).join('\n');
+
           const errorMsg = `LOCATION SECURITY PROTOCOL ERROR\n\n` +
                           `Detected Coords: ${userLat.toFixed(6)}, ${userLng.toFixed(6)}\n` +
                           `Signal Accuracy: ±${Math.round(userAccuracy || 0)}m\n\n` +
-                          `Nearest Campus: ${nearestCampusName}\n` +
-                          `Current Distance: ${Math.round(minDistance)}m\n` +
-                          `Allowed Radius: 15000m\n\n` +
-                          `SECURITY HINT: You are physically too far from the verified campus zones. Please move closer to the campus building or try again outdoors for better GPS accuracy.`;
+                          `DISTANCE TO CAMPUSES:\n${distances}\n\n` +
+                          `PROTOCOL: You must be within 500m of ANY campus to mark attendance.\n\n` +
+                          `HINT: If you are at a campus but see large distances above, your device's GPS signal is weak or inaccurate. Try standing near a window or outdoors.`;
                         
           alert(errorMsg);
+          setLocationError({ 
+            code: 0, 
+            message: 'Campus Boundary Error', 
+            hint: `You are too far from the campus zones. Nearest detected distance was ${Math.round(minDistance)}m. Distances: ${distances.replace(/\n/g, ', ')}` 
+          });
           setIsLoading(false);
           return;
         }
